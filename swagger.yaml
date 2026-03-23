@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: swagger
+  version: 1.0.0
+paths:
+  /api/users:
+    get:
+      summary: Fetch User List
+      operationId: >-
+        home_aditya-bachawad_desktop_projects_sdcms_backend_bruno_authentication_fetch_user_list_yml
+      description: ''
+      tags:
+        - ''
+      responses:
+        '200':
+          description: ''
+      servers:
+        - url: http://localhost:500
+servers: []
+components:
+  schemas: {}
+  requestBodies: {}
+  securitySchemes: {}
