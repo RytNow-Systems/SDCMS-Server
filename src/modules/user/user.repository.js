@@ -1,4 +1,4 @@
-const pool = require('./index');
+const pool = require('../../infrastructure/database/db');
 
 async function getUsers() {
   // const [rows] = await pool.query('CALL get_users()');

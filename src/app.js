@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const swaggerUI = require('swagger-ui-express');
 const YAML = require('yamljs')
-const userRoutes = require('./routes/user.routes');
+const userRoutes = require('./interfaces/http/routes/user.routes');
 
 // Loading OpenAPI Spec
 const swaggerDocument = YAML.load('./swagger.yaml');
