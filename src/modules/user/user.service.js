@@ -1,4 +1,4 @@
-const userDB = require('../db/user.db');
+const userDB = require('../../modules/user/user.repository');
 
 async function getAllUsers() {
   const users = await userDB.getUsers();
