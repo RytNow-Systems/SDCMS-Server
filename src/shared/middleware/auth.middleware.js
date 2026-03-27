@@ -1,0 +1,47 @@
+import jwt from 'jsonwebtoken';
+import userRepository from '../../modules/user/user.repository.js';
+
+export const protect = async (req, res, next) => {
+  let token;
+
+  // 1. Check if token exists in headers
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      // 2. Extract token
+      token = req.headers.authorization.split(' ')[1];
+
+      // 3. Verify token using your secret key
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // 4. Fetch user from MySQL via the Repository (excluding password)
+      // Make sure your sp_get_user_by_id doesn't return the password!
+      const user = await userRepository.findById(decoded.id);
+
+      if (!user) {
+        res.status(401);
+        throw new Error('Not authorized, user not found');
+      }
+
+      // 5. Attach user to the request object
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error(error);
+      res.status(401);
+      next(new Error('Not authorized, token failed'));
+    }
+  } else {
+    res.status(401);
+    next(new Error('Not authorized, no token'));
+  }
+};
+
+// Admin middleware (Assuming MySQL returns an 'is_admin' boolean or 1/0)
+export const admin = (req, res, next) => {
+  if (req.user && req.user.is_admin) {
+    next();
+  } else {
+    res.status(401);
+    next(new Error('Not authorized as an admin'));
+  }
+};

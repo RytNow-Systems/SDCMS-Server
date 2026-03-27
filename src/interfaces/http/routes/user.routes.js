@@ -1,7 +1,15 @@
-const express = require('express');
+import express from 'express';
+import { login, register, getUserProfile } from '../controllers/user.controller.js';
+import { protect } from '../../../shared/middleware/auth.middleware.js';
+
 const router = express.Router();
-const userController = require('../controllers/user.controller');
 
-router.get('/users', userController.getUsers);
+// Public Routes
+router.post('/login', login);
+router.post('/register', register);
 
-module.exports = router;
+// Protected Routes (Require Token)
+// Notice how we put the 'protect' middleware before the controller function
+router.get('/profile', protect, getUserProfile);
+
+export default router;
