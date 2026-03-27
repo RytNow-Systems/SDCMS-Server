@@ -3,6 +3,19 @@ info:
   title: swagger
   version: 1.0.0
 paths:
+  /api/users/profile:
+    get:
+      summary: Get User Profile
+      operationId: >-
+        home_aditya-bachawad_desktop_projects_sdcms_backend_bruno_authentication_get_user_profile_yml
+      description: ''
+      tags:
+        - ''
+      responses:
+        '200':
+          description: ''
+      servers:
+        - url: http://localhost:5000
   /api/users/login:
     post:
       summary: Login Users
