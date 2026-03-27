@@ -1,6 +1,7 @@
 {
   "name": "sdcms-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "Node Backend server for the Smart Dispatch and Courier Management System",
   "main": "index.js",
   "scripts": {
@@ -8,7 +9,9 @@
     "setup": "npm install",
     "clean": "rm -rf node_modules package-lock.json",
     "reinstall": "npm run clean && npm install",
-    "check:env": "node -e \"If(!process.version.startsWith('v24')){console.error('!!! Use Node 24');process.exit(1)} else {console.log('Node Version OK')}\""
+    "check:env": "node -e \"If(!process.version.startsWith('v24')){console.error('!!! Use Node 24');process.exit(1)} else {console.log('Node Version OK')}\"",
+    "start": "node src/server.js",
+    "server": "nodemon src/server.js"
   },
   "repository": {
     "type": "git",
@@ -21,11 +24,17 @@
   "author": "Aditya Bachawad",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "express-async-handler": "^1.2.0",
+    "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.20.0",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

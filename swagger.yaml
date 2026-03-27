@@ -3,21 +3,75 @@ info:
   title: swagger
   version: 1.0.0
 paths:
-  /api/users:
-    get:
-      summary: Fetch User List
+  /api/users/login:
+    post:
+      summary: Login Users
       operationId: >-
-        home_aditya-bachawad_desktop_projects_sdcms_backend_bruno_authentication_fetch_user_list_yml
+        home_aditya-bachawad_desktop_projects_sdcms_backend_bruno_authentication_login_users_yml
       description: ''
       tags:
         - ''
       responses:
         '200':
           description: ''
+      requestBody:
+        $ref: '#/components/requestBodies/login_users'
       servers:
-        - url: http://localhost:500
+        - url: http://localhost:5000
+  /api/users/register:
+    post:
+      summary: Register User
+      operationId: >-
+        home_aditya-bachawad_desktop_projects_sdcms_backend_bruno_authentication_register_user_yml
+      description: ''
+      tags:
+        - ''
+      responses:
+        '200':
+          description: ''
+      requestBody:
+        $ref: '#/components/requestBodies/register_user'
+      servers:
+        - url: http://localhost:5000
 servers: []
 components:
-  schemas: {}
-  requestBodies: {}
+  schemas:
+    login_users:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      example:
+        email: admin@example.com
+        password: '123456'
+    register_user:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      example:
+        name: Test Driver
+        email: driver@example.com
+        password: mysecretpassword123
+  requestBodies:
+    login_users:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/login_users'
+      description: ''
+      required: true
+    register_user:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/register_user'
+      description: ''
+      required: true
   securitySchemes: {}

@@ -1,4 +1,8 @@
-const app = require('./app');
+import dotenv from 'dotenv';
+import app from './app.js'; // Don't forget the .js extension!
+
+// Load environment variables immediately
+dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 
