@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import swaggerUI from 'swagger-ui-express';
 import yaml from 'yamljs';
 
 // Import Domain Routes (Note the mandatory .js extension)
@@ -9,8 +8,6 @@ import userRoutes from './interfaces/http/routes/user.routes.js';
 // Import Error Middlewares
 import { notFound, errorHandler } from './shared/middleware/error.middleware.js';
 
-// Loading OpenAPI Spec
-const swaggerDocument = yaml.load('./swagger.yaml');
 
 // running server
 const app = express();
