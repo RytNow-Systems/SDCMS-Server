@@ -15,7 +15,7 @@ paths:
         '200':
           description: ''
       servers:
-        - url: http://localhost:5000
+        - url: http://localhost:5001
   /api/users/login:
     post:
       summary: Login Users
@@ -30,7 +30,7 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/login_users'
       servers:
-        - url: http://localhost:5000
+        - url: http://localhost:5001
   /api/users/register:
     post:
       summary: Register User
@@ -45,7 +45,7 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/register_user'
       servers:
-        - url: http://localhost:5000
+        - url: http://localhost:5001
 servers: []
 components:
   schemas:
