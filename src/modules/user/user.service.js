@@ -12,6 +12,7 @@ class UserService {
         id: user.id, // MySQL usually uses 'id' instead of Mongoose's '_id'
         name: user.name,
         email: user.email,
+        role: user.role,
         token: generateToken(user.id),
       };
     } else {
@@ -46,6 +47,7 @@ class UserService {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
+        role: newUser.role,
         token: generateToken(newUser.id),
       };
     } else {

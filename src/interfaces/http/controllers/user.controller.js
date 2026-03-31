@@ -42,7 +42,7 @@ export const getUserProfile = async (req, res, next) => {
       id: req.user.id,
       name: req.user.name,
       email: req.user.email,
-      is_admin: req.user.is_admin,
+      role: req.user.role,
     });
   } catch (error) {
     next(error);
