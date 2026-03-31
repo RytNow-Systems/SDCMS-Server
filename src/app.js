@@ -4,6 +4,7 @@ import yaml from 'yamljs';
 
 // Import Domain Routes (Note the mandatory .js extension)
 import userRoutes from './interfaces/http/routes/user.routes.js';
+import orderRoutes from './interfaces/http/routes/order.routes.js';
 
 // Import Error Middlewares
 import { notFound, errorHandler } from './shared/middleware/error.middleware.js';
@@ -24,9 +25,10 @@ app.use(express.urlencoded({ extended: true }));
 // ----------------------------------------------------
 // Standard practice: group routes by their domain module
 app.use('/api/users', userRoutes);
+app.use('/api/orders', orderRoutes);
 
-// Swagger Documentation
-app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
+// SwaggerUI Documentation
+// app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
 
 // ----------------------------------------------------
 // Error Middlewares (MUST BE ABSOLUTE LAST)
