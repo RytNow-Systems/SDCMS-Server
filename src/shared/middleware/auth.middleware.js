@@ -36,12 +36,14 @@ export const protect = async (req, res, next) => {
   }
 };
 
-// Admin middleware (Assuming MySQL returns an 'is_admin' boolean or 1/0)
-export const admin = (req, res, next) => {
-  if (req.user && req.user.is_admin) {
+// Flexible Role-Based Access Control (RBAC)
+export const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      res.status(403); // Forbidden
+      return next(new Error(`User role '${req.user ? req.user.role : 'GUEST'}' is not authorized for this route`));
+    }
     next();
-  } else {
-    res.status(401);
-    next(new Error('Not authorized as an admin'));
-  }
+  };
 };
+

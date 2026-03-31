@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication - API Documentation</title>
+    <style>
+        body { margin: 0; padding: 0; }
+        #opencollection-container { width: 100vw; height: 100vh; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
+    <script src="https://cdn.opencollection.com/docs.js"></script>
+</head>
+<body>
+    <div id="opencollection-container"></div>
+    <script>
+        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Authentication\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Login Users\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/api/users/login'\n      body:\n        type: json\n        data: |-\n          {\n            \"email\":\"operator@example.com\",\n            \"password\":\"123456\"\n          }\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: Register New User\n      type: http\n      seq: 2\n    http:\n      method: POST\n      url: '{{base_url}}/api/users/register'\n      body:\n        type: json\n        data: |-\n          {\n            \"name\": \"Aditya\",\n            \"email\": \"aditya@example.com\",\n            \"password\": \"123456\"\n          }\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: USER Profile @private\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/api/users/profile'\n      auth:\n        type: bearer\n        token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiaWF0IjoxNzc0OTMzNjEwLCJleHAiOjE3NzUwMjAwMTB9.OrIIhmuWZmkTOD4N1eakhI85va0rSHtu64X7iliRaMA\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-03-31T05:30:27.205Z'\n    exportedUsing: Bruno/3.2.0\n";
+        new window.OpenCollection({
+            target: document.getElementById('opencollection-container'),
+            opencollection: collectionData,
+            theme: 'light'
+        });
+    </script>
+</body>
+</html>
