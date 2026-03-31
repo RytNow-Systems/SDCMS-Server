@@ -3,24 +3,11 @@ info:
   title: swagger
   version: 1.0.0
 paths:
-  /api/users/profile:
-    get:
-      summary: Get User Profile
-      operationId: >-
-        home_aditya-bachawad_desktop_projects_sdcms_backend_bruno_authentication_get_user_profile_yml
-      description: ''
-      tags:
-        - ''
-      responses:
-        '200':
-          description: ''
-      servers:
-        - url: http://localhost:5001
-  /api/users/login:
+  '{{base_url}}/api/users/login':
     post:
       summary: Login Users
       operationId: >-
-        home_aditya-bachawad_desktop_projects_sdcms_backend_bruno_authentication_login_users_yml
+        home_aditya-bachawad_documents_bruno_sdcms_-_server_sdcms_-_server_collections_authentication_login_users_yml
       description: ''
       tags:
         - ''
@@ -29,13 +16,11 @@ paths:
           description: ''
       requestBody:
         $ref: '#/components/requestBodies/login_users'
-      servers:
-        - url: http://localhost:5001
-  /api/users/register:
+  '{{base_url}}/api/users/register':
     post:
-      summary: Register User
+      summary: Register New User
       operationId: >-
-        home_aditya-bachawad_desktop_projects_sdcms_backend_bruno_authentication_register_user_yml
+        home_aditya-bachawad_documents_bruno_sdcms_-_server_sdcms_-_server_collections_authentication_register_new_user_yml
       description: ''
       tags:
         - ''
@@ -43,9 +28,20 @@ paths:
         '200':
           description: ''
       requestBody:
-        $ref: '#/components/requestBodies/register_user'
-      servers:
-        - url: http://localhost:5001
+        $ref: '#/components/requestBodies/register_new_user'
+  '{{base_url}}/api/users/profile':
+    get:
+      summary: USER Profile @private
+      operationId: >-
+        home_aditya-bachawad_documents_bruno_sdcms_-_server_sdcms_-_server_collections_authentication_user_profile_private_yml
+      description: ''
+      tags:
+        - ''
+      responses:
+        '200':
+          description: ''
+      security:
+        - user_profile_private: []
 servers: []
 components:
   schemas:
@@ -57,9 +53,9 @@ components:
         password:
           type: string
       example:
-        email: admin@example.com
+        email: operator@example.com
         password: '123456'
-    register_user:
+    register_new_user:
       type: object
       properties:
         name:
@@ -69,9 +65,9 @@ components:
         password:
           type: string
       example:
-        name: Test Driver
-        email: driver@example.com
-        password: mysecretpassword123
+        name: Aditya
+        email: aditya@example.com
+        password: '123456'
   requestBodies:
     login_users:
       content:
@@ -80,11 +76,14 @@ components:
             $ref: '#/components/schemas/login_users'
       description: ''
       required: true
-    register_user:
+    register_new_user:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/register_user'
+            $ref: '#/components/schemas/register_new_user'
       description: ''
       required: true
-  securitySchemes: {}
+  securitySchemes:
+    user_profile_private:
+      type: http
+      scheme: bearer
