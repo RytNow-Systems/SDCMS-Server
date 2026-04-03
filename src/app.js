@@ -24,8 +24,8 @@ app.use(express.urlencoded({ extended: true }));
 // Application Routes
 // ----------------------------------------------------
 // Standard practice: group routes by their domain module
-app.use('/api/users', userRoutes);
-app.use('/api/orders', orderRoutes);
+app.use('/api/v1/auth', userRoutes);
+app.use('/api/v1/orders', orderRoutes);
 
 // SwaggerUI Documentation
 // app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));

@@ -11,7 +11,8 @@
     "reinstall": "npm run clean && npm install",
     "check:env": "node -e \"If(!process.version.startsWith('v24')){console.error('!!! Use Node 24');process.exit(1)} else {console.log('Node Version OK')}\"",
     "start": "node src/server.js",
-    "server": "nodemon --ext js,yaml src/server.js"
+    "server": "nodemon --ext js,yaml src/server.js",
+    "seed": "node src/infrastructure/database/seeders.js"
   },
   "repository": {
     "type": "git",
