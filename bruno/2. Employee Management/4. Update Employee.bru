@@ -1,0 +1,27 @@
+meta {
+  name: Update Employee
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/employees/{{createdEmployeeId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Ravi Kumar Updated"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.success: isTruthy
+  res.body.data.name: eq Ravi Kumar Updated
+}

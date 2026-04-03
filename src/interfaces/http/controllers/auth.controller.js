@@ -1,4 +1,4 @@
-import userService from '../../../modules/user/user.service.js';
+import authService from '../../../modules/auth/auth.service.js';
 
 // @desc    Auth user & get token
 // @route   POST /api/users/login
@@ -8,7 +8,7 @@ export const login = async (req, res, next) => {
     const { email, password } = req.body;
     
     // Pass the payload to the service
-    const result = await userService.loginUser(email, password);
+    const result = await authService.loginUser(email, password);
     
     // Return HTTP response wrapped in success envelope
     res.json({

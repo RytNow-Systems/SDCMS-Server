@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import userRepository from '../../modules/user/user.repository.js';
+import employeeRepository from '../../modules/employee/employee.repository.js';
 
 export const protect = async (req, res, next) => {
   let token;
@@ -15,7 +15,7 @@ export const protect = async (req, res, next) => {
 
       // 4. Fetch user from MySQL via the Repository (excluding password)
       // Make sure your sp_get_user_by_id doesn't return the password!
-      const user = await userRepository.findById(decoded.id);
+      const user = await employeeRepository.findById(decoded.id);
 
       if (!user) {
         res.status(401);
