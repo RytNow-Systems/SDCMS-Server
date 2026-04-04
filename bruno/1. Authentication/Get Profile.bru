@@ -1,0 +1,22 @@
+meta {
+  name: Get Profile
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/auth/profile
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.success: isTruthy
+  res.body.data.email: isDefined
+  res.body.data.role: isDefined
+}

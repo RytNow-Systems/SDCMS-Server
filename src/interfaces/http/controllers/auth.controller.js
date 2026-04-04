@@ -1,4 +1,4 @@
-import userService from '../../../modules/user/user.service.js';
+import authService from '../../../modules/auth/auth.service.js';
 
 // @desc    Auth user & get token
 // @route   POST /api/users/login
@@ -8,27 +8,19 @@ export const login = async (req, res, next) => {
     const { email, password } = req.body;
     
     // Pass the payload to the service
-    const result = await userService.loginUser(email, password);
+    const result = await authService.loginUser(email, password);
     
-    // Return HTTP response
-    res.json(result);
+    // Return HTTP response wrapped in success envelope
+    res.json({
+      success: true,
+      data: result
+    });
   } catch (error) {
     // If the service throws an error (e.g., "Invalid credentials"), pass it to error middleware
     next(error); 
   }
 };
 
-// @desc    Register a new user
-// @route   POST /api/users/register
-// @access  Public
-export const register = async (req, res, next) => {
-  try {
-    const result = await userService.registerUser(req.body);
-    res.status(201).json(result);
-  } catch (error) {
-    next(error);
-  }
-};
 
 // Example of a Protected Route Controller
 // @desc    Get user profile
@@ -39,10 +31,14 @@ export const getUserProfile = async (req, res, next) => {
     // req.user is set by your auth.middleware.js!
     // Simply return it.
     res.json({
-      id: req.user.id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
+      success: true,
+      data: {
+        id: req.user.id,
+        employeeCode: req.user.employeeCode || `EMP00${req.user.id}`, // Mock or from DB
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role,
+      }
     });
   } catch (error) {
     next(error);
