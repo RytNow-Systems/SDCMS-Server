@@ -6,10 +6,10 @@ import authService from '../../../modules/auth/auth.service.js';
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    
+
     // Pass the payload to the service
     const result = await authService.loginUser(email, password);
-    
+
     // Return HTTP response wrapped in success envelope
     res.json({
       success: true,
@@ -17,7 +17,7 @@ export const login = async (req, res, next) => {
     });
   } catch (error) {
     // If the service throws an error (e.g., "Invalid credentials"), pass it to error middleware
-    next(error); 
+    next(error);
   }
 };
 

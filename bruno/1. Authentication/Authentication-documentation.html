@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication - API Documentation</title>
+    <style>
+        body { margin: 0; padding: 0; }
+        #opencollection-container { width: 100vw; height: 100vh; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
+    <script src="https://cdn.opencollection.com/docs.js"></script>
+</head>
+<body>
+    <div id="opencollection-container"></div>
+    <script>
+        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Authentication\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Login Users\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/auth/login'\n      body:\n        type: json\n        data: |-\n          {\n            \"email\":\"admin@example.com\",\n            \"password\":\"securePass123\"\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.token\n          operator: isDefined\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: USER Profile @private\n      type: http\n      seq: 2\n    http:\n      method: GET\n      url: '{{base_url}}/auth/profile'\n      auth:\n        type: bearer\n        token: {{token}}\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-06T06:38:20.068Z'\n    exportedUsing: Bruno/3.2.2\n";
+        new window.OpenCollection({
+            target: document.getElementById('opencollection-container'),
+            opencollection: collectionData,
+            theme: 'light'
+        });
+    </script>
+</body>
+</html>
