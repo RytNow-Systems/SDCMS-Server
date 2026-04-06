@@ -43,16 +43,12 @@ class CourierService {
   }
 
   async deleteCourier(id) {
-    // Make sure it exists first
-    await this.getCourierById(id);
-
     // Business Rule checking - in production, verify courier isn't linked to active orders
     // before allowing even a soft delete.
-
     const success = await courierRepository.delete(id);
     if (!success) {
-      const error = new Error("Failed to delete courier partner");
-      error.statusCode = 500;
+      const error = new Error("Courier partner not found");
+      error.statusCode = 404;
       throw error;
     }
 
