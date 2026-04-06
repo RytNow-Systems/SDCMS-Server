@@ -10,8 +10,8 @@ import courierService from '../../../modules/courier/courier.service.js';
 // @access  Private/Admin,Operator,Courier
 export const getCouriers = async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 20);
     const search = req.query.search || '';
 
     const couriers = await courierService.getCouriers(page, limit, search);
