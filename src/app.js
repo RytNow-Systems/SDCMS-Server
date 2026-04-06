@@ -5,6 +5,7 @@ import yaml from 'yamljs';
 // Import Domain Routes (Note the mandatory .js extension)
 import authRoutes from './interfaces/http/routes/auth.routes.js';
 import employeeRoutes from './interfaces/http/routes/employee.routes.js';
+import courierRoutes from './interfaces/http/routes/courier.routes.js';
 import orderRoutes from './interfaces/http/routes/order.routes.js';
 
 // Import Error Middlewares
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 // Standard practice: group routes by their domain module
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/employees', employeeRoutes);
+app.use('/api/v1/courier-partners', courierRoutes);
 app.use('/api/v1/orders', orderRoutes);
 
 // SwaggerUI Documentation
