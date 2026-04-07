@@ -1,0 +1,28 @@
+meta {
+  name: Update Product
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/products/{{createdProductId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "materialName": "Tussar Silk Saree",
+    "materialRate": 3000.00
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.success: isTruthy
+  res.body.data.materialName: eq "Tussar Silk Saree"
+}
