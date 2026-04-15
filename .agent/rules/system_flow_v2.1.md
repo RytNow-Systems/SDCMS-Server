@@ -89,7 +89,7 @@ This is the heart of the system. An Operator creates a complex order in a single
 
 **Table hit:** **`parcel_details`** This happens **automatically**. **1 receiver = 1 parcel**.
 
-- `QRCode` → System-generated unique string.
+- `parcel_id` → System-generated unique string (Frontend uses this to visually render the QR code).
 - `TrackingNo` → **NULL** (courier provides this later).
 - `FkParcelStatusId` → Maps to **"Pending"** via `lu_details`.
 - `LabelPrintCount` → Starts at 0.
@@ -121,7 +121,7 @@ The order is planned. Now the operator prints physical labels.
 
 **Tables hit:** **`parcel_details`** + **`receiver_status_details`** _Note: The old `parcel_label_print_log` table was deleted. Logs are now unified._
 
-1. **Fetch Data:** The system pulls the QR code, sender snapshot, and structured receiver address (`prc_GetLabelData`).
+1. **Fetch Data:** The system pulls the `parcel_id`, sender snapshot, and structured receiver address (`prc_GetLabelData`).
 2. **Update Parcel:** Increments `LabelPrintCount` by 1 and updates status to **"Label Printed"**.
 3. **Log the Event:** Appends a new row to `receiver_status_details` tracking the print action (`ActionType = 'STATUS_UPDATE'`).
 
@@ -131,11 +131,11 @@ The order is planned. Now the operator prints physical labels.
 
 The courier arrives and performs the **Atomic Two-Scan Flow**.
 
-**Tables hit:** **`parcel_details`** + **`receiver_status_details`** **Scan 1:** The printed **QR code** (identifies the parcel). **Scan 2:** The courier's **AWB barcode** (assigns the tracking number).
+**Tables hit:** **`parcel_details`** + **`receiver_status_details`** **Scan 1:** The printed **QR code** (which extracts the hidden `parcel_id` to identify the parcel). **Scan 2:** The courier's **AWB barcode** (assigns the tracking number).
 
 **What happens in the DB (`prc_ScanAndLinkAWB`):**
 
-1. System validates the QR code and ensures `TrackingNo` is perfectly unique to prevent delivery chaos.
+1. System validates the `parcel_id` and ensures `TrackingNo` is perfectly unique to prevent delivery chaos.
 2. **Role-Based Auto-Dispatch:**
     - If scanned by **COURIER** → Status jumps directly to **"Dispatched"** and `DispatchDate` is stamped.
     - If scanned by **OPERATOR** → Status changes to **"AWB Linked"** (dispatch happens separately).

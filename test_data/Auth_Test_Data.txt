@@ -1,0 +1,26 @@
+# Auth Test Data
+
+## POST /api/v1/auth/login
+Method: POST
+URL: /api/v1/auth/login
+Headers: { "Content-Type": "application/json" }
+Payload:
+{
+  "email": "employee@example.com",
+  "password": "password123"
+}
+
+Post-Request Script / Assertions:
+1. Status code is 200
+2. res.body.success is true
+3. Store res.body.data.token as {{authToken}}
+
+## GET /api/v1/auth/profile
+Method: GET
+URL: /api/v1/auth/profile
+Headers: { "Authorization": "Bearer {{authToken}}" }
+
+Post-Request Script / Assertions:
+1. Status code is 200
+2. res.body.success is true
+3. res.body.data contains profile details (employeeCode, roleCode)

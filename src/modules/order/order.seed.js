@@ -108,7 +108,7 @@ export const seedParcels = [
     id: 1,
     fkReceiverDetailsId: 1,
     fkCourierId: 1,
-    qrCode: 'PDS-A1B2C3',
+    parcel_id: 'PDS-A1B2C3',
     trackingNo: null,
     fkParcelStatusId: null,    // Will resolve to lu_details.LuDetailsId for "PENDING"
     parcelStatusCode: 'PENDING',
@@ -121,7 +121,7 @@ export const seedParcels = [
     id: 2,
     fkReceiverDetailsId: 2,
     fkCourierId: 1,
-    qrCode: 'PDS-D4E5F6',
+    parcel_id: 'PDS-D4E5F6',
     trackingNo: null,
     fkParcelStatusId: null,
     parcelStatusCode: 'PENDING',

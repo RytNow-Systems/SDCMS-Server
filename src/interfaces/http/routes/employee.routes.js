@@ -13,6 +13,8 @@ import {
   toggleAccess
 } from '../controllers/employee.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
+import { validate } from '../../../shared/middleware/validate.middleware.js';
+import { createEmployeeSchema, updateEmployeeSchema, toggleAccessSchema } from '../validations/validation.schemas.js';
 
 const router = express.Router();
 
@@ -23,12 +25,12 @@ router.use(authorizeRoles('ADMIN'));
 
 router.route('/')
   .get(getEmployees)
-  .post(createEmployee);
+  .post(validate(createEmployeeSchema), createEmployee);
 
 router.route('/:id')
   .get(getEmployeeById)
-  .put(updateEmployee);
+  .put(validate(updateEmployeeSchema), updateEmployee);
 
-router.patch('/:id/toggle-access', toggleAccess);
+router.patch('/:id/toggle-access', validate(toggleAccessSchema), toggleAccess);
 
 export default router;

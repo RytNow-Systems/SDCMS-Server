@@ -171,7 +171,7 @@ class OrderRepository {
   async createParcel(receiverDetailsId, courierId) {
     // ------------------------------------------------------------------
     // FUTURE: Handled inside prc_CreateComplexOrder (not a standalone call).
-    // QRCode is system-generated; TrackingNo starts as NULL.
+    // parcel_id is system-generated; TrackingNo starts as NULL.
     // FkParcelStatusId resolves to lu_details.LuDetailsId for "PENDING".
     // ------------------------------------------------------------------
 
@@ -179,7 +179,7 @@ class OrderRepository {
       id: seedParcels.length + 1,
       fkReceiverDetailsId: receiverDetailsId,
       fkCourierId: courierId,
-      qrCode: `PDS-${uuidv4().split('-')[0].toUpperCase()}`,
+      parcel_id: `PDS-${uuidv4().split('-')[0].toUpperCase()}`,
       trackingNo: null,
       parcelStatusCode: 'PENDING',
       labelPrintCount: 0,

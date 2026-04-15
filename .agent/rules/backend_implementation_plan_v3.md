@@ -78,7 +78,7 @@ Each Sprint is divided into standalone "Features." Command a single Feature (e.g
   - New module: `src/modules/parcel/` + routes + controller. Register as `/api/v1/parcels`.
   - `GET /parcels` → `prc_parcel_details_get` (pAction=0, paginated, filterable).
   - `GET /parcels/:id` → `prc_parcel_details_get` (pAction=1).
-  - `GET /parcels/:id/label-data` → `prc_parcel_details_get` (pAction=2). Stitches sender snapshot + receiver address + QR into flat JSON.
+  - `GET /parcels/:id/label-data` → `prc_parcel_details_get` (pAction=2). Stitches sender snapshot + receiver address + parcel_id into flat JSON.
   - `GET /parcels/:id/timeline` → `prc_receiver_status_details_get` (pAction=1). Amazon-style event timeline.
   - Ship `Parcel_Test_Data.txt`.
 
@@ -90,8 +90,8 @@ Each Sprint is divided into standalone "Features." Command a single Feature (e.g
 
 ### Sprint 4: Scanner Operations & AWB Linking
 
-- [ ] **Feature A: Two-Scan Operation (QR + AWB)**
-  - `POST /parcels/scan` → `prc_parcel_details_set`. Validates QR, ensures unique AWB (409 on duplicate).
+- [ ] **Feature A: Two-Scan Operation (Parcel ID + AWB)**
+  - `POST /parcels/scan` → `prc_parcel_details_set`. Validates parcel_id, ensures unique AWB (409 on duplicate).
   - Role-based: **COURIER** → auto-dispatch. **OPERATOR** → AWB_LINKED only.
   - Internally triggers `prc_receiver_status_details_set` (ActionType='AWB_LINK').
   - Ship `Scan_Test_Data.txt`.

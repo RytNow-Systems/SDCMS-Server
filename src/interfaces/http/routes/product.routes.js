@@ -12,6 +12,8 @@ import {
   deleteProduct
 } from '../controllers/product.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
+import { validate } from '../../../shared/middleware/validate.middleware.js';
+import { createProductSchema, updateProductSchema } from '../validations/validation.schemas.js';
 
 const router = express.Router();
 
@@ -23,11 +25,11 @@ router.use(authorizeRoles('ADMIN', 'OPERATOR'));
 
 router.route('/')
   .get(getProducts)
-  .post(createProduct);
+  .post(validate(createProductSchema), createProduct);
 
 router.route('/:id')
   .get(getProductById)
-  .put(updateProduct)
+  .put(validate(updateProductSchema), updateProduct)
   .delete(deleteProduct);
 
 export default router;
