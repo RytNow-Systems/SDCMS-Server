@@ -6,7 +6,7 @@ trigger: model_decision
 
 ## Goal Description
 
-Cross-review of **`api_contract_v2.0.md`**, **`system_flow_v2.1.md`**, and **`api_procedure_spec_v1.md`**. Supersedes v2.
+Cross-review of **`api_contract_v2.0_p1.md`**, **`api_contract_v2.0_p2.md`**, **`system_flow_v2.1.md`**, and **`api_procedure_spec_v1.md`**. Supersedes v2.
 
 **What changed since v2?**
 1. **`_set` / `_get` Procedure Standard:** All old semantic names (`prc_CreateProduct`, `prc_ScanAndLinkAWB`, etc.) are replaced by standardized `prc_[tablename]_set` and `prc_[tablename]_get` procedures per `api_procedure_spec_v1.md`.
