@@ -1,0 +1,34 @@
+# 1. Credentials and Secrets (CRITICAL SAFETY)
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+service-account.json
+
+# 2. Build Artifacts & Caches
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+.turbo/
+
+# 3. Lock files (Reduces index bloat)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 4. Generated files & Logs
+*.log
+**/*.min.js
+**/*.min.css
+**/*.map
+
+# 5. Media & Assets
+public/assets/
+**/*.png
+**/*.jpg
+**/*.svg
+**/*.mp4
