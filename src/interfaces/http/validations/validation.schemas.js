@@ -55,7 +55,12 @@ export const createProductSchema = z.object({
   materialRate: z.number().nonnegative().optional()
 });
 
-export const updateProductSchema = createProductSchema.partial();
+export const updateProductSchema = z.object({
+  productName: z.string().min(1, 'Product name is required').optional(),
+  description: z.string().optional(),
+  materialRate: z.number().nonnegative().optional(),
+  isActive: z.boolean().optional()
+});
 
 // ----------------------------------------------------------------------------
 // ORDER SCHEMAS

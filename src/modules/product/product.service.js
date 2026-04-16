@@ -7,8 +7,34 @@ import productRepository from './product.repository.js';
 
 class ProductService {
   
+  /**
+   * Internal mapper to format DB results for the API layer
+   */
+  _mapToApi(product) {
+    if (!product) return null;
+    const { materialName, ...rest } = product;
+    return {
+      ...rest,
+      productName: materialName
+    };
+  }
+
+  /**
+   * Internal mapper to format API payloads for the Repository layer
+   */
+  _mapToInternal(apiData) {
+    const { productName, ...rest } = apiData;
+    const internal = { ...rest };
+    if (productName) internal.materialName = productName;
+    return internal;
+  }
+
   async getProducts(page = 1, limit = 20, search = '') {
-    return await productRepository.findAll(page, limit, search);
+    const { data, total } = await productRepository.findAll(page, limit, search);
+    return {
+      data: data.map(p => this._mapToApi(p)),
+      total
+    };
   }
 
   async getProductById(id) {
@@ -18,38 +44,44 @@ class ProductService {
       error.statusCode = 404;
       throw error;
     }
-    return product;
+    return this._mapToApi(product);
   }
 
   async createProduct(productData) {
-    if (!productData.materialName || productData.materialRate === undefined) {
-      const error = new Error('Material Name and Material Rate are required');
+    const internalData = this._mapToInternal(productData);
+
+    if (!internalData.materialName || internalData.materialRate === undefined) {
+      const error = new Error('Product Name and Material Rate are required');
       error.statusCode = 400;
       throw error;
     }
 
-    if (isNaN(parseFloat(productData.materialRate)) || parseFloat(productData.materialRate) < 0) {
+    if (isNaN(parseFloat(internalData.materialRate)) || parseFloat(internalData.materialRate) < 0) {
       const error = new Error('Material rate must be a valid positive number');
       error.statusCode = 400;
       throw error;
     }
 
-    return await productRepository.create(productData);
+    const newProduct = await productRepository.create(internalData);
+    return this._mapToApi(newProduct);
   }
 
   async updateProduct(id, updates) {
     // Ensure product exists
     await this.getProductById(id);
 
-    if (updates.materialRate !== undefined) {
-      if (isNaN(parseFloat(updates.materialRate)) || parseFloat(updates.materialRate) < 0) {
+    const internalUpdates = this._mapToInternal(updates);
+
+    if (internalUpdates.materialRate !== undefined) {
+      if (isNaN(parseFloat(internalUpdates.materialRate)) || parseFloat(internalUpdates.materialRate) < 0) {
         const error = new Error('Material rate must be a valid positive number');
         error.statusCode = 400;
         throw error;
       }
     }
 
-    return await productRepository.update(id, updates);
+    const updatedProduct = await productRepository.update(id, internalUpdates);
+    return this._mapToApi(updatedProduct);
   }
 
   async deleteProduct(id) {

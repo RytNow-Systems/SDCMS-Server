@@ -99,3 +99,5 @@ To ensure safety while operating autonomously, you must strictly adhere to these
 - **Commit Message Quality:**
   - For features (e.g., `feat(auth): implement JWT login and refresh token flow`) and bug fixes (e.g., `fix(payment): prevent duplicate charge on retry`), be highly descriptive.
   - For production-level or multi-step commits, provide a bulleted list of the exact changes and close the relevant issue number (e.g., `Closes #342`).
+
+### D. Domain Confinement: Restrict your file modifications strictly to the module or domain you were assigned in the initial prompt. Do not touch files owned by other domains

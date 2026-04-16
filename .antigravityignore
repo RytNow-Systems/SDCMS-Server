@@ -14,6 +14,8 @@ build/
 out/
 coverage/
 .turbo/
+test_data/
+bruno/
 
 # 3. Lock files (Reduces index bloat)
 package-lock.json
