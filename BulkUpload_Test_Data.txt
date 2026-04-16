@@ -1,0 +1,62 @@
+### 1. Submit Bulk Upload
+METHOD: POST
+URL: {{baseUrl}}/bulk-uploads
+HEADERS:
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+BODY:
+{
+  "fileName": "test_orders.json",
+  "rows": [
+    {
+      "senderName": "Bulk Sender One",
+      "senderMobile": "9000000001",
+      "senderAddress": "123 Bulk Road, Surat",
+      "courierId": 1,
+      "receivers": [
+        {
+          "receiverName": "Bulk Receiver Alpha",
+          "receiverPhone": "8000000001",
+          "addressLine1": "A-101, Alpha Towers",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001",
+          "products": [
+            { "productId": 1, "qty": 10, "unitPrice": 450.00 }
+          ]
+        }
+      ]
+    },
+    {
+      "senderName": "Bulk Sender Two",
+      "senderMobile": "9000000002",
+      "senderAddress": "456 Bulk Ave, Delhi",
+      "courierId": 1,
+      "receivers": [
+        {
+          "receiverName": "Bulk Receiver Beta",
+          "receiverPhone": "8000000002",
+          "addressLine1": "B-202, Beta Plaza",
+          "city": "New Delhi",
+          "state": "Delhi",
+          "pincode": "110001",
+          "products": [
+            { "productId": 2, "qty": 5, "unitPrice": 1200.00 }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+### 2. List Upload Sessions
+METHOD: GET
+URL: {{baseUrl}}/bulk-uploads
+HEADERS:
+  Authorization: Bearer {{token}}
+
+### 3. Get Specific Session Result
+METHOD: GET
+URL: {{baseUrl}}/bulk-uploads/:id
+HEADERS:
+  Authorization: Bearer {{token}}
