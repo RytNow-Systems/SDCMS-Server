@@ -12,6 +12,8 @@ import {
   deleteCourier
 } from '../controllers/courier.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
+import { validate } from '../../../shared/middleware/validate.middleware.js';
+import { createCourierSchema, updateCourierSchema } from '../validations/validation.schemas.js';
 
 const router = express.Router();
 
@@ -22,12 +24,12 @@ router.use(protect);
 router.route('/')
   .get(authorizeRoles('ADMIN', 'OPERATOR', 'COURIER'), getCouriers)
   // POST requires ADMIN or OPERATOR
-  .post(authorizeRoles('ADMIN', 'OPERATOR'), createCourier);
+  .post(authorizeRoles('ADMIN', 'OPERATOR'), validate(createCourierSchema), createCourier);
 
 router.route('/:id')
   .get(authorizeRoles('ADMIN', 'OPERATOR', 'COURIER'), getCourierById)
   // PUT and DELETE require ADMIN or OPERATOR
-  .put(authorizeRoles('ADMIN', 'OPERATOR'), updateCourier)
+  .put(authorizeRoles('ADMIN', 'OPERATOR'), validate(updateCourierSchema), updateCourier)
   .delete(authorizeRoles('ADMIN', 'OPERATOR'), deleteCourier);
 
 export default router;

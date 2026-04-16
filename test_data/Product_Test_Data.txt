@@ -1,0 +1,38 @@
+# Product Test Data
+
+## GET /api/v1/products
+Method: GET
+URL: /api/v1/products
+Headers: { "Authorization": "Bearer {{authToken}}" }
+Assertions:
+1. Status code is 200
+
+## POST /api/v1/products
+Method: POST
+URL: /api/v1/products
+Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
+Payload:
+{
+  "productName": "Heavy Equipment",
+  "materialRate": 500
+}
+Assertions:
+1. Status code is 200
+
+## PUT /api/v1/products/:id
+Method: PUT
+URL: /api/v1/products/1
+Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
+Payload:
+{
+  "materialRate": 550
+}
+Assertions:
+1. Status code is 200
+
+## DELETE /api/v1/products/:id
+Method: DELETE
+URL: /api/v1/products/1
+Headers: { "Authorization": "Bearer {{authToken}}" }
+Assertions:
+1. Status code is 200
