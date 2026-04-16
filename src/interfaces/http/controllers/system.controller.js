@@ -21,8 +21,7 @@ export const checkHealth = asyncHandler(async (req, res) => {
       environment: process.env.NODE_ENV || 'development',
       database: {
         status: 'CONNECTED',
-        latency: dbLatency,
-        host: process.env.DB_HOST // Helpful for debugging config
+        latency: dbLatency
       },
       uptime: `${Math.floor(process.uptime())}s`
     }
