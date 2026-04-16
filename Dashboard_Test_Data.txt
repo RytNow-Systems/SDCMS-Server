@@ -1,0 +1,46 @@
+### FEATURE: Dashboard Metrics
+### MODULE: dashboard
+### SPRINT: 7
+
+---
+
+### TEST 1: Get Metrics (ADMIN User)
+**Description:** Fetches system-wide metrics from DB.
+**HTTP Method:** GET
+**URL:** {{baseUrl}}/api/v1/dashboard/metrics
+**Headers:** 
+- Authorization: Bearer {{adminToken}}
+- Content-Type: application/json
+
+**Assertions:**
+- Status Code: 200
+- Success: true
+- Body Path `data`: exists
+
+---
+
+### TEST 2: Get Metrics (OPERATOR User - Forbidden)
+**Description:** Should fail with 403.
+**HTTP Method:** GET
+**URL:** {{baseUrl}}/api/v1/dashboard/metrics
+**Headers:** 
+- Authorization: Bearer {{operatorToken}}
+- Content-Type: application/json
+
+**Assertions:**
+- Status Code: 403
+- Success: false
+- Error: contains "is not authorized for this route"
+
+---
+
+### TEST 3: Get Metrics (Unauthenticated)
+**Description:** Should fail with 401.
+**HTTP Method:** GET
+**URL:** {{baseUrl}}/api/v1/dashboard/metrics
+**Headers:** 
+- Content-Type: application/json
+
+**Assertions:**
+- Status Code: 401
+- Success: false

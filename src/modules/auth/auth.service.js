@@ -6,9 +6,13 @@
 
 import bcrypt from 'bcryptjs';
 import employeeRepository from '../employee/employee.repository.js';
+import authRepository from './auth.repository.js';
 import generateToken from '../../shared/utils/generateToken.js';
 
 class AuthService {
+  /**
+   * Orchestrates the login flow.
+   */
   async loginUser(email, password) {
     const employee = await employeeRepository.findByEmail(email);
     
@@ -28,7 +32,7 @@ class AuthService {
         name: employee.name,
         email: employee.email,
         role: employee.role,
-        token: generateToken(employee.id),
+        token: generateToken(employee.employeeCode), // Using employeeCode as identifier in JWT
       };
     } else {
       const error = new Error('Invalid email or password');
@@ -37,8 +41,24 @@ class AuthService {
     }
   }
 
-  // Registration logic has been entirely removed from Auth per Sprint 1 rules.
-  // Admins must create users via the POST /employees endpoint.
+  /**
+   * Retrieves fresh profile data from the database.
+   * Ensures the data is up-to-date even if the JWT is old.
+   * 
+   * @param {string} employeeCode - The unique identifier from the JWT.
+   * @returns {Promise<Object>} The employee profile data.
+   */
+  async getProfile(employeeCode) {
+    const profile = await authRepository.findById(employeeCode);
+    
+    if (!profile) {
+      const error = new Error('Employee profile not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return profile;
+  }
 }
 
 export default new AuthService();
