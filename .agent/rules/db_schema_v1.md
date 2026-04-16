@@ -1,5 +1,6 @@
 ---
 trigger: model_decision
+description: Primary reference for the v1 database physical schema (tables, columns, types, and FKs). Use for data structure context. For logic and stored procedures, refer to api_procedure_spec document.
 ---
 
 ## 🔷 MASTER TABLES
