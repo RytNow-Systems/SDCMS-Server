@@ -1,0 +1,98 @@
+========================================
+PARCEL EVENTS & AUDIT EXPORT — Test Data
+Sprint 4 Feature C: Parcel Events & CSV Export
+========================================
+
+--- TEST 1: Browse All Events (No Filters) ---
+Method: GET
+URL: /api/v1/parcel-events?page=1&limit=50
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: [...], meta: { page, limit, totalRows, totalPages } }
+  - Each event has: id, parcelId, orderCode, actionType, awbNumber, previousStatus, newStatus, scannedBy, timestamp
+
+--- TEST 2: Browse Events with ActionType Filter ---
+Method: GET
+URL: /api/v1/parcel-events?actionType=AWB_LINK
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - All returned events have actionType === "AWB_LINK"
+
+--- TEST 3: Browse Events with ScannedBy Filter ---
+Method: GET
+URL: /api/v1/parcel-events?scannedBy=EMP001
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - All returned events have scannedBy === "EMP001"
+
+--- TEST 4: Browse Events with Date Range ---
+Method: GET
+URL: /api/v1/parcel-events?dateFrom=2026-03-30&dateTo=2026-04-01
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - All returned events within the date range
+
+--- TEST 5: Browse Events with Combined Filters ---
+Method: GET
+URL: /api/v1/parcel-events?actionType=STATUS_UPDATE&scannedBy=EMP001&dateFrom=2026-03-29
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Events match ALL filter criteria simultaneously
+
+--- TEST 6: Export Events as CSV ---
+Method: GET
+URL: /api/v1/parcel-events/export
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Response Header: Content-Type: text/csv
+  - Response Header: Content-Disposition: attachment; filename="parcel-events-2026-04-16.csv"
+  - CSV Header Row: EventID,ParcelID,OrderCode,ActionType,AWBNumber,PreviousStatus,NewStatus,ScannedBy,Timestamp
+  - Subsequent rows contain comma-separated event data
+
+--- TEST 7: Export CSV with Filters ---
+Method: GET
+URL: /api/v1/parcel-events/export?actionType=AWB_LINK
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - CSV only contains AWB_LINK events
+
+--- TEST 8: COURIER Role — Cannot Access Events ---
+Method: GET
+URL: /api/v1/parcel-events
+Headers:
+  Authorization: Bearer <COURIER_TOKEN>
+
+Assertions:
+  - Status: 403
+  - Only ADMIN and OPERATOR can browse events
+
+--- TEST 9: COURIER Role — Cannot Export CSV ---
+Method: GET
+URL: /api/v1/parcel-events/export
+Headers:
+  Authorization: Bearer <COURIER_TOKEN>
+
+Assertions:
+  - Status: 403
+  - Only ADMIN and OPERATOR can export

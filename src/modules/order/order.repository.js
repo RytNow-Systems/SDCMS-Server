@@ -1,8 +1,10 @@
 // ============================================================================
 // File: src/modules/order/order.repository.js
 // Description: Data access layer for the Order module, explicitly mocking
-// the Stored Procedure architecture defined in api_procedure_spec_v0.md.
-// All methods document their target `CALL prc_...` procedure invocations.
+// the Stored Procedure architecture defined in api_procedure_spec_v1.md.
+// All methods use the standardized _set/_get naming convention:
+//   - Upserts: prc_order_master_set (ID=0 insert, ID>0 update)
+//   - Reads:   prc_order_master_get (pAction=0 list, pAction=1 detail)
 // ============================================================================
 
 import { v4 as uuidv4 } from 'uuid';
@@ -23,7 +25,8 @@ class OrderRepository {
 
   /**
    * Find-or-create a party (sender) by phone number.
-   * Procedure: CALL prc_FindOrCreateParty(?, ?, ?, ?, ?, ?, ?, ?)
+   * Procedure: CALL prc_Party_master_set(0, ?, ?, ?, ?, ?, ?, ?, ?)
+   * Convention: ID=0 triggers insert-or-find-by-phone logic inside the SP.
    *
    * @param {object} senderData - { senderName, senderMobile, addressLine1?, city?, state?, pincode? }
    * @returns {object} The found or newly created party record.
@@ -31,7 +34,8 @@ class OrderRepository {
   async findOrCreateParty(senderData) {
     // ------------------------------------------------------------------
     // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_FindOrCreateParty(?, ?, ?, ?, ?, ?, ?, ?)', [
+    // const [rows] = await db.execute('CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+    //   0, // ID=0 → insert or find-by-phone
     //   senderData.senderName,
     //   senderData.senderMobile,
     //   senderData.addressLine1 || null,
@@ -67,9 +71,9 @@ class OrderRepository {
   // ============================================================================
 
   /**
-   * Create a new order header in order_master.
-   * This is called as part of the atomic prc_CreateComplexOrder transaction.
-   * Procedure: CALL prc_CreateComplexOrder(?)
+   * Create a new order atomically (order_master → receiver_details → order_items → parcel_details).
+   * Procedure: CALL prc_order_master_set(0, ?)
+   * Convention: ID=0 triggers full atomic insert of the order graph.
    *
    * @param {object} orderData - The full order payload serialized as JSON.
    * @returns {object} The created order record with { orderId, orderCode, totalAmount }.
@@ -80,7 +84,8 @@ class OrderRepository {
     // The full order (sender + receivers + items + parcels) is created in
     // a single atomic stored procedure call. No partial writes.
     //
-    // const [rows] = await db.execute('CALL prc_CreateComplexOrder(?)', [
+    // const [rows] = await db.execute('CALL prc_order_master_set(?, ?)', [
+    //   0, // ID=0 → Insert new order
     //   JSON.stringify(orderData)
     // ]);
     // return rows[0][0];
@@ -196,7 +201,8 @@ class OrderRepository {
 
   /**
    * Get all orders with derived summary (sender, receiver count, parcel count, derived status).
-   * Procedure: CALL prc_GetAllOrdersSummary(?, ?, ?, ?, ?)
+   * Procedure: CALL prc_order_master_get(0, ?, ?, ?, ?, ?)
+   * Convention: pAction=0 → paginated list with dynamically derived order status.
    *
    * @param {object} filters - { page, limit, search, sortBy, sortOrder }
    * @returns {object} { data: [...], total: number }
@@ -204,7 +210,8 @@ class OrderRepository {
   async findAllOrders(filters = {}) {
     // ------------------------------------------------------------------
     // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_GetAllOrdersSummary(?, ?, ?, ?, ?)', [
+    // const [rows] = await db.execute('CALL prc_order_master_get(?, ?, ?, ?, ?, ?)', [
+    //   0, // pAction=0 → Get all orders (paginated summary)
     //   filters.page || 1,
     //   filters.limit || 20,
     //   filters.search || null,
@@ -245,7 +252,8 @@ class OrderRepository {
 
   /**
    * Get full order aggregate (nested JSON: Order → Receivers → [Items, Parcel]).
-   * Procedure: CALL prc_GetOrderAggregate(?)
+   * Procedure: CALL prc_order_master_get(1, ?)
+   * Convention: pAction=1 → single order aggregate with nested receivers, items, parcels.
    *
    * @param {number|string} orderId - PK of order_master.
    * @returns {object|null} The full nested order aggregate, or null if not found.
@@ -253,7 +261,10 @@ class OrderRepository {
   async findById(orderId) {
     // ------------------------------------------------------------------
     // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rawFlatRows] = await db.execute('CALL prc_GetOrderAggregate(?)', [orderId]);
+    // const [rawFlatRows] = await db.execute('CALL prc_order_master_get(?, ?)', [
+    //   1, // pAction=1 → Get specific order aggregate
+    //   orderId
+    // ]);
     // // The rawFlatRows would then be mapped below using the O(N) hash map optimization.
     // ------------------------------------------------------------------
 
@@ -317,7 +328,8 @@ class OrderRepository {
 
   /**
    * Update an existing order (sender, receivers, items).
-   * Procedure: CALL prc_UpdateComplexOrder(?, ?)
+   * Procedure: CALL prc_order_master_set(orderId, ?)
+   * Convention: ID>0 triggers update. SP rejects if any parcel ≥ AWB_LINKED.
    *
    * ❗ BUSINESS RULE: Must fail if any parcel status ≥ AWB_LINKED.
    *
@@ -328,8 +340,8 @@ class OrderRepository {
   async updateOrder(orderId, payload) {
     // ------------------------------------------------------------------
     // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_UpdateComplexOrder(?, ?)', [
-    //   orderId,
+    // const [rows] = await db.execute('CALL prc_order_master_set(?, ?)', [
+    //   orderId, // ID>0 → Update existing order
     //   JSON.stringify(payload)
     // ]);
     // return rows[0][0];
@@ -366,7 +378,9 @@ class OrderRepository {
 
   /**
    * Cancel an order and cascade to all parcels.
-   * Procedure: CALL prc_CancelOrder(?, ?)
+   * Procedure: CALL prc_order_master_set(orderId, pCancelRequested=1)
+   * Convention: pCancelRequested flag triggers cascading cancellation.
+   * SP internally invokes prc_receiver_status_details_set for each parcel.
    *
    * ❌ Cannot cancel if any parcel is DISPATCHED or DELIVERED.
    * ✔ Cascades cancellation to all parcels.
@@ -379,8 +393,9 @@ class OrderRepository {
   async cancelOrder(orderId, cancelledBy) {
     // ------------------------------------------------------------------
     // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_CancelOrder(?, ?)', [
+    // const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?)', [
     //   orderId,
+    //   JSON.stringify({ pCancelRequested: 1 }),
     //   cancelledBy
     // ]);
     // return rows[0][0];

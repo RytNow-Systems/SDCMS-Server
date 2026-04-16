@@ -1,0 +1,98 @@
+========================================
+PARCEL MODULE — Test Data
+Sprint 3: Parcel Retrieval & Label Data
+========================================
+
+--- TEST 1: List All Parcels ---
+Method: GET
+URL: /api/v1/parcels?page=1&limit=20
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: [...], meta: { page, limit, totalRows, totalPages } }
+  - Each parcel has: parcelId, trackingNo, status, receiverName, orderCode
+
+--- TEST 2: List Parcels with Status Filter ---
+Method: GET
+URL: /api/v1/parcels?status=PENDING
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - All returned parcels have status === "PENDING"
+
+--- TEST 3: List Parcels with Search ---
+Method: GET
+URL: /api/v1/parcels?search=PDS-A1B2C3
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Returns parcel matching parcel_id search
+
+--- TEST 4: Get Single Parcel ---
+Method: GET
+URL: /api/v1/parcels/1
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: { id: 1, parcelId: "PDS-...", status: "...", receiverName: "...", ... } }
+
+--- TEST 5: Get Parcel — Not Found ---
+Method: GET
+URL: /api/v1/parcels/9999
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 404
+  - Body: { success: false, error: "Parcel not found" }
+
+--- TEST 6: Get Label Data (pAction=2) ---
+Method: GET
+URL: /api/v1/parcels/1/label-data
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: { parcelId: "PDS-...", senderName: "...", receiverName: "...", addressLine1: "...", ... } }
+  - Flat JSON with sender snapshot + receiver address + parcel_id
+  - NO QR image data (frontend renders from parcel_id)
+
+--- TEST 7: Get Parcel Timeline ---
+Method: GET
+URL: /api/v1/parcels/1/timeline
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: [ { actionType: "STATUS_UPDATE", newStatus: "PENDING", ... } ] }
+  - Events are chronologically sorted (oldest first)
+
+--- TEST 8: COURIER Role — Can List Parcels ---
+Method: GET
+URL: /api/v1/parcels?page=1&limit=10
+Headers:
+  Authorization: Bearer <COURIER_TOKEN>
+
+Assertions:
+  - Status: 200
+  - COURIER has read access to parcels
+
+--- TEST 9: COURIER Role — Cannot Access Label Data ---
+Method: GET
+URL: /api/v1/parcels/1/label-data
+Headers:
+  Authorization: Bearer <COURIER_TOKEN>
+
+Assertions:
+  - Status: 403
+  - Body: { success: false, error: "User role 'COURIER' is not authorized for this route" }

@@ -4,6 +4,7 @@
 // Orchestrates repository calls and enforces business rules.
 // All business logic lives in stored procedures — this layer validates
 // and translates API payloads into procedure parameters.
+// Procedure mapping: prc_order_master_set (upsert/cancel), prc_order_master_get (reads).
 // ============================================================================
 
 import orderRepository from './order.repository.js';
@@ -13,7 +14,7 @@ import orderRepository from './order.repository.js';
 class OrderService {
   /**
    * Process a new complex order creation.
-   * Maps API Contract §7.2 payload → prc_CreateComplexOrder flow.
+   * Maps API Contract §7.2 payload → prc_order_master_set(0, ?) atomic creation flow.
    *
    * Flow: find-or-create sender → create order → add receivers → add items → generate parcels.
    * In production, this entire flow is handled atomically by prc_CreateComplexOrder.
@@ -113,7 +114,7 @@ class OrderService {
 
   /**
    * Get paginated order summary list with derived statuses.
-   * Maps to prc_GetAllOrdersSummary.
+   * Maps to prc_order_master_get (pAction=0).
    *
    * @param {object} filters - { page, limit, search, sortBy, sortOrder }
    * @returns {object} { data: [...], total: number }
@@ -124,7 +125,7 @@ class OrderService {
 
   /**
    * Get full order aggregate by ID (nested JSON).
-   * Maps to prc_GetOrderAggregate.
+   * Maps to prc_order_master_get (pAction=1).
    *
    * @param {number|string} orderId
    * @returns {object} Full nested order aggregate.
@@ -142,7 +143,7 @@ class OrderService {
 
   /**
    * Update an existing order.
-   * Maps to prc_UpdateComplexOrder.
+   * Maps to prc_order_master_set (ID>0).
    *
    * ❗ Business rule: Must fail if any parcel status ≥ AWB_LINKED.
    * This is enforced in both the repository mock and the stored procedure.
@@ -164,7 +165,7 @@ class OrderService {
 
   /**
    * Cancel an order and cascade to all parcels.
-   * Maps to prc_CancelOrder.
+   * Maps to prc_order_master_set (pCancelRequested=1).
    *
    * ❌ Cannot cancel if any parcel is DISPATCHED or DELIVERED.
    * ✔ Cascades cancellation to all parcels.

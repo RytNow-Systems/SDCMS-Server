@@ -1,0 +1,67 @@
+========================================
+LABEL PRINT — Test Data
+Sprint 3 Feature B: Label Print Logging
+========================================
+
+--- TEST 1: Log Label Print (Happy Path) ---
+Method: POST
+URL: /api/v1/parcels/1/log-print
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Body: (empty — no request body required)
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: { parcelId: "PDS-...", status: "LABEL_PRINTED", labelPrintCount: 1 } }
+  - labelPrintCount incremented by 1
+  - Status transitioned to LABEL_PRINTED
+
+Post-Request Verification:
+  - GET /api/v1/parcels/1/timeline should show new STATUS_UPDATE event
+  - Event should have previousStatus: "PENDING", newStatus: "LABEL_PRINTED"
+
+--- TEST 2: Re-Print Label (Increment Count) ---
+Method: POST
+URL: /api/v1/parcels/1/log-print
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Pre-condition: Parcel 1 already in LABEL_PRINTED state from Test 1
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: { labelPrintCount: 2 } }
+  - Re-printing is allowed from LABEL_PRINTED state
+
+--- TEST 3: Log Print — Invalid State (Already AWB_LINKED) ---
+Method: POST
+URL: /api/v1/parcels/1/log-print
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Pre-condition: Parcel 1 must be in AWB_LINKED state
+
+Assertions:
+  - Status: 400
+  - Body: { success: false, error: "Cannot print label: parcel is in 'AWB_LINKED' state..." }
+
+--- TEST 4: Log Print — Parcel Not Found ---
+Method: POST
+URL: /api/v1/parcels/9999/log-print
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 404
+  - Body: { success: false, error: "Parcel not found" }
+
+--- TEST 5: Log Print — COURIER Role Forbidden ---
+Method: POST
+URL: /api/v1/parcels/1/log-print
+Headers:
+  Authorization: Bearer <COURIER_TOKEN>
+
+Assertions:
+  - Status: 403
+  - Only ADMIN and OPERATOR can print labels

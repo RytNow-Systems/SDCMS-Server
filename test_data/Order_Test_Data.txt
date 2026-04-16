@@ -1,0 +1,140 @@
+========================================
+ORDER MODULE — Test Data
+Sprint 2 Feature D: Order Pipeline
+========================================
+
+--- TEST 1: Create Complex Order ---
+Method: POST
+URL: /api/v1/orders
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+  Content-Type: application/json
+
+Body:
+{
+  "senderName": "Ramesh Textiles",
+  "senderMobile": "9876543210",
+  "senderAddress": "14, Gandhi Nagar, Near Railway Station, Surat, Gujarat 395002",
+  "courierId": 1,
+  "receivers": [
+    {
+      "receiverName": "Delhi Fabrics Ltd.",
+      "receiverPhone": "9123456780",
+      "addressLine1": "45, Karol Bagh",
+      "city": "New Delhi",
+      "state": "Delhi",
+      "pincode": "110005",
+      "products": [
+        { "productId": 1, "qty": 5, "unitPrice": 420.00 },
+        { "productId": 3, "qty": 2, "unitPrice": 1100.00 }
+      ]
+    },
+    {
+      "receiverName": "Mumbai Silk House",
+      "receiverPhone": "9988776655",
+      "addressLine1": "22, Linking Road",
+      "addressLine2": "Bandra West",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400050",
+      "products": [
+        { "productId": 1, "qty": 3, "unitPrice": 450.00 }
+      ]
+    }
+  ]
+}
+
+Assertions:
+  - Status: 201
+  - Body: { success: true, data: { orderId: <int>, orderCode: "ORD-...", receivers: [...] } }
+  - Each receiver should have a nested "parcel" with parcel_id starting with "PDS-"
+  - Parcel status should be "PENDING"
+
+--- TEST 2: List Orders (Paginated) ---
+Method: GET
+URL: /api/v1/orders?page=1&limit=20
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: [...], meta: { page, limit, totalRows, totalPages } }
+  - Each order has derivedStatus computed from parcel states
+
+--- TEST 3: Get Order Aggregate ---
+Method: GET
+URL: /api/v1/orders/1
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: { receivers: [{ items: [...], parcel: {...} }] } }
+  - Nested JSON structure: Order → Receivers → [Items, Parcel]
+
+--- TEST 4: Update Order (Happy Path) ---
+Method: PUT
+URL: /api/v1/orders/1
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+  Content-Type: application/json
+
+Body:
+{
+  "senderName": "Ramesh Textiles Updated",
+  "courierId": 2
+}
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: { senderName: "Ramesh Textiles Updated" } }
+
+--- TEST 5: Update Order (Blocked — Parcel ≥ AWB_LINKED) ---
+Method: PUT
+URL: /api/v1/orders/1
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+  Content-Type: application/json
+
+Pre-condition: At least one parcel in this order must be AWB_LINKED or DISPATCHED
+
+Body:
+{
+  "senderName": "Should Fail"
+}
+
+Assertions:
+  - Status: 400
+  - Body: { success: false, error: "Cannot update order: one or more parcels have already been AWB-linked or dispatched." }
+
+--- TEST 6: Cancel Order (Happy Path) ---
+Method: PATCH
+URL: /api/v1/orders/1/cancel
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: { cancelledParcels: <int>, cancelledBy: "..." } }
+
+--- TEST 7: Cancel Order (Blocked — Parcel Dispatched) ---
+Method: PATCH
+URL: /api/v1/orders/1/cancel
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Pre-condition: At least one parcel in this order must be DISPATCHED
+
+Assertions:
+  - Status: 400
+  - Body: { success: false, error: "Cannot cancel order: one or more parcels are already dispatched or delivered." }
+
+--- TEST 8: COURIER Role — List Orders (Read-Only Access) ---
+Method: GET
+URL: /api/v1/orders?page=1&limit=10
+Headers:
+  Authorization: Bearer <COURIER_TOKEN>
+
+Assertions:
+  - Status: 200
+  - COURIER can list but not create/edit/cancel
