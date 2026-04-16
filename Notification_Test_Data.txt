@@ -1,0 +1,64 @@
+# Notification System API - Test Data (Sprint 6, Feature A)
+# These tests are designed for Bruno Desktop app plain-text import.
+
+### 1. Send Dispatch Notification
+Method: POST
+URL: {{baseUrl}}/api/v1/parcels/5/notify
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer {{adminToken}}
+Payload:
+{}
+
+Assertions:
+  res.status: eq 200
+  res.body.success: eq true
+  res.body.data.message: eq "Notification sent successfully"
+
+---
+
+### 2. Resend Failed Notification
+Method: POST
+URL: {{baseUrl}}/api/v1/notifications/12/resend
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer {{adminToken}}
+Payload:
+{}
+
+Assertions:
+  res.status: eq 200
+  res.body.success: eq true
+  res.body.data.message: eq "Notification sent successfully"
+
+---
+
+### 3. Get Notification History for Parcel
+Method: GET
+URL: {{baseUrl}}/api/v1/parcels/5/notifications
+Headers:
+  Authorization: Bearer {{adminToken}}
+
+Assertions:
+  res.status: eq 200
+  res.body.success: eq true
+  res.body.data: isArray true
+
+---
+
+### 4. Notification Webhook (Status Update)
+Method: POST
+URL: {{baseUrl}}/api/v1/notifications/webhook
+Headers:
+  Content-Type: application/json
+Payload:
+{
+  "notificationId": 12,
+  "status": "delivered",
+  "externalId": "SMS_GATEWAY_XYZ_999"
+}
+
+Assertions:
+  res.status: eq 200
+  res.body.success: eq true
+  res.body.data.AppSendStatusId: eq 2

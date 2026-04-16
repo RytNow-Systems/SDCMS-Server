@@ -12,6 +12,7 @@ import senderRoutes from './interfaces/http/routes/sender.routes.js';
 import bulkUploadRoutes from './interfaces/http/routes/bulk-upload.routes.js';
 import systemRoutes from './interfaces/http/routes/system.routes.js';
 import dashboardRoutes from './interfaces/http/routes/dashboard.routes.js';
+import notificationRoutes from './interfaces/http/routes/notification.routes.js';
 
 // Import Error Middlewares
 import { notFound, errorHandler } from './shared/middleware/error.middleware.js';
@@ -40,6 +41,7 @@ app.use('/api/v1/senders', senderRoutes);
 app.use('/api/v1/bulk-uploads', bulkUploadRoutes);
 app.use('/api/v1/system', systemRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1', notificationRoutes);
 
 // SwaggerUI Documentation
 // app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
