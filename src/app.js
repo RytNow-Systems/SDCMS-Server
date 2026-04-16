@@ -8,6 +8,7 @@ import employeeRoutes from './interfaces/http/routes/employee.routes.js';
 import courierRoutes from './interfaces/http/routes/courier.routes.js';
 import productRoutes from './interfaces/http/routes/product.routes.js';
 import orderRoutes from './interfaces/http/routes/order.routes.js';
+import senderRoutes from './interfaces/http/routes/sender.routes.js';
 import systemRoutes from './interfaces/http/routes/system.routes.js';
 
 // Import Error Middlewares
@@ -33,6 +34,7 @@ app.use('/api/v1/employees', employeeRoutes);
 app.use('/api/v1/courier-partners', courierRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/senders', senderRoutes);
 app.use('/api/v1/system', systemRoutes);
 
 // SwaggerUI Documentation

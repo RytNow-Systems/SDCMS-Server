@@ -91,3 +91,19 @@ export const createOrderSchema = z.object({
 });
 
 export const updateOrderSchema = createOrderSchema.partial();
+
+// ----------------------------------------------------------------------------
+// SENDER (PARTY) SCHEMAS
+// ----------------------------------------------------------------------------
+export const createSenderSchema = z.object({
+  customerName: z.string().min(1, 'Customer name is required'),
+  phoneNo: z.string().min(10, 'Valid phone number is required'),
+  emailId: z.string().email('Invalid email format').optional().nullable(),
+  addressLine1: z.string().min(1, 'Address Line 1 is required'),
+  addressLine2: z.string().optional().nullable(),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(1, 'State is required'),
+  pincode: z.string().min(1, 'Pincode is required')
+});
+
+export const updateSenderSchema = createSenderSchema.partial();

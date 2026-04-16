@@ -1,0 +1,67 @@
+# Sender Module API Test Data (Bruno/Postman)
+# Sprint 2, Feature C
+
+# 1. Create Sender
+POST {{baseUrl}}/api/v1/senders
+Content-Type: application/json
+
+{
+  "customerName": "John Doe Enterprises",
+  "phoneNo": "9876543210",
+  "emailId": "john.doe@example.com",
+  "addressLine1": "123 Business Park",
+  "addressLine2": "Sector 62",
+  "city": "Noida",
+  "state": "Uttar Pradesh",
+  "pincode": "201301"
+}
+
+# 2. Get All Senders
+GET {{baseUrl}}/api/v1/senders
+Content-Type: application/json
+
+# 3. Get Specific Sender
+# Replace :id with the PkPartyId returned from create or list
+GET {{baseUrl}}/api/v1/senders/:id
+Content-Type: application/json
+
+# 4. Lookup Sender by Phone
+GET {{baseUrl}}/api/v1/senders/lookup?phone=9876543210
+Content-Type: application/json
+
+# 5. Update Sender
+# Replace :id with relevant PkPartyId
+PUT {{baseUrl}}/api/v1/senders/:id
+Content-Type: application/json
+
+{
+  "customerName": "John Doe Enterprises Updated",
+  "city": "Gurugram",
+  "state": "Haryana"
+}
+
+# 6. Delete Sender (Soft-Delete)
+DELETE {{baseUrl}}/api/v1/senders/:id
+Content-Type: application/json
+
+# 7. Validation Test (Missing Required Fields)
+POST {{baseUrl}}/api/v1/senders
+Content-Type: application/json
+
+{
+  "customerName": "Incomplete Sender"
+}
+
+# 8. Validation Test (Invalid Email)
+POST {{baseUrl}}/api/v1/senders
+Content-Type: application/json
+
+{
+  "customerName": "Jane Smith",
+  "phoneNo": "1234567890",
+  "emailId": "invalid-email",
+  "addressLine1": "A-101",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "pincode": "400001"
+}
