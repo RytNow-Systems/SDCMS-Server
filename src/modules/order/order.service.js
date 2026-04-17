@@ -2,30 +2,58 @@
 // File: src/modules/order/order.service.js
 // Description: Business logic layer for the Order module.
 // Orchestrates repository calls and enforces business rules.
-// All business logic lives in stored procedures — this layer validates
-// and translates API payloads into procedure parameters.
+//
+// Dual-Mode: In LIVE mode, createOrder passes the full JSON payload to a
+// single atomic SP call. In MOCK mode, it orchestrates multi-step creation
+// through individual repository sub-methods.
+//
 // Procedure mapping: prc_order_master_set (upsert/cancel), prc_order_master_get (reads).
 // ============================================================================
 
 import orderRepository from './order.repository.js';
-// TODO: Import logger once infrastructure/logger module is implemented
-// import logger from '../../infrastructure/logger/logger.js';
 
 class OrderService {
   /**
    * Process a new complex order creation.
-   * Maps API Contract §7.2 payload → prc_order_master_set(0, ?) atomic creation flow.
    *
-   * Flow: find-or-create sender → create order → add receivers → add items → generate parcels.
-   * In production, this entire flow is handled atomically by prc_CreateComplexOrder.
+   * LIVE MODE:  Passes full JSON payload → prc_order_master_set(0, ?) atomic creation.
+   * MOCK MODE:  Multi-step orchestration: find-or-create sender → create order →
+   *             add receivers → add items → generate parcels.
    *
    * @param {object} payload - Validated order payload from Zod schema.
    * @param {object} user - Authenticated user from JWT (req.user).
-   * @returns {object} Created order with nested receivers and parcels.
+   * @returns {Promise<object>} Created order with nested receivers and parcels.
    */
   async createOrder(payload, user) {
     const { senderName, senderMobile, senderAddress, courierId, products, receivers } = payload;
     const createdBy = user?.employeeCode || null;
+
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: Single atomic SP call
+    // The SP handles the entire order graph creation atomically.
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const orderPayload = {
+        senderName,
+        senderMobile,
+        senderAddress,
+        courierId,
+        products,
+        receivers,
+        createdBy
+      };
+
+      // Step 1: Find-or-create the sender (still a separate SP call)
+      await orderRepository.findOrCreateParty({ senderName, senderMobile, createdBy });
+
+      // Step 2: Create the full order atomically via SP
+      const result = await orderRepository.createOrder(orderPayload);
+      return result;
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: Multi-step orchestration
+    // ------------------------------------------------------------------
 
     // Step 1: Find-or-create the sender in Party_master
     const sender = await orderRepository.findOrCreateParty({
@@ -117,7 +145,7 @@ class OrderService {
    * Maps to prc_order_master_get (pAction=0).
    *
    * @param {object} filters - { page, limit, search, sortBy, sortOrder }
-   * @returns {object} { data: [...], total: number }
+   * @returns {Promise<object>} { data: [...], total: number }
    */
   async getOrderSummaryList(filters) {
     return await orderRepository.findAllOrders(filters);
@@ -128,7 +156,7 @@ class OrderService {
    * Maps to prc_order_master_get (pAction=1).
    *
    * @param {number|string} orderId
-   * @returns {object} Full nested order aggregate.
+   * @returns {Promise<object>} Full nested order aggregate.
    * @throws {Error} 404 if order not found.
    */
   async getOrderDetails(orderId) {
@@ -150,7 +178,7 @@ class OrderService {
    *
    * @param {number|string} orderId
    * @param {object} payload - Updated order data.
-   * @returns {object} Updated order record.
+   * @returns {Promise<object>} Updated order record.
    * @throws {Error} 404 if order not found, 400 if update blocked.
    */
   async updateOrder(orderId, payload) {
@@ -173,7 +201,7 @@ class OrderService {
    *
    * @param {number|string} orderId
    * @param {object} user - Authenticated user from JWT (req.user).
-   * @returns {object} Cancellation result.
+   * @returns {Promise<object>} Cancellation result.
    * @throws {Error} 404 if order not found, 400 if cancellation blocked.
    */
   async cancelOrder(orderId, user) {

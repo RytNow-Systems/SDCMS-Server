@@ -1,10 +1,19 @@
 // ============================================================================
 // File: src/modules/order/order.repository.js
-// Description: Data access layer for the Order module, explicitly mocking
-// the Stored Procedure architecture defined in api_procedure_spec_v1.md.
-// All methods use the standardized _set/_get naming convention:
-//   - Upserts: prc_order_master_set (ID=0 insert, ID>0 update)
+// Description: Data access layer for the Order module.
+//
+// Dual-Mode: Controlled by USE_MOCK_DB environment variable.
+//   - USE_MOCK_DB=true  → In-memory seed data (frontend development)
+//   - USE_MOCK_DB=false → Live MySQL stored procedures
+//
+// SP Convention (api_procedure_spec_v1.md):
 //   - Reads:   prc_order_master_get (pAction=0 list, pAction=1 detail)
+//   - Upserts: prc_order_master_set (ID=0 insert, ID>0 update, pCancelRequested=1 cancel)
+//   - Party:   prc_Party_master_set (ID=0 find-or-create by phone)
+//
+// ⚠️ In LIVE mode, the atomic order creation (order_master → receiver_details
+//    → order_items → parcel_details) is handled entirely by the SP.
+//    In MOCK mode, we simulate the multi-step orchestration in-memory.
 // ============================================================================
 
 import { v4 as uuidv4 } from 'uuid';
@@ -25,29 +34,37 @@ class OrderRepository {
 
   /**
    * Find-or-create a party (sender) by phone number.
-   * Procedure: CALL prc_Party_master_set(0, ?, ?, ?, ?, ?, ?, ?, ?)
+   * Procedure: CALL prc_Party_master_set(0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
    * Convention: ID=0 triggers insert-or-find-by-phone logic inside the SP.
    *
    * @param {object} senderData - { senderName, senderMobile, addressLine1?, city?, state?, pincode? }
-   * @returns {object} The found or newly created party record.
+   * @returns {Promise<object>} The found or newly created party record.
    */
   async findOrCreateParty(senderData) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-    //   0, // ID=0 → insert or find-by-phone
-    //   senderData.senderName,
-    //   senderData.senderMobile,
-    //   senderData.addressLine1 || null,
-    //   senderData.addressLine2 || null,
-    //   senderData.city || null,
-    //   senderData.state || null,
-    //   senderData.pincode || null,
-    //   senderData.createdBy || null
-    // ]);
-    // return rows[0][0];
+    // LIVE DB MODE: prc_Party_master_set (ID=0 → find-or-create by phone)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        0, // ID=0 → insert or find-by-phone
+        1, // pPartyTypeId: 1 = Sender
+        senderData.senderName,
+        senderData.senderMobile,
+        null, // EmailId
+        senderData.addressLine1 || null,
+        senderData.addressLine2 || null,
+        senderData.city || null,
+        senderData.state || null,
+        senderData.pincode || null,
+        senderData.createdBy || null,
+        1 // IsActive=1
+      ]);
+      return rows[0][0];
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory find-or-create by phone
+    // ------------------------------------------------------------------
     let party = seedParties.find((p) => p.phoneNo === senderData.senderMobile);
     if (!party) {
       party = {
@@ -75,22 +92,34 @@ class OrderRepository {
    * Procedure: CALL prc_order_master_set(0, ?)
    * Convention: ID=0 triggers full atomic insert of the order graph.
    *
-   * @param {object} orderData - The full order payload serialized as JSON.
-   * @returns {object} The created order record with { orderId, orderCode, totalAmount }.
+   * In LIVE mode: the full JSON payload is passed to the SP which handles the
+   * entire atomic transaction internally. The SP creates the order, receivers,
+   * items, and parcels in one shot.
+   *
+   * In MOCK mode: multi-step orchestration is done by the service layer calling
+   * createReceiver(), createOrderItem(), createParcel() individually.
+   *
+   * @param {object} orderData - The full order payload (or mock fields).
+   * @returns {Promise<object>} The created order record.
    */
   async createOrder(orderData) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION (ATOMIC TRANSACTION):
+    // LIVE DB MODE: prc_order_master_set (ID=0 → Atomic order creation)
     // The full order (sender + receivers + items + parcels) is created in
     // a single atomic stored procedure call. No partial writes.
-    //
-    // const [rows] = await db.execute('CALL prc_order_master_set(?, ?)', [
-    //   0, // ID=0 → Insert new order
-    //   JSON.stringify(orderData)
-    // ]);
-    // return rows[0][0];
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_order_master_set(?, ?)', [
+        0, // ID=0 → Insert new order
+        JSON.stringify(orderData)
+      ]);
+      return rows[0][0];
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory order header creation
+    // (receivers, items, parcels are created by service calling sub-methods)
+    // ------------------------------------------------------------------
     const order = {
       id: seedOrders.length + 1,
       orderCode: `ORD-${Date.now()}`,
@@ -110,17 +139,20 @@ class OrderRepository {
 
   /**
    * Create a receiver row linked to an order.
-   * Part of prc_CreateComplexOrder transaction — not called standalone.
+   * MOCK MODE ONLY — in live mode, handled inside prc_order_master_set atomically.
    *
    * @param {number} orderId - FK to order_master.
    * @param {object} receiverData - Structured receiver fields.
-   * @returns {object} The created receiver_details record.
+   * @returns {Promise<object>} The created receiver_details record.
    */
   async createReceiver(orderId, receiverData) {
     // ------------------------------------------------------------------
-    // FUTURE: Handled inside prc_CreateComplexOrder (not a standalone call).
+    // LIVE DB: Not called — handled inside prc_order_master_set atomically.
     // ------------------------------------------------------------------
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory receiver creation
+    // ------------------------------------------------------------------
     const receiver = {
       id: seedReceivers.length + 1,
       fkOrderId: orderId,
@@ -140,20 +172,23 @@ class OrderRepository {
 
   /**
    * Create an order item linked to a receiver.
-   * Part of prc_CreateComplexOrder transaction — not called standalone.
+   * MOCK MODE ONLY — in live mode, handled inside prc_order_master_set atomically.
    *
    * @param {number} receiverDetailsId - FK to receiver_details.
    * @param {number} productId - FK to product_master.
    * @param {number} quantity - OutwardQty.
    * @param {number|null} unitPrice - Custom price or null (falls back to MaterialRate).
-   * @returns {object} The created order_items record.
+   * @returns {Promise<object>} The created order_items record.
    */
   async createOrderItem(receiverDetailsId, productId, quantity, unitPrice) {
     // ------------------------------------------------------------------
-    // FUTURE: Handled inside prc_CreateComplexOrder (not a standalone call).
+    // LIVE DB: Not called — handled inside prc_order_master_set atomically.
     // Pricing fallback (UnitPrice or MaterialRate) is handled by the procedure.
     // ------------------------------------------------------------------
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory item creation
+    // ------------------------------------------------------------------
     const item = {
       id: seedOrderItems.length + 1,
       fkReceiverDetailsId: receiverDetailsId,
@@ -167,19 +202,23 @@ class OrderRepository {
 
   /**
    * Create a parcel linked to a receiver.
-   * Part of prc_CreateComplexOrder transaction — 1 receiver = 1 parcel.
+   * MOCK MODE ONLY — in live mode, handled inside prc_order_master_set atomically.
+   * Convention: 1 receiver = 1 parcel.
    *
    * @param {number} receiverDetailsId - FK to receiver_details.
    * @param {number} courierId - FK to courier_partner_master.
-   * @returns {object} The created parcel_details record.
+   * @returns {Promise<object>} The created parcel_details record.
    */
   async createParcel(receiverDetailsId, courierId) {
     // ------------------------------------------------------------------
-    // FUTURE: Handled inside prc_CreateComplexOrder (not a standalone call).
+    // LIVE DB: Not called — handled inside prc_order_master_set atomically.
     // parcel_id is system-generated; TrackingNo starts as NULL.
     // FkParcelStatusId resolves to lu_details.LuDetailsId for "PENDING".
     // ------------------------------------------------------------------
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory parcel creation
+    // ------------------------------------------------------------------
     const parcel = {
       id: seedParcels.length + 1,
       fkReceiverDetailsId: receiverDetailsId,
@@ -205,22 +244,28 @@ class OrderRepository {
    * Convention: pAction=0 → paginated list with dynamically derived order status.
    *
    * @param {object} filters - { page, limit, search, sortBy, sortOrder }
-   * @returns {object} { data: [...], total: number }
+   * @returns {Promise<object>} { data: [...], total: number }
    */
   async findAllOrders(filters = {}) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_order_master_get(?, ?, ?, ?, ?, ?)', [
-    //   0, // pAction=0 → Get all orders (paginated summary)
-    //   filters.page || 1,
-    //   filters.limit || 20,
-    //   filters.search || null,
-    //   filters.sortBy || 'CreatedDate',
-    //   filters.sortOrder || 'desc'
-    // ]);
-    // return { data: rows[0], total: rows[1][0].total_records };
+    // LIVE DB MODE: prc_order_master_get (pAction=0 → Paginated summary)
+    // The SP dynamically derives order status from parcel states.
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_order_master_get(?, ?, ?, ?, ?, ?)', [
+        0, // pAction=0 → Get all orders (paginated summary)
+        filters.page || 1,
+        filters.limit || 20,
+        filters.search || null,
+        filters.sortBy || 'CreatedDate',
+        filters.sortOrder || 'desc'
+      ]);
+      return { data: rows[0], total: rows[1]?.[0]?.total_records || 0 };
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory filtering with derived order status
+    // ------------------------------------------------------------------
     const activeOrders = seedOrders.filter((o) => o.isActive);
 
     return {
@@ -256,18 +301,24 @@ class OrderRepository {
    * Convention: pAction=1 → single order aggregate with nested receivers, items, parcels.
    *
    * @param {number|string} orderId - PK of order_master.
-   * @returns {object|null} The full nested order aggregate, or null if not found.
+   * @returns {Promise<object|null>} The full nested order aggregate, or null if not found.
    */
   async findById(orderId) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rawFlatRows] = await db.execute('CALL prc_order_master_get(?, ?)', [
-    //   1, // pAction=1 → Get specific order aggregate
-    //   orderId
-    // ]);
-    // // The rawFlatRows would then be mapped below using the O(N) hash map optimization.
+    // LIVE DB MODE: prc_order_master_get (pAction=1 → Aggregate)
+    // The SP returns flat rows that may need mapping, or a JSON aggregate.
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_order_master_get(?, ?)', [
+        1, // pAction=1 → Get specific order aggregate
+        orderId
+      ]);
+      return rows[0]?.[0] || null;
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory aggregate with hash map optimization
+    // ------------------------------------------------------------------
     const order = seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive);
     if (!order) return null;
 
@@ -335,18 +386,24 @@ class OrderRepository {
    *
    * @param {number|string} orderId - PK of order_master.
    * @param {object} payload - Updated order payload.
-   * @returns {object|null} The updated order, or null if not found / blocked.
+   * @returns {Promise<object|null>} The updated order, or null if not found / blocked.
    */
   async updateOrder(orderId, payload) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_order_master_set(?, ?)', [
-    //   orderId, // ID>0 → Update existing order
-    //   JSON.stringify(payload)
-    // ]);
-    // return rows[0][0];
+    // LIVE DB MODE: prc_order_master_set (ID>0 → Update)
+    // The SP enforces the AWB_LINKED threshold check internally.
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_order_master_set(?, ?)', [
+        orderId, // ID>0 → Update existing order
+        JSON.stringify(payload)
+      ]);
+      return rows[0]?.[0] || null;
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory update with AWB threshold check
+    // ------------------------------------------------------------------
     const orderIndex = seedOrders.findIndex((o) => o.id === parseInt(orderId) && o.isActive);
     if (orderIndex === -1) return null;
 
@@ -388,19 +445,25 @@ class OrderRepository {
    *
    * @param {number|string} orderId - PK of order_master.
    * @param {string} cancelledBy - EmployeeCode of the user performing cancellation.
-   * @returns {object|null} Cancellation result, or null if not found.
+   * @returns {Promise<object|null>} Cancellation result, or null if not found.
    */
   async cancelOrder(orderId, cancelledBy) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?)', [
-    //   orderId,
-    //   JSON.stringify({ pCancelRequested: 1 }),
-    //   cancelledBy
-    // ]);
-    // return rows[0][0];
+    // LIVE DB MODE: prc_order_master_set (pCancelRequested=1)
+    // The SP handles cascading cancellation and audit logging internally.
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?)', [
+        orderId,
+        JSON.stringify({ pCancelRequested: 1 }),
+        cancelledBy
+      ]);
+      return rows[0]?.[0] || null;
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory cascading cancellation
+    // ------------------------------------------------------------------
     const order = seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive);
     if (!order) return null;
 
@@ -423,7 +486,7 @@ class OrderRepository {
       const index = seedParcels.findIndex((p) => p.id === parcel.id);
       if (index !== -1) {
         seedParcels[index].parcelStatusCode = 'CANCELLED';
-        // ✔ In the real DB, prc_CancelOrder appends a row to receiver_status_details
+        // ✔ In the real DB, prc_order_master_set appends a row to receiver_status_details
         // for each parcel with ActionType = 'STATUS_UPDATE'
       }
     });
@@ -438,12 +501,12 @@ class OrderRepository {
   }
 
   // ============================================================================
-  // INTERNAL HELPERS
+  // INTERNAL HELPERS (MOCK MODE ONLY)
   // ============================================================================
 
   /**
    * Derives order status from aggregated parcel states (Systemflow Decision 2).
-   * This logic is replicated in prc_GetAllOrdersSummary on the DB side.
+   * MOCK MODE ONLY — in live DB mode, the SP computes this dynamically.
    *
    * @param {Array} parcels - Array of parcel_details records.
    * @returns {string} The derived order status string.

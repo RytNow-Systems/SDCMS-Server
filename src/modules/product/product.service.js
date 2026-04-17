@@ -1,31 +1,54 @@
 // ============================================================================
 // File: src/modules/product/product.service.js
 // Description: Business logic layer for Products Master Data.
+//
+// Dual-Mode Mapping: Handles both mock field names and DB column names.
+//   - Mock/DB: { PkProductId, MaterialName, MaterialRate, cu_item_code }
+//   - API:     { id, productName, materialRate, cuItemCode }
 // ============================================================================
 
 import productRepository from './product.repository.js';
 
 class ProductService {
-  
+
   /**
-   * Internal mapper to format DB results for the API layer
+   * Internal mapper to format DB/mock results for the API layer.
+   * Handles both DB column names and legacy mock field names gracefully.
+   *
+   * @param {object} product - Raw product record from repository.
+   * @returns {object|null} API-formatted product object.
    */
   _mapToApi(product) {
     if (!product) return null;
-    const { materialName, ...rest } = product;
     return {
-      ...rest,
-      productName: materialName
+      id: product.PkProductId || product.id,
+      productName: product.MaterialName || product.materialName,
+      materialRate: product.MaterialRate || product.materialRate,
+      cuItemCode: product.cu_item_code || product.cuItemCode,
+      description: product.MaterialDescription || product.description || null,
+      categoryId: product.FkProductCategoryId || product.categoryId || null,
+      unitId: product.FkUnitId || product.unitId || null,
+      isActive: product.IsActive !== undefined ? product.IsActive : product.isActive,
+      createdAt: product.CreatedDate || product.createdAt
     };
   }
 
   /**
-   * Internal mapper to format API payloads for the Repository layer
+   * Internal mapper to format API payloads for the Repository layer.
+   * Translates API field names to DB-native column names.
+   *
+   * @param {object} apiData - API payload.
+   * @returns {object} Repository-formatted object.
    */
   _mapToInternal(apiData) {
-    const { productName, ...rest } = apiData;
-    const internal = { ...rest };
-    if (productName) internal.materialName = productName;
+    const internal = {};
+    if (apiData.productName) internal.MaterialName = apiData.productName;
+    if (apiData.materialName) internal.MaterialName = apiData.materialName;
+    if (apiData.materialRate !== undefined) internal.MaterialRate = apiData.materialRate;
+    if (apiData.cuItemCode) internal.cu_item_code = apiData.cuItemCode;
+    if (apiData.description) internal.MaterialDescription = apiData.description;
+    if (apiData.categoryId) internal.FkProductCategoryId = apiData.categoryId;
+    if (apiData.unitId) internal.FkUnitId = apiData.unitId;
     return internal;
   }
 
@@ -50,13 +73,13 @@ class ProductService {
   async createProduct(productData) {
     const internalData = this._mapToInternal(productData);
 
-    if (!internalData.materialName || internalData.materialRate === undefined) {
+    if (!internalData.MaterialName || internalData.MaterialRate === undefined) {
       const error = new Error('Product Name and Material Rate are required');
       error.statusCode = 400;
       throw error;
     }
 
-    if (isNaN(parseFloat(internalData.materialRate)) || parseFloat(internalData.materialRate) < 0) {
+    if (isNaN(parseFloat(internalData.MaterialRate)) || parseFloat(internalData.MaterialRate) < 0) {
       const error = new Error('Material rate must be a valid positive number');
       error.statusCode = 400;
       throw error;
@@ -72,8 +95,8 @@ class ProductService {
 
     const internalUpdates = this._mapToInternal(updates);
 
-    if (internalUpdates.materialRate !== undefined) {
-      if (isNaN(parseFloat(internalUpdates.materialRate)) || parseFloat(internalUpdates.materialRate) < 0) {
+    if (internalUpdates.MaterialRate !== undefined) {
+      if (isNaN(parseFloat(internalUpdates.MaterialRate)) || parseFloat(internalUpdates.MaterialRate) < 0) {
         const error = new Error('Material rate must be a valid positive number');
         error.statusCode = 400;
         throw error;
@@ -87,16 +110,16 @@ class ProductService {
   async deleteProduct(id) {
     // Ensure product exists
     await this.getProductById(id);
-    
+
     // In production, verify product isn't linked to active orders before deleting.
-    
+
     const success = await productRepository.delete(id);
     if (!success) {
       const error = new Error('Failed to delete product');
       error.statusCode = 500;
       throw error;
     }
-    
+
     return true;
   }
 }

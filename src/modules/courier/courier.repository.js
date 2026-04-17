@@ -1,31 +1,39 @@
 // ============================================================================
 // File: src/modules/courier/courier.repository.js
-// Description: Data access layer for Courier Partners, explicitly mocking 
-// the Stored Procedure architecture defined in Database_Procedures_Requirements.md
+// Description: Data access layer for Courier Partners.
+//
+// Dual-Mode: Controlled by USE_MOCK_DB environment variable.
+//   - USE_MOCK_DB=true  → In-memory seed data (frontend development)
+//   - USE_MOCK_DB=false → Live MySQL stored procedures
+//
+// SP Convention (api_procedure_spec_v1.md):
+//   - Reads:   prc_courier_partner_master_get (pAction=0 list, pAction=1 specific)
+//   - Upserts: prc_courier_partner_master_set (CourierId=0 insert, >0 update, IsActive=0 delete)
 // ============================================================================
 
 import db from '../../infrastructure/database/db.js';
 
-// In-Memory Seed Data Fallback per strict 'Zero Direct DB' rule until SPs are ready
+// ============================================================================
+// MOCK MODE: In-Memory Seed Data
+// Used when USE_MOCK_DB=true for frontend development without a live database.
+// ============================================================================
 let seedCouriers = [];
 
 const initializeSeedData = () => {
   seedCouriers = [
     {
-      id: 1,
-      courierName: 'Delhivery',
-      apiKey: 'test_delhivery_key',
-      trackingUrlTemplate: 'https://delhivery.com/track/{AWB}',
-      isActive: true,
-      createdAt: new Date().toISOString()
+      CourierId: 1,
+      CourierName: 'Delhivery',
+      TrackingUrlTemplate: 'https://delhivery.com/track/{AWB}',
+      IsActive: true,
+      CreatedDate: new Date().toISOString()
     },
     {
-      id: 2,
-      courierName: 'BlueDart',
-      apiKey: 'test_bluedart_key',
-      trackingUrlTemplate: 'https://bluedart.com/track/{AWB}',
-      isActive: true,
-      createdAt: new Date().toISOString()
+      CourierId: 2,
+      CourierName: 'BlueDart',
+      TrackingUrlTemplate: 'https://bluedart.com/track/{AWB}',
+      IsActive: true,
+      CreatedDate: new Date().toISOString()
     }
   ];
 };
@@ -34,24 +42,41 @@ initializeSeedData();
 
 class CourierRepository {
   /**
-   * Mock implementation of: CALL sp_get_all_courier_partners(?, ?, ?)
+   * Fetches a paginated list of courier partners with optional search.
+   * Procedure: CALL prc_courier_partner_master_get(?, ?, ?, ?)
+   * Convention: pAction=0 → paginated list.
+   *
+   * @param {number} page - Page number.
+   * @param {number} limit - Results per page.
+   * @param {string} search - Optional search term.
+   * @returns {Promise<object>} { data: [...], total: number }
    */
   async findAll(page = 1, limit = 20, search = '') {
     // ------------------------------------------------------------------
-    // Future Implementation (Placeholder Procedure)
-    // const [rows] = await db.execute('CALL sp_get_all_courier_partners(?, ?, ?)', [page, limit, search]);
-    // return { data: rows[0], total: rows[1][0].total_records };
+    // LIVE DB MODE: prc_courier_partner_master_get (pAction=0)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?, ?, ?)', [
+        0, // pAction=0 → Get all couriers (paginated)
+        page,
+        limit,
+        search || null
+      ]);
+      return { data: rows[0], total: rows[1]?.[0]?.total_records || 0 };
+    }
 
-    const activeCouriers = seedCouriers.filter(c => c.isActive);
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory filtering
+    // ------------------------------------------------------------------
+    const activeCouriers = seedCouriers.filter(c => c.IsActive);
     let filtered = activeCouriers;
-    
+
     if (search) {
-      filtered = filtered.filter(c => 
-        c.courierName.toLowerCase().includes(search.toLowerCase())
+      filtered = filtered.filter(c =>
+        c.CourierName.toLowerCase().includes(search.toLowerCase())
       );
     }
-    
+
     return {
       data: filtered,
       total: filtered.length
@@ -59,41 +84,61 @@ class CourierRepository {
   }
 
   /**
-   * Mock implementation of: CALL sp_get_courier_partner_by_id(?)
+   * Fetches a courier partner by ID.
+   * Procedure: CALL prc_courier_partner_master_get(?, ?)
+   * Convention: pAction=1 → specific record.
+   *
+   * @param {number|string} id - CourierId.
+   * @returns {Promise<object|null>} Courier record or null.
    */
   async findById(id) {
     // ------------------------------------------------------------------
-    // Future Implementation (Placeholder Procedure)
-    // const [rows] = await db.execute('CALL sp_get_courier_partner_by_id(?)', [id]);
-    // return rows[0][0] || null;
+    // LIVE DB MODE: prc_courier_partner_master_get (pAction=1)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [1, id]);
+      return rows[0]?.[0] || null;
+    }
 
-    const courier = seedCouriers.find((c) => c.id.toString() === id.toString() && c.isActive);
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory lookup by CourierId
+    // ------------------------------------------------------------------
+    const courier = seedCouriers.find((c) => c.CourierId.toString() === id.toString() && c.IsActive);
     return courier || null;
   }
 
   /**
-   * Mock implementation of: CALL sp_create_courier_partner(?, ?, ?)
+   * Creates a new courier partner.
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?)
+   * Convention: CourierId=0 triggers insert. No pAction on _set calls.
+   *
+   * @param {object} courierData - { courierName, trackingUrlTemplate }
+   * @returns {Promise<object>} The newly created courier record.
    */
   async create(courierData) {
     // ------------------------------------------------------------------
-    // Future Implementation (Placeholder Procedure)
-    // const [rows] = await db.execute('CALL sp_create_courier_partner(?, ?, ?)', [
-    //   courierData.courierName,
-    //   courierData.apiKey || null,
-    //   courierData.trackingUrlTemplate
-    // ]);
-    // return rows[0][0];
+    // LIVE DB MODE: prc_courier_partner_master_set (CourierId=0 → Insert)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?)', [
+        0, // CourierId=0 → Insert new courier
+        courierData.courierName,
+        courierData.trackingUrlTemplate,
+        1  // IsActive=1
+      ]);
+      return rows[0]?.[0];
+    }
 
-    const newId = seedCouriers.length > 0 ? Math.max(...seedCouriers.map(c => c.id)) + 1 : 1;
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory push
+    // ------------------------------------------------------------------
+    const newId = seedCouriers.length > 0 ? Math.max(...seedCouriers.map(c => c.CourierId)) + 1 : 1;
     const newCourier = {
-      id: newId,
-      courierName: courierData.courierName,
-      apiKey: courierData.apiKey || null,
-      trackingUrlTemplate: courierData.trackingUrlTemplate,
-      isActive: true,
-      createdAt: new Date().toISOString()
+      CourierId: newId,
+      CourierName: courierData.courierName,
+      TrackingUrlTemplate: courierData.trackingUrlTemplate,
+      IsActive: true,
+      CreatedDate: new Date().toISOString()
     };
 
     seedCouriers.push(newCourier);
@@ -101,44 +146,69 @@ class CourierRepository {
   }
 
   /**
-   * Mock implementation of: CALL sp_update_courier_partner(?, ?, ?)
+   * Updates an existing courier partner.
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?)
+   * Convention: CourierId>0 triggers update. No pAction on _set calls.
+   *
+   * @param {number|string} id - CourierId.
+   * @param {object} updates - Fields to update.
+   * @returns {Promise<object|null>} Updated courier record or null.
    */
   async update(id, updates) {
     // ------------------------------------------------------------------
-    // Future Implementation (Placeholder Procedure)
-    // const [rows] = await db.execute('CALL sp_update_courier_partner(?, ?, ?)', [
-    //   id,
-    //   updates.courierName,
-    //   updates.trackingUrlTemplate
-    // ]);
-    // return rows[0][0] || null;
+    // LIVE DB MODE: prc_courier_partner_master_set (CourierId>0 → Update)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?)', [
+        id, // CourierId>0 → Update existing courier
+        updates.courierName || null,
+        updates.trackingUrlTemplate || null,
+        1   // IsActive=1 (still active)
+      ]);
+      return rows[0]?.[0] || null;
+    }
 
-    const index = seedCouriers.findIndex(c => c.id.toString() === id.toString() && c.isActive);
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory update
+    // ------------------------------------------------------------------
+    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString() && c.IsActive);
     if (index === -1) return null;
 
-    seedCouriers[index] = {
-      ...seedCouriers[index],
-      ...updates
-    };
+    if (updates.courierName) seedCouriers[index].CourierName = updates.courierName;
+    if (updates.trackingUrlTemplate) seedCouriers[index].TrackingUrlTemplate = updates.trackingUrlTemplate;
 
     return seedCouriers[index];
   }
 
   /**
-   * Mock implementation of: CALL sp_soft_delete_courier_partner(?)
+   * Soft-deletes a courier partner (sets IsActive=0).
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?)
+   * Convention: Pass IsActive=0 for soft-delete. No pAction on _set calls.
+   *
+   * @param {number|string} id - CourierId.
+   * @returns {Promise<boolean>} True if deleted, false if not found.
    */
   async delete(id) {
     // ------------------------------------------------------------------
-    // Future Implementation (Placeholder Procedure)
-    // const [rows] = await db.execute('CALL sp_soft_delete_courier_partner(?)', [id]);
-    // return true; // Success
+    // LIVE DB MODE: prc_courier_partner_master_set (IsActive=0 → Soft Delete)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?)', [
+        id,
+        null, // CourierName — no change
+        null, // TrackingUrlTemplate — no change
+        0     // IsActive=0 → Soft delete
+      ]);
+      return true;
+    }
 
-    const index = seedCouriers.findIndex(c => c.id.toString() === id.toString() && c.isActive);
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory soft delete
+    // ------------------------------------------------------------------
+    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString() && c.IsActive);
     if (index === -1) return false;
 
-    seedCouriers[index].isActive = false;
+    seedCouriers[index].IsActive = false;
     return true;
   }
 }

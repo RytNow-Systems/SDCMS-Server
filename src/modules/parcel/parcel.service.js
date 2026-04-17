@@ -5,6 +5,11 @@
 //   Created → Label Printed → AWB Linked → Dispatched → Delivered
 // and terminal states (Cancelled, Returned).
 // All state transitions are validated before delegating to the repository.
+//
+// Dual-Mode: Service-layer validations apply in BOTH modes.
+// In LIVE mode, the SP also validates (defense-in-depth).
+// In MOCK mode, service validations are the sole guardrails.
+//
 // Procedure mapping:
 //   - Reads:  prc_parcel_details_get, prc_receiver_status_details_get
 //   - Writes: prc_parcel_details_set (internally triggers audit logging)
@@ -38,7 +43,7 @@ class ParcelService {
    * Maps to prc_parcel_details_get (pAction=0).
    *
    * @param {object} filters - { page, limit, search, status, sortBy, sortOrder }
-   * @returns {object} { data: [...], total: number }
+   * @returns {Promise<object>} { data: [...], total: number }
    */
   async getParcelList(filters) {
     return await parcelRepository.findAllParcels(filters);
@@ -49,7 +54,7 @@ class ParcelService {
    * Maps to prc_parcel_details_get (pAction=1).
    *
    * @param {number|string} id - PkParcelDetailsId.
-   * @returns {object} Parcel detail.
+   * @returns {Promise<object>} Parcel detail.
    * @throws {Error} 404 if parcel not found.
    */
   async getParcelDetails(id) {
@@ -69,7 +74,7 @@ class ParcelService {
    * Backend does NOT generate QR images — frontend responsibility.
    *
    * @param {number|string} id - PkParcelDetailsId.
-   * @returns {object} Flat label data JSON.
+   * @returns {Promise<object>} Flat label data JSON.
    * @throws {Error} 404 if parcel not found.
    */
   async getLabelData(id) {
@@ -87,7 +92,7 @@ class ParcelService {
    * Maps to prc_receiver_status_details_get (pAction=1).
    *
    * @param {number|string} id - PkParcelDetailsId.
-   * @returns {Array} Chronological event timeline.
+   * @returns {Promise<Array>} Chronological event timeline.
    */
   async getTimeline(id) {
     // Verify parcel exists first
@@ -112,7 +117,7 @@ class ParcelService {
    *
    * @param {number|string} id - PkParcelDetailsId.
    * @param {object} user - Authenticated user from JWT.
-   * @returns {object} Updated parcel.
+   * @returns {Promise<object>} Updated parcel.
    * @throws {Error} 404/400 on invalid parcel or state.
    */
   async logLabelPrint(id, user) {
@@ -149,9 +154,12 @@ class ParcelService {
    *      - COURIER → DISPATCHED (stamps DispatchDate)
    *      - OPERATOR/ADMIN → AWB_LINKED only
    *
+   * In LIVE mode, the SP handles QR lookup, AWB uniqueness, and state validation.
+   * In MOCK mode, we perform these checks in the service layer using mock helpers.
+   *
    * @param {object} payload - { qrCode, awbNumber }
    * @param {object} user - Authenticated user from JWT.
-   * @returns {object} Updated parcel.
+   * @returns {Promise<object>} Updated parcel.
    * @throws {Error} 404/400/409 on invalid state or duplicate AWB.
    */
   async scanAndLinkAWB(payload, user) {
@@ -159,33 +167,41 @@ class ParcelService {
     const employeeCode = user?.employeeCode || 'SYSTEM';
     const role = user?.role || 'OPERATOR';
 
-    // Step 1: Find parcel by QR code (parcel_id)
-    const parcel = parcelRepository.findByQRCode(qrCode);
-    if (!parcel) {
-      const error = new Error(`Parcel not found for QR code: ${qrCode}`);
-      error.statusCode = 404;
-      throw error;
+    // ------------------------------------------------------------------
+    // In MOCK mode, perform pre-validation using mock helpers.
+    // In LIVE mode, the SP performs these checks internally.
+    // If the SP detects a violation, it will SIGNAL and the global
+    // error middleware will translate it to the appropriate HTTP status.
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB === 'true') {
+      // Step 1: Find parcel by QR code (parcel_id) — MOCK ONLY
+      const parcel = parcelRepository.findByQRCode(qrCode);
+      if (!parcel) {
+        const error = new Error(`Parcel not found for QR code: ${qrCode}`);
+        error.statusCode = 404;
+        throw error;
+      }
+
+      // Step 2: Validate state — must be LABEL_PRINTED — MOCK ONLY
+      if (parcel.parcelStatusCode !== 'LABEL_PRINTED') {
+        const error = new Error(
+          `Cannot link AWB: parcel is in '${parcel.parcelStatusCode}' state. ` +
+          `AWB linking requires parcel to be in LABEL_PRINTED state.`
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // Step 3: Check AWB uniqueness (409 on duplicate) — MOCK ONLY
+      const isDuplicate = parcelRepository.checkDuplicateAWB(awbNumber);
+      if (isDuplicate) {
+        const error = new Error(`AWB number '${awbNumber}' is already linked to another parcel`);
+        error.statusCode = 409;
+        throw error;
+      }
     }
 
-    // Step 2: Validate state — must be LABEL_PRINTED
-    if (parcel.parcelStatusCode !== 'LABEL_PRINTED') {
-      const error = new Error(
-        `Cannot link AWB: parcel is in '${parcel.parcelStatusCode}' state. ` +
-        `AWB linking requires parcel to be in LABEL_PRINTED state.`
-      );
-      error.statusCode = 400;
-      throw error;
-    }
-
-    // Step 3: Check AWB uniqueness (409 on duplicate)
-    const isDuplicate = parcelRepository.checkDuplicateAWB(awbNumber);
-    if (isDuplicate) {
-      const error = new Error(`AWB number '${awbNumber}' is already linked to another parcel`);
-      error.statusCode = 409;
-      throw error;
-    }
-
-    // Step 4: Execute scan + link
+    // Step 4: Execute scan + link (both modes delegate to repository)
     const result = await parcelRepository.scanAndLinkAWB(qrCode, awbNumber, role, employeeCode);
     return result;
   }
@@ -197,7 +213,7 @@ class ParcelService {
    *
    * @param {number[]} parcelIds - Array of PkParcelDetailsId values.
    * @param {object} user - Authenticated user from JWT.
-   * @returns {object} Dispatch result.
+   * @returns {Promise<object>} Dispatch result.
    * @throws {Error} 400 if any parcel is not AWB_LINKED.
    */
   async dispatchParcels(parcelIds, user) {
@@ -231,7 +247,7 @@ class ParcelService {
    *
    * @param {number|string} id - PkParcelDetailsId.
    * @param {object} user - Authenticated user from JWT.
-   * @returns {object} Updated parcel.
+   * @returns {Promise<object>} Updated parcel.
    */
   async deliverParcel(id, user) {
     return await this._transitionToTerminal(id, 'DELIVERED', user);
@@ -244,7 +260,7 @@ class ParcelService {
    *
    * @param {number|string} id - PkParcelDetailsId.
    * @param {object} user - Authenticated user from JWT.
-   * @returns {object} Updated parcel.
+   * @returns {Promise<object>} Updated parcel.
    */
   async cancelParcel(id, user) {
     return await this._transitionToTerminal(id, 'CANCELLED', user);
@@ -257,7 +273,7 @@ class ParcelService {
    *
    * @param {number|string} id - PkParcelDetailsId.
    * @param {object} user - Authenticated user from JWT.
-   * @returns {object} Updated parcel.
+   * @returns {Promise<object>} Updated parcel.
    */
   async returnParcel(id, user) {
     return await this._transitionToTerminal(id, 'RETURNED', user);
@@ -272,7 +288,7 @@ class ParcelService {
    * Maps to prc_receiver_status_details_get (pAction=0).
    *
    * @param {object} filters - { page, limit, dateFrom, dateTo, actionType, scannedBy }
-   * @returns {object} { data: [...], total: number }
+   * @returns {Promise<object>} { data: [...], total: number }
    */
   async browseEvents(filters) {
     return await parcelRepository.browseEvents(filters);
@@ -289,7 +305,7 @@ class ParcelService {
    * @param {number|string} id - PkParcelDetailsId.
    * @param {string} targetStatus - The desired new status.
    * @param {object} user - Authenticated user from JWT.
-   * @returns {object} Updated parcel.
+   * @returns {Promise<object>} Updated parcel.
    * @throws {Error} 404/400 on invalid parcel or transition.
    * @private
    */

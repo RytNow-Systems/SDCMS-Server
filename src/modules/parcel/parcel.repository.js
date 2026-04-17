@@ -1,13 +1,19 @@
 // ============================================================================
 // File: src/modules/parcel/parcel.repository.js
-// Description: Data access layer for the Parcel module, explicitly mocking
-// the Stored Procedure architecture defined in api_procedure_spec_v1.md.
-// All methods use the standardized _set/_get naming convention:
+// Description: Data access layer for the Parcel module.
+//
+// Dual-Mode: Controlled by USE_MOCK_DB environment variable.
+//   - USE_MOCK_DB=true  → In-memory seed data (frontend development)
+//   - USE_MOCK_DB=false → Live MySQL stored procedures
+//
+// SP Convention (api_procedure_spec_v1.md):
 //   - Reads:   prc_parcel_details_get (pAction=0 list, 1 detail, 2 label-data)
 //   - Reads:   prc_receiver_status_details_get (pAction=0 all events, 1 timeline)
 //   - Writes:  prc_parcel_details_set (log-print, scan, dispatch, terminal states)
 //              → internally triggers prc_receiver_status_details_set
 // ============================================================================
+
+import db from '../../infrastructure/database/db.js';
 
 import {
   seedParcels,
@@ -28,22 +34,27 @@ class ParcelRepository {
    * Convention: pAction=0 → paginated list of all active parcels.
    *
    * @param {object} filters - { page, limit, search, sortBy, sortOrder, status }
-   * @returns {object} { data: [...], total: number }
+   * @returns {Promise<object>} { data: [...], total: number }
    */
   async findAllParcels(filters = {}) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?, ?, ?, ?, ?)', [
-    //   0, // pAction=0 → Get all parcels (paginated)
-    //   filters.page || 1,
-    //   filters.limit || 20,
-    //   filters.search || null,
-    //   filters.sortBy || 'CreatedDate',
-    //   filters.sortOrder || 'desc'
-    // ]);
-    // return { data: rows[0], total: rows[1][0].total_records };
+    // LIVE DB MODE: prc_parcel_details_get (pAction=0)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?, ?, ?, ?, ?)', [
+        0, // pAction=0 → Get all parcels (paginated)
+        filters.page || 1,
+        filters.limit || 20,
+        filters.search || null,
+        filters.sortBy || 'CreatedDate',
+        filters.sortOrder || 'desc'
+      ]);
+      return { data: rows[0], total: rows[1]?.[0]?.total_records || 0 };
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory filtering
+    // ------------------------------------------------------------------
     let filtered = seedParcels.filter(() => true);
 
     // Optional status filter
@@ -90,18 +101,23 @@ class ParcelRepository {
    * Convention: pAction=1 → single parcel detail.
    *
    * @param {number|string} parcelId - PkParcelDetailsId.
-   * @returns {object|null} Parcel detail, or null if not found.
+   * @returns {Promise<object|null>} Parcel detail, or null if not found.
    */
   async findById(parcelId) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
-    //   1, // pAction=1 → Get specific parcel
-    //   parcelId
-    // ]);
-    // return rows[0]?.[0] || null;
+    // LIVE DB MODE: prc_parcel_details_get (pAction=1)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
+        1, // pAction=1 → Get specific parcel
+        parcelId
+      ]);
+      return rows[0]?.[0] || null;
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory lookup with enrichment
+    // ------------------------------------------------------------------
     const parcel = seedParcels.find((p) => p.id === parseInt(parcelId));
     if (!parcel) return null;
 
@@ -138,18 +154,23 @@ class ParcelRepository {
    * The frontend is responsible for rendering the QR code from parcel_id.
    *
    * @param {number|string} parcelId - PkParcelDetailsId.
-   * @returns {object|null} Flat label data JSON, or null if not found.
+   * @returns {Promise<object|null>} Flat label data JSON, or null if not found.
    */
   async getLabelData(parcelId) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
-    //   2, // pAction=2 → Label data (stitched flat JSON)
-    //   parcelId
-    // ]);
-    // return rows[0]?.[0] || null;
+    // LIVE DB MODE: prc_parcel_details_get (pAction=2)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
+        2, // pAction=2 → Label data (stitched flat JSON)
+        parcelId
+      ]);
+      return rows[0]?.[0] || null;
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory label data stitching
+    // ------------------------------------------------------------------
     const parcel = seedParcels.find((p) => p.id === parseInt(parcelId));
     if (!parcel) return null;
 
@@ -186,18 +207,23 @@ class ParcelRepository {
    * Convention: pAction=1 → timeline for a specific parcel (Amazon-style).
    *
    * @param {number|string} parcelId - PkParcelDetailsId.
-   * @returns {Array} Chronological event timeline.
+   * @returns {Promise<Array>} Chronological event timeline.
    */
   async getTimeline(parcelId) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_receiver_status_details_get(?, ?)', [
-    //   1, // pAction=1 → Timeline for specific parcel
-    //   parcelId
-    // ]);
-    // return rows[0];
+    // LIVE DB MODE: prc_receiver_status_details_get (pAction=1)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_receiver_status_details_get(?, ?)', [
+        1, // pAction=1 → Timeline for specific parcel
+        parcelId
+      ]);
+      return rows[0];
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory timeline filtering
+    // ------------------------------------------------------------------
     return seedStatusLog
       .filter((log) => log.fkParcelDetailsId === parseInt(parcelId))
       .sort((a, b) => new Date(a.createdDate) - new Date(b.createdDate))
@@ -226,19 +252,24 @@ class ParcelRepository {
    *
    * @param {number|string} parcelId - PkParcelDetailsId.
    * @param {string} employeeCode - CreatedBy for the event log.
-   * @returns {object} Updated parcel record.
+   * @returns {Promise<object>} Updated parcel record.
    */
   async logPrint(parcelId, employeeCode) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?)', [
-    //   parcelId,
-    //   'LOG_PRINT',
-    //   employeeCode
-    // ]);
-    // return rows[0][0];
+    // LIVE DB MODE: prc_parcel_details_set (LOG_PRINT action)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?)', [
+        parcelId,
+        'LOG_PRINT',
+        employeeCode
+      ]);
+      return rows[0][0];
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory label print with audit log
+    // ------------------------------------------------------------------
     const index = seedParcels.findIndex((p) => p.id === parseInt(parcelId));
     if (index === -1) return null;
 
@@ -277,21 +308,28 @@ class ParcelRepository {
    * @param {string} awbNumber - The AWB barcode number.
    * @param {string} role - User role (ADMIN, OPERATOR, COURIER).
    * @param {string} employeeCode - CreatedBy for the event log.
-   * @returns {object|null} Updated parcel, or null if not found.
+   * @returns {Promise<object|null>} Updated parcel, or null if not found.
    */
   async scanAndLinkAWB(qrCode, awbNumber, role, employeeCode) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?, ?, ?)', [
-    //   parcelId,
-    //   'SCAN_LINK_AWB',
-    //   awbNumber,
-    //   role,
-    //   employeeCode
-    // ]);
-    // return rows[0][0];
+    // LIVE DB MODE: prc_parcel_details_set (SCAN_LINK_AWB action)
+    // The SP handles QR lookup, AWB uniqueness check, role-based status
+    // transition, and audit logging internally.
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?, ?, ?)', [
+        qrCode,       // parcel_id (QR code value)
+        'SCAN_LINK_AWB',
+        awbNumber,
+        role,
+        employeeCode
+      ]);
+      return rows[0][0];
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory scan + AWB link with role-based dispatch
+    // ------------------------------------------------------------------
     // Find parcel by parcel_id (QR code value)
     const index = seedParcels.findIndex((p) => p.parcel_id === qrCode);
     if (index === -1) return null;
@@ -336,19 +374,28 @@ class ParcelRepository {
    *
    * @param {number[]} parcelIds - Array of PkParcelDetailsId values.
    * @param {string} employeeCode - CreatedBy for the event log.
-   * @returns {object} { dispatched: number, parcels: [...] }
+   * @returns {Promise<object>} { dispatched: number, parcels: [...] }
    */
   async dispatchParcels(parcelIds, employeeCode) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // For each parcelId:
-    // const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?)', [
-    //   parcelId,
-    //   'DISPATCH',
-    //   employeeCode
-    // ]);
+    // LIVE DB MODE: prc_parcel_details_set (DISPATCH action, per parcel)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const dispatched = [];
+      for (const pid of parcelIds) {
+        const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?)', [
+          pid,
+          'DISPATCH',
+          employeeCode
+        ]);
+        if (rows[0]?.[0]) dispatched.push(rows[0][0]);
+      }
+      return { dispatched: dispatched.length, parcels: dispatched };
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory bulk dispatch with audit logs
+    // ------------------------------------------------------------------
     const dispatched = [];
 
     for (const pid of parcelIds) {
@@ -387,19 +434,24 @@ class ParcelRepository {
    * @param {number|string} parcelId - PkParcelDetailsId.
    * @param {string} newStatus - Target terminal status.
    * @param {string} employeeCode - CreatedBy for the event log.
-   * @returns {object|null} Updated parcel, or null if not found.
+   * @returns {Promise<object|null>} Updated parcel, or null if not found.
    */
   async updateTerminalStatus(parcelId, newStatus, employeeCode) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?)', [
-    //   parcelId,
-    //   newStatus, // 'DELIVERED' | 'CANCELLED' | 'RETURNED'
-    //   employeeCode
-    // ]);
-    // return rows[0][0];
+    // LIVE DB MODE: prc_parcel_details_set (terminal status action)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?)', [
+        parcelId,
+        newStatus, // 'DELIVERED' | 'CANCELLED' | 'RETURNED'
+        employeeCode
+      ]);
+      return rows[0]?.[0] || null;
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory terminal status update with audit log
+    // ------------------------------------------------------------------
     const index = seedParcels.findIndex((p) => p.id === parseInt(parcelId));
     if (index === -1) return null;
 
@@ -433,23 +485,28 @@ class ParcelRepository {
    * Convention: pAction=0 → all events with optional filters.
    *
    * @param {object} filters - { page, limit, dateFrom, dateTo, actionType, scannedBy }
-   * @returns {object} { data: [...], total: number }
+   * @returns {Promise<object>} { data: [...], total: number }
    */
   async browseEvents(filters = {}) {
     // ------------------------------------------------------------------
-    // FUTURE SQL PROCEDURE INTEGRATION:
-    // const [rows] = await db.execute('CALL prc_receiver_status_details_get(?, ?, ?, ?, ?, ?, ?)', [
-    //   0, // pAction=0 → Browse all events
-    //   filters.page || 1,
-    //   filters.limit || 50,
-    //   filters.dateFrom || null,
-    //   filters.dateTo || null,
-    //   filters.actionType || null,
-    //   filters.scannedBy || null
-    // ]);
-    // return { data: rows[0], total: rows[1][0].total_records };
+    // LIVE DB MODE: prc_receiver_status_details_get (pAction=0)
     // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_receiver_status_details_get(?, ?, ?, ?, ?, ?, ?)', [
+        0, // pAction=0 → Browse all events
+        filters.page || 1,
+        filters.limit || 50,
+        filters.dateFrom || null,
+        filters.dateTo || null,
+        filters.actionType || null,
+        filters.scannedBy || null
+      ]);
+      return { data: rows[0], total: rows[1]?.[0]?.total_records || 0 };
+    }
 
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory event filtering with enrichment
+    // ------------------------------------------------------------------
     let filtered = [...seedStatusLog];
 
     if (filters.actionType) {
@@ -495,6 +552,7 @@ class ParcelRepository {
 
   /**
    * Check if an AWB number already exists for duplicate detection.
+   * MOCK MODE ONLY — in live mode, the SP handles this check internally.
    *
    * @param {string} awbNumber - The AWB number to check.
    * @returns {boolean} True if AWB already linked to a parcel.
@@ -507,6 +565,7 @@ class ParcelRepository {
 
   /**
    * Find a parcel by its parcel_id (QR code value).
+   * MOCK MODE ONLY — in live mode, the SP resolves QR internally.
    *
    * @param {string} qrCode - The parcel_id string.
    * @returns {object|null} Raw parcel seed data, or null.
@@ -516,7 +575,7 @@ class ParcelRepository {
   }
 
   // ============================================================================
-  // INTERNAL HELPERS
+  // INTERNAL HELPERS (MOCK MODE ONLY)
   // ============================================================================
 
   /**
