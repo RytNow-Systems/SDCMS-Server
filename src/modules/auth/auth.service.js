@@ -15,23 +15,29 @@ class AuthService {
   async loginUser(email, password) {
     const employee = await employeeRepository.findByEmail(email);
     
-    // Compare the raw password with the hashed password
-    if (employee && (await bcrypt.compare(password, employee.password))) {
+    // Compare the raw password with the hashed password.
+    // Dual-case access: mock seed uses PascalCase (Password), live DB may use camelCase.
+    const storedPassword = employee?.Password || employee?.password;
+
+    if (employee && storedPassword && (await bcrypt.compare(password, storedPassword))) {
       
       // Enforce the Toggle-Access restriction
-      if (employee.allowLogin === false) {
+      const canLogin = employee.AllowLogin ?? employee.allowLogin;
+      if (canLogin === false) {
         const error = new Error('Your account has been locked. Contact your Admin.');
         error.statusCode = 403;
         throw error;
       }
 
+      const empCode = employee.EmployeeCode || employee.employeeCode;
+
       return {
-        id: employee.id,
-        employeeCode: employee.employeeCode,
-        name: employee.name,
-        email: employee.email,
-        role: employee.role,
-        token: generateToken(employee.employeeCode), // Using employeeCode as identifier in JWT
+        id: empCode,
+        employeeCode: empCode,
+        name: employee.FullName || employee.name,
+        email: employee.EmailAddress || employee.email,
+        role: employee.RoleCode || employee.role,
+        token: generateToken(empCode), // Using employeeCode as identifier in JWT
       };
     } else {
       const error = new Error('Invalid email or password');
