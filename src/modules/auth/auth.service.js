@@ -6,7 +6,6 @@
 
 import bcrypt from 'bcryptjs';
 import employeeRepository from '../employee/employee.repository.js';
-import authRepository from './auth.repository.js';
 import generateToken from '../../shared/utils/generateToken.js';
 
 class AuthService {
@@ -49,7 +48,7 @@ class AuthService {
    * @returns {Promise<Object>} The employee profile data.
    */
   async getProfile(employeeCode) {
-    const profile = await authRepository.findById(employeeCode);
+    const profile = await employeeRepository.findById(employeeCode);
     
     if (!profile) {
       const error = new Error('Employee profile not found');
