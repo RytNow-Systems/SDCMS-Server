@@ -24,3 +24,4 @@ Post-Request Script / Assertions:
 1. Status code is 200
 2. res.body.success is true
 3. res.body.data contains profile details (employeeCode, roleCode)
+4. res.body.data.firstName is a string

@@ -6,8 +6,23 @@
 import courierRepository from "./courier.repository.js";
 
 class CourierService {
+  _mapToApi(courier) {
+    if (!courier) return null;
+    return {
+      id: courier.CourierId,
+      courierName: courier.CourierName,
+      trackingUrlTemplate: courier.TrackingUrlTemplate,
+      isActive: courier.IsActive === 1 || courier.IsActive === true,
+      createdAt: courier.CreatedDate
+    };
+  }
+
   async getCouriers(page = 1, limit = 20, search = "") {
-    return await courierRepository.findAll(page, limit, search);
+    const result = await courierRepository.findAll(page, limit, search);
+    return {
+      ...result,
+      data: result.data.map(c => this._mapToApi(c))
+    };
   }
 
   async getCourierById(id) {
@@ -17,7 +32,7 @@ class CourierService {
       error.statusCode = 404;
       throw error;
     }
-    return courier;
+    return this._mapToApi(courier);
   }
 
   async createCourier(courierData) {
@@ -29,7 +44,8 @@ class CourierService {
       throw error;
     }
 
-    return await courierRepository.create(courierData);
+    const courier = await courierRepository.create(courierData);
+    return this._mapToApi(courier);
   }
 
   async updateCourier(id, updates) {
@@ -39,7 +55,7 @@ class CourierService {
       error.statusCode = 404;
       throw error;
     }
-    return courier;
+    return this._mapToApi(courier);
   }
 
   async deleteCourier(id) {

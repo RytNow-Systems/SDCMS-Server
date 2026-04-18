@@ -32,7 +32,7 @@ Headers:
 
 Assertions:
   - Status: 200
-  - Returns parcel matching parcel_id search
+  - Returns parcel matching parcelId search
 
 --- TEST 4: Get Single Parcel ---
 Method: GET
@@ -63,8 +63,8 @@ Headers:
 Assertions:
   - Status: 200
   - Body: { success: true, data: { parcelId: "PDS-...", senderName: "...", receiverName: "...", addressLine1: "...", ... } }
-  - Flat JSON with sender snapshot + receiver address + parcel_id
-  - NO QR image data (frontend renders from parcel_id)
+  - Flat JSON with sender snapshot + receiver address + parcelId
+  - NO QR image data (frontend renders from parcelId)
 
 --- TEST 7: Get Parcel Timeline ---
 Method: GET

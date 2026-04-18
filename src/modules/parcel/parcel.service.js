@@ -35,28 +35,118 @@ const VALID_TRANSITIONS = {
 
 class ParcelService {
   // ============================================================================
+  // INTERNAL MAPPERS (Standardize PascalCase to camelCase)
+  // ============================================================================
+
+  _mapParcelSummary(parcel) {
+    if (!parcel) return null;
+    return {
+      id: parcel.PkParcelDetailsId || parcel.id,
+      parcelId: parcel.ParcelId || parcel.parcel_id || parcel.parcelId,
+      trackingNo: parcel.TrackingNo || parcel.trackingNo,
+      status: parcel.ParcelStatusCode || parcel.status,
+      labelPrintCount: parcel.LabelPrintCount !== undefined ? parcel.LabelPrintCount : parcel.labelPrintCount,
+      dispatchDate: parcel.DispatchDate || parcel.dispatchDate,
+      receiverName: parcel.ReceiverName || parcel.receiverName,
+      orderCode: parcel.OrderCode || parcel.orderCode,
+      createdAt: parcel.CreatedDate || parcel.createdAt
+    };
+  }
+
+  _mapParcelDetail(parcel) {
+    if (!parcel) return null;
+    return {
+      id: parcel.PkParcelDetailsId || parcel.id,
+      parcelId: parcel.ParcelId || parcel.parcel_id || parcel.parcelId,
+      trackingNo: parcel.TrackingNo || parcel.trackingNo,
+      status: parcel.ParcelStatusCode || parcel.status,
+      labelPrintCount: parcel.LabelPrintCount !== undefined ? parcel.LabelPrintCount : parcel.labelPrintCount,
+      dispatchDate: parcel.DispatchDate || parcel.dispatchDate,
+      fkCourierId: parcel.FkCourierId || parcel.fkCourierId,
+      receiverName: parcel.ReceiverName || parcel.receiverName,
+      receiverPhone: parcel.ReceiverPhone || parcel.receiverPhone,
+      addressLine1: parcel.AddressLine1 || parcel.addressLine1,
+      addressLine2: parcel.AddressLine2 || parcel.addressLine2,
+      city: parcel.City || parcel.city,
+      state: parcel.State || parcel.state,
+      pincode: parcel.Pincode || parcel.pincode,
+      orderCode: parcel.OrderCode || parcel.orderCode,
+      orderId: parcel.FkOrderId || parcel.orderId,
+      createdAt: parcel.CreatedDate || parcel.createdAt
+    };
+  }
+
+  _mapLabelData(data) {
+    if (!data) return null;
+    return {
+      parcelId: data.ParcelId || data.parcel_id || data.parcelId,
+      orderCode: data.OrderCode || data.orderCode,
+      senderName: data.SenderName || data.senderName,
+      senderMobile: data.SenderMobile || data.senderMobile,
+      senderAddress: data.SenderAddress || data.senderAddress,
+      receiverName: data.ReceiverName || data.receiverName,
+      receiverPhone: data.ReceiverPhone || data.receiverPhone,
+      addressLine1: data.AddressLine1 || data.addressLine1,
+      addressLine2: data.AddressLine2 || data.addressLine2,
+      city: data.City || data.city,
+      state: data.State || data.state,
+      pincode: data.Pincode || data.pincode,
+      country: data.Country || data.country,
+      labelPrintCount: data.LabelPrintCount !== undefined ? data.LabelPrintCount : data.labelPrintCount,
+      status: data.ParcelStatusCode || data.status
+    };
+  }
+
+  _mapTimelineEvent(event) {
+    if (!event) return null;
+    return {
+      id: event.PkReceiverStatusDetailsId || event.id,
+      actionType: event.ActionType || event.actionType,
+      awbNumber: event.AwbNumber || event.awbNumber,
+      previousStatus: event.PreviousStatus || event.previousStatus,
+      newStatus: event.NewStatus || event.newStatus,
+      createdBy: event.CreatedBy || event.createdBy,
+      createdDate: event.CreatedDate || event.createdDate
+    };
+  }
+
+  _mapBrowseEvent(event) {
+    if (!event) return null;
+    return {
+      id: event.PkReceiverStatusDetailsId || event.id,
+      parcelId: event.ParcelId || event.parcelId,
+      orderCode: event.OrderCode || event.orderCode,
+      actionType: event.ActionType || event.actionType,
+      awbNumber: event.AwbNumber || event.awbNumber,
+      previousStatus: event.PreviousStatus || event.previousStatus,
+      newStatus: event.NewStatus || event.newStatus,
+      scannedBy: event.CreatedBy || event.scannedBy,
+      timestamp: event.CreatedDate || event.timestamp
+    };
+  }
+
+  _mapMutationResult(parcel) {
+    if (!parcel) return null;
+    return {
+      id: parcel.PkParcelDetailsId || parcel.id,
+      parcelId: parcel.ParcelId || parcel.parcel_id || parcel.parcelId,
+      status: parcel.ParcelStatusCode || parcel.status,
+      trackingNo: parcel.TrackingNo || parcel.trackingNo,
+      labelPrintCount: parcel.LabelPrintCount !== undefined ? parcel.LabelPrintCount : parcel.labelPrintCount,
+      dispatchDate: parcel.DispatchDate || parcel.dispatchDate,
+      previousStatus: parcel.PreviousStatus || parcel.previousStatus
+    };
+  }
+
+  // ============================================================================
   // READ OPERATIONS
   // ============================================================================
 
-  /**
-   * Get paginated parcel list with optional filters.
-   * Maps to prc_parcel_details_get (pAction=0).
-   *
-   * @param {object} filters - { page, limit, search, status, sortBy, sortOrder }
-   * @returns {Promise<object>} { data: [...], total: number }
-   */
   async getParcelList(filters) {
-    return await parcelRepository.findAllParcels(filters);
+    const result = await parcelRepository.findAllParcels(filters);
+    return { ...result, data: result.data.map(p => this._mapParcelSummary(p)) };
   }
 
-  /**
-   * Get single parcel details by ID.
-   * Maps to prc_parcel_details_get (pAction=1).
-   *
-   * @param {number|string} id - PkParcelDetailsId.
-   * @returns {Promise<object>} Parcel detail.
-   * @throws {Error} 404 if parcel not found.
-   */
   async getParcelDetails(id) {
     const data = await parcelRepository.findById(id);
     if (!data) {
@@ -64,19 +154,9 @@ class ParcelService {
       error.statusCode = 404;
       throw error;
     }
-    return data;
+    return this._mapParcelDetail(data);
   }
 
-  /**
-   * Get stitched label data for frontend rendering.
-   * Maps to prc_parcel_details_get (pAction=2).
-   * Returns flat JSON: sender snapshot + receiver address + parcel_id.
-   * Backend does NOT generate QR images — frontend responsibility.
-   *
-   * @param {number|string} id - PkParcelDetailsId.
-   * @returns {Promise<object>} Flat label data JSON.
-   * @throws {Error} 404 if parcel not found.
-   */
   async getLabelData(id) {
     const data = await parcelRepository.getLabelData(id);
     if (!data) {
@@ -84,42 +164,24 @@ class ParcelService {
       error.statusCode = 404;
       throw error;
     }
-    return data;
+    return this._mapLabelData(data);
   }
 
-  /**
-   * Get Amazon-style event timeline for a parcel.
-   * Maps to prc_receiver_status_details_get (pAction=1).
-   *
-   * @param {number|string} id - PkParcelDetailsId.
-   * @returns {Promise<Array>} Chronological event timeline.
-   */
   async getTimeline(id) {
-    // Verify parcel exists first
     const parcel = await parcelRepository.findById(id);
     if (!parcel) {
       const error = new Error('Parcel not found');
       error.statusCode = 404;
       throw error;
     }
-    return await parcelRepository.getTimeline(id);
+    const timeline = await parcelRepository.getTimeline(id);
+    return timeline.map(event => this._mapTimelineEvent(event));
   }
 
   // ============================================================================
   // WRITE OPERATIONS (STATE TRANSITIONS)
   // ============================================================================
 
-  /**
-   * Log a label print event and transition to LABEL_PRINTED.
-   * Maps to prc_parcel_details_set.
-   * Business rule: Parcel must be in PENDING or LABEL_PRINTED state.
-   * Re-printing (LABEL_PRINTED → LABEL_PRINTED) is allowed to increment count.
-   *
-   * @param {number|string} id - PkParcelDetailsId.
-   * @param {object} user - Authenticated user from JWT.
-   * @returns {Promise<object>} Updated parcel.
-   * @throws {Error} 404/400 on invalid parcel or state.
-   */
   async logLabelPrint(id, user) {
     const parcel = await parcelRepository.findById(id);
     if (!parcel) {
@@ -128,11 +190,11 @@ class ParcelService {
       throw error;
     }
 
-    // Allow printing from PENDING or re-printing from LABEL_PRINTED
+    const currentStatus = parcel.status || parcel.ParcelStatusCode;
     const allowedStates = ['PENDING', 'LABEL_PRINTED'];
-    if (!allowedStates.includes(parcel.status)) {
+    if (!allowedStates.includes(currentStatus)) {
       const error = new Error(
-        `Cannot print label: parcel is in '${parcel.status}' state. ` +
+        `Cannot print label: parcel is in '${currentStatus}' state. ` +
         `Label printing is only allowed when parcel is PENDING or LABEL_PRINTED.`
       );
       error.statusCode = 400;
@@ -140,41 +202,16 @@ class ParcelService {
     }
 
     const employeeCode = user?.employeeCode || 'SYSTEM';
-    return await parcelRepository.logPrint(id, employeeCode);
+    const result = await parcelRepository.logPrint(id, employeeCode);
+    return this._mapMutationResult(result);
   }
 
-  /**
-   * Atomic two-scan operation: QR scan + AWB link.
-   * Maps to prc_parcel_details_set.
-   *
-   * Business rules:
-   *   1. Parcel must be in LABEL_PRINTED state (no AWB before label print).
-   *   2. AWB number must be unique (409 on duplicate).
-   *   3. Role-based auto-dispatch:
-   *      - COURIER → DISPATCHED (stamps DispatchDate)
-   *      - OPERATOR/ADMIN → AWB_LINKED only
-   *
-   * In LIVE mode, the SP handles QR lookup, AWB uniqueness, and state validation.
-   * In MOCK mode, we perform these checks in the service layer using mock helpers.
-   *
-   * @param {object} payload - { qrCode, awbNumber }
-   * @param {object} user - Authenticated user from JWT.
-   * @returns {Promise<object>} Updated parcel.
-   * @throws {Error} 404/400/409 on invalid state or duplicate AWB.
-   */
   async scanAndLinkAWB(payload, user) {
     const { qrCode, awbNumber } = payload;
     const employeeCode = user?.employeeCode || 'SYSTEM';
     const role = user?.role || 'OPERATOR';
 
-    // ------------------------------------------------------------------
-    // In MOCK mode, perform pre-validation using mock helpers.
-    // In LIVE mode, the SP performs these checks internally.
-    // If the SP detects a violation, it will SIGNAL and the global
-    // error middleware will translate it to the appropriate HTTP status.
-    // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB === 'true') {
-      // Step 1: Find parcel by QR code (parcel_id) — MOCK ONLY
       const parcel = parcelRepository.findByQRCode(qrCode);
       if (!parcel) {
         const error = new Error(`Parcel not found for QR code: ${qrCode}`);
@@ -182,7 +219,6 @@ class ParcelService {
         throw error;
       }
 
-      // Step 2: Validate state — must be LABEL_PRINTED — MOCK ONLY
       if (parcel.parcelStatusCode !== 'LABEL_PRINTED') {
         const error = new Error(
           `Cannot link AWB: parcel is in '${parcel.parcelStatusCode}' state. ` +
@@ -192,7 +228,6 @@ class ParcelService {
         throw error;
       }
 
-      // Step 3: Check AWB uniqueness (409 on duplicate) — MOCK ONLY
       const isDuplicate = parcelRepository.checkDuplicateAWB(awbNumber);
       if (isDuplicate) {
         const error = new Error(`AWB number '${awbNumber}' is already linked to another parcel`);
@@ -201,25 +236,13 @@ class ParcelService {
       }
     }
 
-    // Step 4: Execute scan + link (both modes delegate to repository)
     const result = await parcelRepository.scanAndLinkAWB(qrCode, awbNumber, role, employeeCode);
-    return result;
+    return this._mapMutationResult(result);
   }
 
-  /**
-   * Dispatch parcels in bulk.
-   * Maps to prc_parcel_details_set.
-   * Business rule: All parcels must be in AWB_LINKED state.
-   *
-   * @param {number[]} parcelIds - Array of PkParcelDetailsId values.
-   * @param {object} user - Authenticated user from JWT.
-   * @returns {Promise<object>} Dispatch result.
-   * @throws {Error} 400 if any parcel is not AWB_LINKED.
-   */
   async dispatchParcels(parcelIds, user) {
     const employeeCode = user?.employeeCode || 'SYSTEM';
 
-    // Validate all parcels exist and are in AWB_LINKED state
     for (const pid of parcelIds) {
       const parcel = await parcelRepository.findById(pid);
       if (!parcel) {
@@ -227,9 +250,10 @@ class ParcelService {
         error.statusCode = 404;
         throw error;
       }
-      if (parcel.status !== 'AWB_LINKED') {
+      const currentStatus = parcel.status || parcel.ParcelStatusCode;
+      if (currentStatus !== 'AWB_LINKED') {
         const error = new Error(
-          `Cannot dispatch parcel ${parcel.parcelId}: status is '${parcel.status}'. ` +
+          `Cannot dispatch parcel ${parcel.parcelId || parcel.ParcelId}: status is '${currentStatus}'. ` +
           `Dispatch requires AWB_LINKED status.`
         );
         error.statusCode = 400;
@@ -237,44 +261,21 @@ class ParcelService {
       }
     }
 
-    return await parcelRepository.dispatchParcels(parcelIds, employeeCode);
+    const { dispatched, parcels } = await parcelRepository.dispatchParcels(parcelIds, employeeCode);
+    return {
+      dispatched,
+      parcels: parcels.map(p => this._mapMutationResult(p))
+    };
   }
 
-  /**
-   * Mark parcel as DELIVERED (terminal state).
-   * Maps to prc_parcel_details_set.
-   * Business rule: Parcel must be DISPATCHED.
-   *
-   * @param {number|string} id - PkParcelDetailsId.
-   * @param {object} user - Authenticated user from JWT.
-   * @returns {Promise<object>} Updated parcel.
-   */
   async deliverParcel(id, user) {
     return await this._transitionToTerminal(id, 'DELIVERED', user);
   }
 
-  /**
-   * Cancel a parcel (before dispatch).
-   * Maps to prc_parcel_details_set.
-   * Business rule: Parcel must be PENDING, LABEL_PRINTED, or AWB_LINKED.
-   *
-   * @param {number|string} id - PkParcelDetailsId.
-   * @param {object} user - Authenticated user from JWT.
-   * @returns {Promise<object>} Updated parcel.
-   */
   async cancelParcel(id, user) {
     return await this._transitionToTerminal(id, 'CANCELLED', user);
   }
 
-  /**
-   * Mark parcel as RETURNED (only after dispatch).
-   * Maps to prc_parcel_details_set.
-   * Business rule: Parcel must be DISPATCHED or DELIVERED.
-   *
-   * @param {number|string} id - PkParcelDetailsId.
-   * @param {object} user - Authenticated user from JWT.
-   * @returns {Promise<object>} Updated parcel.
-   */
   async returnParcel(id, user) {
     return await this._transitionToTerminal(id, 'RETURNED', user);
   }
@@ -283,32 +284,18 @@ class ParcelService {
   // EVENT LOG OPERATIONS
   // ============================================================================
 
-  /**
-   * Browse system-wide parcel events (paginated, filtered).
-   * Maps to prc_receiver_status_details_get (pAction=0).
-   *
-   * @param {object} filters - { page, limit, dateFrom, dateTo, actionType, scannedBy }
-   * @returns {Promise<object>} { data: [...], total: number }
-   */
   async browseEvents(filters) {
-    return await parcelRepository.browseEvents(filters);
+    const result = await parcelRepository.browseEvents(filters);
+    return {
+      ...result,
+      data: result.data.map(e => this._mapBrowseEvent(e))
+    };
   }
 
   // ============================================================================
   // INTERNAL HELPERS
   // ============================================================================
 
-  /**
-   * Generic terminal state transition with validation.
-   * Validates the current status against VALID_TRANSITIONS before delegating.
-   *
-   * @param {number|string} id - PkParcelDetailsId.
-   * @param {string} targetStatus - The desired new status.
-   * @param {object} user - Authenticated user from JWT.
-   * @returns {Promise<object>} Updated parcel.
-   * @throws {Error} 404/400 on invalid parcel or transition.
-   * @private
-   */
   async _transitionToTerminal(id, targetStatus, user) {
     const parcel = await parcelRepository.findById(id);
     if (!parcel) {
@@ -317,19 +304,20 @@ class ParcelService {
       throw error;
     }
 
-    // Validate transition using the state machine
-    const allowedNext = VALID_TRANSITIONS[parcel.status] || [];
+    const currentStatus = parcel.status || parcel.ParcelStatusCode;
+    const allowedNext = VALID_TRANSITIONS[currentStatus] || [];
     if (!allowedNext.includes(targetStatus)) {
       const error = new Error(
-        `Invalid state transition: cannot move parcel from '${parcel.status}' to '${targetStatus}'. ` +
-        `Allowed transitions from '${parcel.status}': [${allowedNext.join(', ')}]`
+        `Invalid state transition: cannot move parcel from '${currentStatus}' to '${targetStatus}'. ` +
+        `Allowed transitions from '${currentStatus}': [${allowedNext.join(', ')}]`
       );
       error.statusCode = 400;
       throw error;
     }
 
     const employeeCode = user?.employeeCode || 'SYSTEM';
-    return await parcelRepository.updateTerminalStatus(id, targetStatus, employeeCode);
+    const result = await parcelRepository.updateTerminalStatus(id, targetStatus, employeeCode);
+    return this._mapMutationResult(result);
   }
 }
 

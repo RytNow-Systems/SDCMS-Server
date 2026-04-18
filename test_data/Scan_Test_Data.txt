@@ -10,7 +10,7 @@ Headers:
   Authorization: Bearer <OPERATOR_TOKEN>
   Content-Type: application/json
 
-Pre-condition: Parcel with parcel_id "PDS-A1B2C3" must be in LABEL_PRINTED state
+Pre-condition: Parcel with parcelId "PDS-A1B2C3" must be in LABEL_PRINTED state
   (run POST /api/v1/parcels/1/log-print first)
 
 Body:
@@ -36,7 +36,7 @@ Headers:
   Authorization: Bearer <COURIER_TOKEN>
   Content-Type: application/json
 
-Pre-condition: Parcel with parcel_id "PDS-D4E5F6" must be in LABEL_PRINTED state
+Pre-condition: Parcel with parcelId "PDS-D4E5F6" must be in LABEL_PRINTED state
 
 Body:
 {
@@ -121,4 +121,4 @@ Body:
 
 Assertions:
   - Status: 400
-  - Body: { success: false, error: "Validation Error - qrCode: QR code (parcel_id) is required, awbNumber: AWB number is required" }
+  - Body: { success: false, error: "Validation Error - qrCode: QR code (parcelId) is required, awbNumber: AWB number is required" }

@@ -141,6 +141,83 @@ class OrderService {
   }
 
   /**
+   * Internal mapper for order summary list (flat).
+   */
+  _mapOrderSummary(order) {
+    if (!order) return null;
+    return {
+      id: order.PkOrderId || order.id || order.orderId,
+      orderCode: order.OrderCode || order.orderCode,
+      senderName: order.SenderName || order.senderName,
+      senderMobile: order.SenderMobile || order.senderMobile,
+      totalAmount: order.TotalAmount || order.totalAmount,
+      totalReceivers: order.TotalReceivers !== undefined ? order.TotalReceivers : order.totalReceivers,
+      totalParcels: order.TotalParcels !== undefined ? order.TotalParcels : order.totalParcels,
+      derivedStatus: order.DerivedStatus || order.derivedStatus,
+      createdAt: order.CreatedDate || order.createdAt
+    };
+  }
+
+  /**
+   * Internal mapper for deep order detail (nested aggregate).
+   */
+  _mapOrderDetail(order) {
+    if (!order) return null;
+    
+    const mappedOrder = {
+      id: order.PkOrderId || order.id || order.orderId,
+      orderCode: order.OrderCode || order.orderCode,
+      totalAmount: order.TotalAmount || order.totalAmount,
+      senderName: order.SenderName || order.senderName,
+      senderMobile: order.SenderMobile || order.senderMobile,
+      senderAddress: order.SenderAddress || order.senderAddress,
+      derivedStatus: order.DerivedStatus || order.derivedStatus,
+      createdAt: order.CreatedDate || order.createdAt,
+      receivers: []
+    };
+
+    const receiversList = order.receivers || order.Receivers || [];
+    mappedOrder.receivers = receiversList.map(rec => {
+      const mappedRec = {
+        id: rec.PkReceiverDetailsId || rec.id,
+        receiverName: rec.ReceiverName || rec.receiverName,
+        receiverPhone: rec.ReceiverPhone || rec.receiverPhone,
+        addressLine1: rec.AddressLine1 || rec.addressLine1,
+        addressLine2: rec.AddressLine2 || rec.addressLine2,
+        city: rec.City || rec.city,
+        state: rec.State || rec.state,
+        pincode: rec.Pincode || rec.pincode,
+        country: rec.Country || rec.country,
+        items: [],
+        parcel: null
+      };
+
+      const itemsList = rec.items || rec.Items || [];
+      mappedRec.items = itemsList.map(item => ({
+        id: item.PkOrderItemsId || item.id,
+        productId: item.FkProductId || item.productId,
+        quantity: item.OutwardQty || item.quantity || item.outwardQty,
+        unitPrice: item.UnitPrice || item.unitPrice
+      }));
+
+      const p = rec.parcel || rec.Parcel;
+      if (p) {
+        mappedRec.parcel = {
+          id: p.PkParcelDetailsId || p.id,
+          parcelId: p.ParcelId || p.parcel_id,
+          trackingNo: p.TrackingNo || p.trackingNo,
+          status: p.ParcelStatusCode || p.parcelStatusCode,
+          dispatchDate: p.DispatchDate || p.dispatchDate
+        };
+      }
+
+      return mappedRec;
+    });
+
+    return mappedOrder;
+  }
+
+  /**
    * Get paginated order summary list with derived statuses.
    * Maps to prc_order_master_get (pAction=0).
    *
@@ -148,7 +225,11 @@ class OrderService {
    * @returns {Promise<object>} { data: [...], total: number }
    */
   async getOrderSummaryList(filters) {
-    return await orderRepository.findAllOrders(filters);
+    const result = await orderRepository.findAllOrders(filters);
+    return {
+      ...result,
+      data: result.data.map(o => this._mapOrderSummary(o))
+    };
   }
 
   /**
@@ -166,7 +247,7 @@ class OrderService {
       error.statusCode = 404;
       throw error;
     }
-    return data;
+    return this._mapOrderDetail(data);
   }
 
   /**
@@ -188,7 +269,7 @@ class OrderService {
       error.statusCode = 404;
       throw error;
     }
-    return result;
+    return this._mapOrderSummary(result);
   }
 
   /**
@@ -212,7 +293,7 @@ class OrderService {
       error.statusCode = 404;
       throw error;
     }
-    return result;
+    return this._mapOrderSummary(result);
   }
 }
 

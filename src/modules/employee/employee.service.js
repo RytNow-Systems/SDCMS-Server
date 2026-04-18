@@ -27,6 +27,7 @@ class EmployeeService {
       employeeCode: employee.EmployeeCode || employee.employeeCode,
       employeeName: employee.FullName || employee.name,
       email: employee.EmailAddress || employee.email,
+      phoneNo: employee.ContactNumber || employee.contactNumber || null,
       roleCode: employee.RoleCode || employee.role,
       allowLogin: employee.AllowLogin !== undefined ? employee.AllowLogin : employee.allowLogin,
       createdAt: employee.CreatedDate || employee.createdAt

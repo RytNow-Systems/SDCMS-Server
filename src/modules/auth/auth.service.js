@@ -47,6 +47,23 @@ class AuthService {
   }
 
   /**
+   * Internal mapper to standardize Profile queries to the camelCase API contract.
+   * Leverages Employee schema properties.
+   */
+  _mapToApi(profile) {
+    if (!profile) return null;
+    return {
+      employeeCode: profile.EmployeeCode || profile.employeeCode,
+      firstName: profile.FullName || profile.name || profile.firstName,
+      email: profile.EmailAddress || profile.email,
+      phoneNo: profile.ContactNumber || profile.contactNumber || null,
+      roleCode: profile.RoleCode || profile.role,
+      allowLogin: profile.AllowLogin !== undefined ? profile.AllowLogin : profile.allowLogin,
+      createdAt: profile.CreatedDate || profile.createdAt
+    };
+  }
+
+  /**
    * Retrieves fresh profile data from the database.
    * Ensures the data is up-to-date even if the JWT is old.
    * 
@@ -62,7 +79,7 @@ class AuthService {
       throw error;
     }
 
-    return profile;
+    return this._mapToApi(profile);
   }
 }
 

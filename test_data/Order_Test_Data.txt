@@ -47,7 +47,7 @@ Body:
 Assertions:
   - Status: 201
   - Body: { success: true, data: { orderId: <int>, orderCode: "ORD-...", receivers: [...] } }
-  - Each receiver should have a nested "parcel" with parcel_id starting with "PDS-"
+  - Each receiver should have a nested "parcel" with parcelId starting with "PDS-"
   - Parcel status should be "PENDING"
 
 --- TEST 2: List Orders (Paginated) ---

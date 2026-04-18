@@ -16,6 +16,8 @@
 - Status Code: 200
 - Success: true
 - Body Path `data`: exists
+- Body Path `data.totalOrders`: is a number
+- Body Path `data.totalParcels`: is a number
 
 ---
 

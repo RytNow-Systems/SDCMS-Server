@@ -16,12 +16,14 @@ Payload:
 {
   "employeeName": "John Doe",
   "email": "john@example.com",
+  "phoneNo": "9000000000",
   "roleCode": "OPERATOR",
   "password": "password123"
 }
 Assertions:
 1. Status code is 200 or 201
 2. res.body.success is true
+3. res.body.data.employeeName is "John Doe"
 
 ## PUT /api/v1/employees/:id
 Method: PUT

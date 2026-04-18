@@ -20,6 +20,13 @@ Content-Type: application/json
 GET {{baseUrl}}/api/v1/senders
 Content-Type: application/json
 
+Assertions:
+  res.status: eq 200
+  res.body.success: eq true
+  res.body.data[0].customerName: isString true
+  res.body.data[0].phoneNo: isString true
+  res.body.data[0].emailId: isString true
+
 # 3. Get Specific Sender
 # Replace :id with the PkPartyId returned from create or list
 GET {{baseUrl}}/api/v1/senders/:id

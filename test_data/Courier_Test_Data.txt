@@ -5,7 +5,10 @@ Method: GET
 URL: /api/v1/courier-partners
 Headers: { "Authorization": "Bearer {{authToken}}" }
 Assertions:
-1. Status code is 200
+1. res.status is 200
+2. res.body.success is true
+3. res.body.data[0].courierName exists
+4. res.body.data[0].trackingUrlTemplate exists
 
 ## POST /api/v1/courier-partners
 Method: POST
@@ -18,7 +21,9 @@ Payload:
   "trackingUrlTemplate": "https://speedy.express/track?awb={AWB}"
 }
 Assertions:
-1. Status code is 200
+1. res.status is 200
+2. res.body.success is true
+3. res.body.data.courierName is "Speedy Express"
 
 ## PUT /api/v1/courier-partners/:id
 Method: PUT

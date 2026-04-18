@@ -9,6 +9,46 @@ import orderService from '../order/order.service.js';
 
 class BulkUploadService {
   /**
+   * Internal mapper for bulk upload session
+   */
+  _mapSession(session) {
+    if (!session) return null;
+    return {
+      id: session.PkBulkUploadId || session.id,
+      fileName: session.FileName || session.fileName,
+      totalRows: session.TotalRows || session.totalRows,
+      successCount: session.SuccessCount !== undefined ? session.SuccessCount : session.successCount,
+      errorCount: session.ErrorCount !== undefined ? session.ErrorCount : session.errorCount,
+      status: session.Status || session.status,
+      createdBy: session.CreatedBy || session.createdBy,
+      createdAt: session.CreatedDate || session.createdDate || session.createdAt
+    };
+  }
+
+  /**
+   * Internal mapper for bulk upload row detail
+   */
+  _mapDetail(detail) {
+    if (!detail) return null;
+    
+    let responseJson = null;
+    const rawJson = detail.ResponseJson || detail.responseJson;
+    try {
+      responseJson = typeof rawJson === 'string' ? JSON.parse(rawJson) : rawJson;
+    } catch (e) {
+      responseJson = rawJson;
+    }
+    
+    return {
+      id: detail.PkDetailId || detail.id,
+      bulkUploadId: detail.FkBulkUploadId || detail.bulkUploadId,
+      rowNumber: detail.RowNumber || detail.rowNumber,
+      status: detail.Status || detail.status,
+      responseJson
+    };
+  }
+
+  /**
    * Process a list of orders from a bulk upload.
    * 
    * @param {Array} rows - Array of order objects.
@@ -22,7 +62,7 @@ class BulkUploadService {
 
     // 1. Initialize Session
     const session = await bulkUploadRepository.createSession(0, fileName, totalRows, createdBy);
-    const sessionId = session.PkBulkOrderUploadLogId || session.id; // Support both naming styles
+    const sessionId = session.PkBulkUploadId || session.id;
 
     const results = {
       sessionId,
@@ -65,7 +105,8 @@ class BulkUploadService {
    * @returns {Array}
    */
   async getSessions() {
-    return await bulkUploadRepository.getSessions(0);
+    const sessions = await bulkUploadRepository.getSessions(0);
+    return sessions.map(s => this._mapSession(s));
   }
 
   /**
@@ -84,8 +125,8 @@ class BulkUploadService {
     const details = await bulkUploadRepository.getSessionDetails(0, id);
     
     return {
-      session,
-      details
+      session: this._mapSession(session),
+      details: details.map(d => this._mapDetail(d))
     };
   }
 }

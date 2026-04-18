@@ -61,4 +61,4 @@ Payload:
 Assertions:
   res.status: eq 200
   res.body.success: eq true
-  res.body.data.AppSendStatusId: eq 2
+  res.body.data.appStatusId: eq 2

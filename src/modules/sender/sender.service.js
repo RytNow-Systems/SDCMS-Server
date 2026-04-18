@@ -6,12 +6,30 @@
 import senderRepository from './sender.repository.js';
 
 class SenderService {
+  _mapToApi(sender) {
+    if (!sender) return null;
+    return {
+      id: sender.PkPartyId,
+      customerName: sender.CustomerName,
+      phoneNo: sender.PhoneNo,
+      emailId: sender.EmailId,
+      addressLine1: sender.AddressLine1,
+      addressLine2: sender.AddressLine2,
+      city: sender.City,
+      state: sender.State,
+      pincode: sender.Pincode,
+      isActive: sender.IsActive === 1 || sender.IsActive === true,
+      createdAt: sender.CreatedDate
+    };
+  }
+
   /**
    * Retrieves all active senders.
    * @returns {Promise<Array>}
    */
   async getSenders() {
-    return await senderRepository.findAll();
+    const senders = await senderRepository.findAll();
+    return senders.map(s => this._mapToApi(s));
   }
 
   /**
@@ -26,7 +44,7 @@ class SenderService {
       error.statusCode = 404;
       throw error;
     }
-    return sender;
+    return this._mapToApi(sender);
   }
 
   /**
@@ -37,7 +55,7 @@ class SenderService {
   async createSender(senderData) {
     // Note: pPartyId = 0 for Insert
     const result = await senderRepository.upsert(0, senderData);
-    return result;
+    return this._mapToApi(result);
   }
 
   /**
@@ -52,7 +70,7 @@ class SenderService {
     
     // Note: pPartyId = id for Update
     const result = await senderRepository.upsert(id, senderData);
-    return result;
+    return this._mapToApi(result);
   }
 
   /**
@@ -66,7 +84,7 @@ class SenderService {
     
     // Note: pIsActive = 0 for Soft-Delete
     const result = await senderRepository.upsert(id, {}, 0);
-    return result;
+    return true; // usually delete returns a truthy value or success message
   }
 
   /**
@@ -81,7 +99,8 @@ class SenderService {
       error.statusCode = 400;
       throw error;
     }
-    return await senderRepository.findByPhone(phone);
+    const sender = await senderRepository.findByPhone(phone);
+    return this._mapToApi(sender);
   }
 }
 
