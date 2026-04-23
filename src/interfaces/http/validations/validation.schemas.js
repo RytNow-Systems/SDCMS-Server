@@ -74,8 +74,7 @@ export const createOrderSchema = z.object({
     z.object({
       receiverName: z.string().min(1, 'Receiver name is required'),
       receiverPhone: z.string().optional(),
-      addressLine1: z.string().optional(),
-      addressLine2: z.string().optional(),
+      address: z.string().optional(),
       city: z.string().optional(),
       state: z.string().optional(),
       pincode: z.string().optional(),
@@ -99,8 +98,7 @@ export const createSenderSchema = z.object({
   customerName: z.string().min(1, 'Customer name is required'),
   phoneNo: z.string().min(10, 'Valid phone number is required'),
   emailId: z.string().email('Invalid email format').optional().nullable(),
-  addressLine1: z.string().min(1, 'Address Line 1 is required'),
-  addressLine2: z.string().optional().nullable(),
+  address: z.string().min(1, 'Address is required'),
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
   pincode: z.string().min(1, 'Pincode is required')

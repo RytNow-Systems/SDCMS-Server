@@ -37,7 +37,7 @@ class OrderRepository {
    * Procedure: CALL prc_Party_master_set(0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
    * Convention: ID=0 triggers insert-or-find-by-phone logic inside the SP.
    *
-   * @param {object} senderData - { senderName, senderMobile, addressLine1?, city?, state?, pincode? }
+   * @param {object} senderData - { senderName, senderMobile, address?, city?, state?, pincode? }
    * @returns {Promise<object>} The found or newly created party record.
    */
   async findOrCreateParty(senderData) {
@@ -45,14 +45,13 @@ class OrderRepository {
     // LIVE DB MODE: prc_Party_master_set (ID=0 → find-or-create by phone)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
         0, // ID=0 → insert or find-by-phone
         1, // pPartyTypeId: 1 = Sender
         senderData.senderName,
         senderData.senderMobile,
         null, // EmailId
-        senderData.addressLine1 || null,
-        senderData.addressLine2 || null,
+        senderData.address || null,
         senderData.city || null,
         senderData.state || null,
         senderData.pincode || null,
@@ -71,8 +70,7 @@ class OrderRepository {
         id: seedParties.length + 1,
         customerName: senderData.senderName,
         phoneNo: senderData.senderMobile,
-        addressLine1: senderData.addressLine1 || null,
-        addressLine2: senderData.addressLine2 || null,
+        address: senderData.address || null,
         city: senderData.city || null,
         state: senderData.state || null,
         pincode: senderData.pincode || null,
@@ -158,8 +156,7 @@ class OrderRepository {
       fkOrderId: orderId,
       receiverName: receiverData.receiverName,
       receiverPhone: receiverData.receiverPhone || null,
-      addressLine1: receiverData.addressLine1 || null,
-      addressLine2: receiverData.addressLine2 || null,
+      address: receiverData.address || null,
       city: receiverData.city || null,
       state: receiverData.state || null,
       pincode: receiverData.pincode || null,

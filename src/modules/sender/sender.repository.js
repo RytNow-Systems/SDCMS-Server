@@ -24,8 +24,7 @@ let mockSenders = [
     CustomerName: 'John Doe',
     PhoneNo: '9876543210',
     EmailId: 'john@example.com',
-    AddressLine1: '123 Test Street',
-    AddressLine2: null,
+    Address: '123 Test Street',
     City: 'Mumbai',
     State: 'Maharashtra',
     Pincode: '400001',
@@ -38,8 +37,7 @@ let mockSenders = [
     CustomerName: 'Jane Smith',
     PhoneNo: '9876543211',
     EmailId: 'jane@example.com',
-    AddressLine1: '456 Sample Road',
-    AddressLine2: null,
+    Address: '456 Sample Road',
     City: 'Delhi',
     State: 'Delhi',
     Pincode: '110001',
@@ -51,7 +49,7 @@ let mockSenders = [
 class SenderRepository {
   /**
    * Upsert a sender (Create or Update).
-   * Procedure: CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+   * Procedure: CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
    * 
    * @param {number} pPartyId - 0 for Insert, >0 for Update
    * @param {object} pData - Sender details
@@ -65,15 +63,14 @@ class SenderRepository {
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           pPartyId,
           1, // pPartyTypeId: 1 = Sender
           pData.customerName || null,
           pData.phoneNo || null,
           pData.emailId || null,
-          pData.addressLine1 || null,
-          pData.addressLine2 || null,
+          pData.address || null,
           pData.city || null,
           pData.state || null,
           pData.pincode || null,
@@ -96,8 +93,7 @@ class SenderRepository {
         CustomerName: pData.customerName,
         PhoneNo: pData.phoneNo,
         EmailId: pData.emailId || null,
-        AddressLine1: pData.addressLine1 || null,
-        AddressLine2: pData.addressLine2 || null,
+        Address: pData.address || null,
         City: pData.city || null,
         State: pData.state || null,
         Pincode: pData.pincode || null,

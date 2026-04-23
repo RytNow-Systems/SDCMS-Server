@@ -20,7 +20,7 @@ Body:
     {
       "receiverName": "Delhi Fabrics Ltd.",
       "receiverPhone": "9123456780",
-      "addressLine1": "45, Karol Bagh",
+      "address": "45, Karol Bagh",
       "city": "New Delhi",
       "state": "Delhi",
       "pincode": "110005",
@@ -32,8 +32,7 @@ Body:
     {
       "receiverName": "Mumbai Silk House",
       "receiverPhone": "9988776655",
-      "addressLine1": "22, Linking Road",
-      "addressLine2": "Bandra West",
+      "address": "22, Linking Road, Bandra West",
       "city": "Mumbai",
       "state": "Maharashtra",
       "pincode": "400050",

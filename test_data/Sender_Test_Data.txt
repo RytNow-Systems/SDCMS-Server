@@ -9,8 +9,7 @@ Content-Type: application/json
   "customerName": "John Doe Enterprises",
   "phoneNo": "9876543210",
   "emailId": "john.doe@example.com",
-  "addressLine1": "123 Business Park",
-  "addressLine2": "Sector 62",
+  "address": "123 Business Park, Sector 62",
   "city": "Noida",
   "state": "Uttar Pradesh",
   "pincode": "201301"
@@ -67,7 +66,7 @@ Content-Type: application/json
   "customerName": "Jane Smith",
   "phoneNo": "1234567890",
   "emailId": "invalid-email",
-  "addressLine1": "A-101",
+  "address": "A-101",
   "city": "Mumbai",
   "state": "Maharashtra",
   "pincode": "400001"

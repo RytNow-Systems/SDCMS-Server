@@ -62,7 +62,7 @@ Headers:
 
 Assertions:
   - Status: 200
-  - Body: { success: true, data: { parcelId: "PDS-...", senderName: "...", receiverName: "...", addressLine1: "...", ... } }
+  - Body: { success: true, data: { parcelId: "PDS-...", senderName: "...", receiverName: "...", address: "...", ... } }
   - Flat JSON with sender snapshot + receiver address + parcelId
   - NO QR image data (frontend renders from parcelId)
 

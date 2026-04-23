@@ -17,7 +17,7 @@ BODY:
         {
           "receiverName": "Bulk Receiver Alpha",
           "receiverPhone": "8000000001",
-          "addressLine1": "A-101, Alpha Towers",
+          "address": "A-101, Alpha Towers",
           "city": "Mumbai",
           "state": "Maharashtra",
           "pincode": "400001",
@@ -36,7 +36,7 @@ BODY:
         {
           "receiverName": "Bulk Receiver Beta",
           "receiverPhone": "8000000002",
-          "addressLine1": "B-202, Beta Plaza",
+          "address": "B-202, Beta Plaza",
           "city": "New Delhi",
           "state": "Delhi",
           "pincode": "110001",

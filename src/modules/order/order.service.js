@@ -85,7 +85,7 @@ class OrderService {
       receiversList = [{
         receiverName: senderName,
         receiverPhone: senderMobile,
-        addressLine1: senderAddress,
+        address: senderAddress,
         products
       }];
     }
@@ -98,8 +98,7 @@ class OrderService {
       const receiverRecord = await orderRepository.createReceiver(order.id, {
         receiverName: rec.receiverName,
         receiverPhone: rec.receiverPhone || null,
-        addressLine1: rec.addressLine1 || null,
-        addressLine2: rec.addressLine2 || null,
+        address: rec.address || null,
         city: rec.city || null,
         state: rec.state || null,
         pincode: rec.pincode || null,
@@ -182,8 +181,7 @@ class OrderService {
         id: rec.PkReceiverDetailsId || rec.id,
         receiverName: rec.ReceiverName || rec.receiverName,
         receiverPhone: rec.ReceiverPhone || rec.receiverPhone,
-        addressLine1: rec.AddressLine1 || rec.addressLine1,
-        addressLine2: rec.AddressLine2 || rec.addressLine2,
+        address: rec.Address || rec.address,
         city: rec.City || rec.city,
         state: rec.State || rec.state,
         pincode: rec.Pincode || rec.pincode,
