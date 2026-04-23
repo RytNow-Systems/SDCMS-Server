@@ -65,11 +65,21 @@ export const updateProductSchema = z.object({
 // ----------------------------------------------------------------------------
 // ORDER SCHEMAS
 // ----------------------------------------------------------------------------
+// Product item shape (shared between root-level and receiver-level products)
+const productItemSchema = z.object({
+  productId: z.number().int().positive('Valid product ID is required'),
+  qty: z.number().int().positive('Quantity must be positive'),
+  unitPrice: z.number().nonnegative().nullable().optional()
+});
+
 export const createOrderSchema = z.object({
   senderName: z.string().min(1, 'Sender name is required'),
   senderMobile: z.string().min(1, 'Sender mobile is required'),
   senderAddress: z.string().optional(),
   courierId: z.number().int().positive('Valid courier ID is required'),
+  // Root-level products: used in Mode A (sender-to-self) and Mode C (combo)
+  products: z.array(productItemSchema).optional(),
+  // Receivers array: used in Mode B (normal) and Mode C (combo)
   receivers: z.array(
     z.object({
       receiverName: z.string().min(1, 'Receiver name is required'),
@@ -78,15 +88,21 @@ export const createOrderSchema = z.object({
       city: z.string().optional(),
       state: z.string().optional(),
       pincode: z.string().optional(),
-      products: z.array(
-        z.object({
-          productId: z.number().int().positive('Valid product ID is required'),
-          qty: z.number().int().positive('Quantity must be positive'),
-          unitPrice: z.number().nonnegative().nullable().optional()
-        })
-      ).min(1, 'At least one product is required for each receiver')
+      products: z.array(productItemSchema)
+        .min(1, 'At least one product is required for each receiver')
     })
-  ).min(1, 'At least one receiver is required')
+  ).optional()
+}).superRefine((data, ctx) => {
+  const hasRootProducts = Array.isArray(data.products) && data.products.length > 0;
+  const hasReceivers = Array.isArray(data.receivers) && data.receivers.length > 0;
+
+  if (!hasRootProducts && !hasReceivers) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Order must have at least one of: root-level products (Mode A) or receivers (Mode B/C)',
+      path: ['products']
+    });
+  }
 });
 
 export const updateOrderSchema = createOrderSchema.partial();

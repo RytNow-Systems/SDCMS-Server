@@ -29,24 +29,44 @@ class OrderService {
     const createdBy = user?.employeeCode || null;
 
     // ------------------------------------------------------------------
+    // MODE DETECTION
+    // Mode A: root products only (sender-to-self)
+    // Mode B: receivers only (normal)
+    // Mode C: root products + receivers (combo)
+    // ------------------------------------------------------------------
+    const hasRootProducts = Array.isArray(products) && products.length > 0;
+    const hasReceivers = Array.isArray(receivers) && receivers.length > 0;
+
+    if (!hasRootProducts && !hasReceivers) {
+      const error = new Error('Order must have at least one of: root-level products (Mode A) or receivers (Mode B/C)');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // ------------------------------------------------------------------
     // LIVE DB MODE: Single atomic SP call
-    // The SP handles the entire order graph creation atomically.
+    // Normalize payload so the SP always receives a unified receivers[] array.
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
+      // Step 1: Find-or-create the sender
+      const sender = await orderRepository.findOrCreateParty({ senderName, senderMobile, createdBy });
+
+      // Step 2: Build normalized receivers array for the SP
+      const normalizedReceivers = this._buildReceiversList(
+        hasRootProducts, hasReceivers, products, receivers,
+        senderName, senderMobile, sender
+      );
+
       const orderPayload = {
         senderName,
         senderMobile,
         senderAddress,
         courierId,
-        products,
-        receivers,
+        receivers: normalizedReceivers,
         createdBy
       };
 
-      // Step 1: Find-or-create the sender (still a separate SP call)
-      await orderRepository.findOrCreateParty({ senderName, senderMobile, createdBy });
-
-      // Step 2: Create the full order atomically via SP
+      // Step 3: Create the full order atomically via SP
       const result = await orderRepository.createOrder(orderPayload);
       return result;
     }
@@ -55,7 +75,7 @@ class OrderService {
     // MOCK MODE: Multi-step orchestration
     // ------------------------------------------------------------------
 
-    // Step 1: Find-or-create the sender in Party_master
+    // Step 1: Find-or-create the sender in Party_master (returns structured address)
     const sender = await orderRepository.findOrCreateParty({
       senderName,
       senderMobile,
@@ -72,23 +92,12 @@ class OrderService {
       createdBy
     });
 
-    // Step 3: Build receiver list
-    // If no receivers provided, default to sender-as-receiver (Mode A / Mode C)
-    let receiversList = receivers;
-    if (!receiversList || receiversList.length === 0) {
-      if (!products || products.length === 0) {
-        const error = new Error('An order must contain products at the root level if no explicit receivers are assigned.');
-        error.statusCode = 400;
-        throw error;
-      }
-
-      receiversList = [{
-        receiverName: senderName,
-        receiverPhone: senderMobile,
-        address: senderAddress,
-        products
-      }];
-    }
+    // Step 3: Build receiver list based on mode
+    // Fix B3: Use sender's structured Party_master fields instead of flat senderAddress
+    const receiversList = this._buildReceiversList(
+      hasRootProducts, hasReceivers, products, receivers,
+      senderName, senderMobile, sender
+    );
 
     // Step 4: Process each receiver → items → parcel
     const aggregatedReceivers = [];
@@ -107,17 +116,18 @@ class OrderService {
 
       const savedItems = [];
 
+      // Fix B1: Use prod.qty (matches Zod schema), not prod.quantity
       for (const prod of rec.products || []) {
         const item = await orderRepository.createOrderItem(
           receiverRecord.id,
           prod.productId,
-          prod.quantity,
+          prod.qty,
           prod.unitPrice || null
         );
         savedItems.push(item);
 
         // Accumulate total
-        totalAmount += (prod.unitPrice || 0) * (prod.quantity || 0);
+        totalAmount += (prod.unitPrice || 0) * (prod.qty || 0);
       }
 
       // 1 receiver = 1 parcel (Systemflow Part 3, Step 5)
@@ -137,6 +147,49 @@ class OrderService {
       senderName: order.senderName,
       receivers: aggregatedReceivers
     };
+  }
+
+  /**
+   * Builds a unified receivers[] array from the payload based on order mode.
+   * Mode A (hasRootProducts && !hasReceivers): Sender is receiver, uses sender's Party_master address.
+   * Mode B (!hasRootProducts && hasReceivers): Pass-through receivers as-is.
+   * Mode C (hasRootProducts && hasReceivers): Synthetic sender-receiver + external receivers.
+   *
+   * @param {boolean} hasRootProducts - Whether root-level products exist.
+   * @param {boolean} hasReceivers - Whether receivers array exists.
+   * @param {Array} products - Root-level products array.
+   * @param {Array} receivers - Receivers array from payload.
+   * @param {string} senderName - Sender name from payload.
+   * @param {string} senderMobile - Sender mobile from payload.
+   * @param {object} sender - Party_master record (structured address fields).
+   * @returns {Array} Unified receivers list ready for processing.
+   * @private
+   */
+  _buildReceiversList(hasRootProducts, hasReceivers, products, receivers, senderName, senderMobile, sender) {
+    // Build synthetic sender-as-receiver entry using structured Party_master fields (Fix B3)
+    const buildSenderReceiver = () => ({
+      receiverName: senderName,
+      receiverPhone: senderMobile,
+      address: sender.address || sender.Address || null,
+      city: sender.city || sender.City || null,
+      state: sender.state || sender.State || null,
+      pincode: sender.pincode || sender.Pincode || null,
+      country: 'India',
+      products
+    });
+
+    if (hasRootProducts && !hasReceivers) {
+      // Mode A: Sender-to-self only
+      return [buildSenderReceiver()];
+    }
+
+    if (!hasRootProducts && hasReceivers) {
+      // Mode B: Normal — receivers as-is
+      return receivers;
+    }
+
+    // Mode C: Combo — sender-to-self + external receivers
+    return [buildSenderReceiver(), ...receivers];
   }
 
   /**
