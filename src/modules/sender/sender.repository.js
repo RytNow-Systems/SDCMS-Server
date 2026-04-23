@@ -17,7 +17,7 @@ import db from '../../infrastructure/database/db.js';
 // MOCK MODE: In-Memory Seed Data
 // Used when USE_MOCK_DB=true for frontend development without a live database.
 // ============================================================================
-let mockSenders = [
+let mockParties = [
   {
     PkPartyId: 1,
     PartyTypeId: 1,
@@ -41,6 +41,33 @@ let mockSenders = [
     City: 'Delhi',
     State: 'Delhi',
     Pincode: '110001',
+    IsActive: 1,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  // --- Receiver entries (PartyTypeId: 2) ---
+  {
+    PkPartyId: 3,
+    PartyTypeId: 2,
+    CustomerName: 'Receiver Corp',
+    PhoneNo: '9123456780',
+    EmailId: 'recv@example.com',
+    Address: '99 Delivery Lane',
+    City: 'Bangalore',
+    State: 'Karnataka',
+    Pincode: '560001',
+    IsActive: 1,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    PkPartyId: 4,
+    PartyTypeId: 2,
+    CustomerName: 'Warehouse Delhi',
+    PhoneNo: '9123456781',
+    EmailId: 'warehouse@example.com',
+    Address: '12 Godown Road',
+    City: 'Delhi',
+    State: 'Delhi',
+    Pincode: '110002',
     IsActive: 1,
     CreatedDate: '2026-04-03T08:52:00Z'
   }
@@ -138,7 +165,7 @@ class SenderRepository {
     // ------------------------------------------------------------------
     if (pPartyId === 0) {
       // Insert
-      const newId = mockSenders.length > 0 ? Math.max(...mockSenders.map(s => s.PkPartyId)) + 1 : 1;
+      const newId = mockParties.length > 0 ? Math.max(...mockParties.map(s => s.PkPartyId)) + 1 : 1;
       const newSender = {
         PkPartyId: newId,
         PartyTypeId: 1,
@@ -152,15 +179,15 @@ class SenderRepository {
         IsActive: pIsActive,
         CreatedDate: new Date().toISOString()
       };
-      mockSenders.push(newSender);
+      mockParties.push(newSender);
       return newSender;
     }
 
     // Update
-    const index = mockSenders.findIndex(s => s.PkPartyId === pPartyId);
+    const index = mockParties.findIndex(s => s.PkPartyId === pPartyId);
     if (index === -1) return null;
-    mockSenders[index] = { ...mockSenders[index], ...pData, IsActive: pIsActive };
-    return mockSenders[index];
+    mockParties[index] = { ...mockParties[index], ...pData, IsActive: pIsActive };
+    return mockParties[index];
   }
 
   /**
@@ -181,7 +208,7 @@ class SenderRepository {
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory list
     // ------------------------------------------------------------------
-    return mockSenders.filter(s => s.IsActive === 1);
+    return mockParties.filter(s => s.IsActive === 1);
   }
 
   /**
@@ -203,7 +230,7 @@ class SenderRepository {
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory lookup
     // ------------------------------------------------------------------
-    return mockSenders.find(s => s.PkPartyId === parseInt(id) && s.IsActive === 1) || null;
+    return mockParties.find(s => s.PkPartyId === parseInt(id) && s.IsActive === 1) || null;
   }
 
   /**
@@ -225,77 +252,81 @@ class SenderRepository {
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory lookup by phone
     // ------------------------------------------------------------------
-    return mockSenders.find(s => s.PhoneNo === phone && s.IsActive === 1) || null;
+    return mockParties.find(s => s.PhoneNo === phone && s.IsActive === 1) || null;
   }
 
   // ============================================================================
-  // SENDER LOOKUP OPERATIONS
+  // PARTY LOOKUP OPERATIONS (shared by senders & receivers)
   // SP Convention:
   //   - prc_Party_master_get (pAction=3 allNames, pAction=4 allPhones, pAction=5 byName)
+  //   - 4th param pPartyTypeId filters by party type (1=Sender, 2=Receiver, null=all)
   // ============================================================================
 
   /**
-   * Get all distinct active sender names.
-   * Procedure: CALL prc_Party_master_get(?, ?, ?)
+   * Get all distinct active party names, optionally filtered by party type.
+   * Procedure: CALL prc_Party_master_get(?, ?, ?, ?)
    * pAction=3 → All distinct CustomerName where IsActive=1
    *
-   * @returns {Promise<Array<string>>} List of sender names.
+   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
+   * @returns {Promise<Array<string>>} List of party names.
    */
-  async findAllNames() {
+  async findAllNames(partyTypeId = null) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_Party_master_get (pAction=3)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [3, 0, null]);
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?, ?)', [3, 0, null, partyTypeId]);
       return rows[0].map((r) => r.CustomerName);
     }
 
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory distinct names
     // ------------------------------------------------------------------
-    return [...new Set(
-      mockSenders.filter((s) => s.IsActive === 1).map((s) => s.CustomerName)
-    )];
+    let parties = mockParties.filter((s) => s.IsActive === 1);
+    if (partyTypeId) parties = parties.filter((s) => s.PartyTypeId === partyTypeId);
+    return [...new Set(parties.map((s) => s.CustomerName))];
   }
 
   /**
-   * Get all distinct active sender phone numbers.
-   * Procedure: CALL prc_Party_master_get(?, ?, ?)
+   * Get all distinct active party phone numbers, optionally filtered by party type.
+   * Procedure: CALL prc_Party_master_get(?, ?, ?, ?)
    * pAction=4 → All distinct PhoneNo where IsActive=1
    *
+   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
    * @returns {Promise<Array<string>>} List of phone numbers.
    */
-  async findAllPhones() {
+  async findAllPhones(partyTypeId = null) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_Party_master_get (pAction=4)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [4, 0, null]);
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?, ?)', [4, 0, null, partyTypeId]);
       return rows[0].map((r) => r.PhoneNo);
     }
 
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory distinct phones
     // ------------------------------------------------------------------
-    return [...new Set(
-      mockSenders.filter((s) => s.IsActive === 1).map((s) => s.PhoneNo)
-    )];
+    let parties = mockParties.filter((s) => s.IsActive === 1);
+    if (partyTypeId) parties = parties.filter((s) => s.PartyTypeId === partyTypeId);
+    return [...new Set(parties.map((s) => s.PhoneNo))];
   }
 
   /**
-   * Search senders by name (partial match).
-   * Procedure: CALL prc_Party_master_get(?, ?, ?)
+   * Search parties by name (partial match), optionally filtered by party type.
+   * Procedure: CALL prc_Party_master_get(?, ?, ?, ?)
    * pAction=5 → Partial match on CustomerName where IsActive=1
    *
    * @param {string} name - Search string for partial match.
-   * @returns {Promise<Array>} List of matching sender records.
+   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
+   * @returns {Promise<Array>} List of matching party records.
    */
-  async findByName(name) {
+  async findByName(name, partyTypeId = null) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_Party_master_get (pAction=5)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [5, 0, name]);
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?, ?)', [5, 0, name, partyTypeId]);
       return rows[0];
     }
 
@@ -303,9 +334,11 @@ class SenderRepository {
     // MOCK MODE: In-memory partial name match (case-insensitive)
     // ------------------------------------------------------------------
     const q = name.toLowerCase();
-    return mockSenders.filter(
+    let parties = mockParties.filter(
       (s) => s.IsActive === 1 && s.CustomerName.toLowerCase().includes(q)
     );
+    if (partyTypeId) parties = parties.filter((s) => s.PartyTypeId === partyTypeId);
+    return parties;
   }
 
   // ============================================================================

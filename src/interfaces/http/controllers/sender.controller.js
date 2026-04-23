@@ -102,7 +102,7 @@ export const deleteSender = asyncHandler(async (req, res) => {
  * @access  Private (ADMIN, OPERATOR)
  */
 export const getAllNames = asyncHandler(async (req, res) => {
-  const names = await senderService.getAllSenderNames();
+  const names = await senderService.getAllSenderNames(1);
 
   res.status(200).json({
     success: true,
@@ -116,7 +116,7 @@ export const getAllNames = asyncHandler(async (req, res) => {
  * @access  Private (ADMIN, OPERATOR)
  */
 export const getAllPhones = asyncHandler(async (req, res) => {
-  const phones = await senderService.getAllPhoneNumbers();
+  const phones = await senderService.getAllPhoneNumbers(1);
 
   res.status(200).json({
     success: true,
@@ -130,7 +130,7 @@ export const getAllPhones = asyncHandler(async (req, res) => {
  * @access  Private (ADMIN, OPERATOR)
  */
 export const lookupByName = asyncHandler(async (req, res) => {
-  const senders = await senderService.lookupByName(req.query.name);
+  const senders = await senderService.lookupByName(req.query.name, 1);
 
   res.status(200).json({
     success: true,

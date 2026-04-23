@@ -1,0 +1,66 @@
+========================================
+RECEIVER LOOKUP — Test Data
+Refactored party lookup with partyTypeId=2
+========================================
+
+--- TEST 1: Get All Receiver Names ---
+Method: GET
+URL: /api/v1/receivers/names
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: ["Receiver Corp", "Warehouse Delhi"] }
+  - Returns only PartyTypeId=2 entries
+
+--- TEST 2: Get All Receiver Phones ---
+Method: GET
+URL: /api/v1/receivers/phones
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: ["9123456780", "9123456781"] }
+  - Returns only PartyTypeId=2 entries
+
+--- TEST 3: Lookup Receiver by Name (Partial Match) ---
+Method: GET
+URL: /api/v1/receivers/lookup-by-name?name=Warehouse
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - data array contains object with customerName matching "Warehouse Delhi"
+  - Does NOT return sender records
+
+--- TEST 4: Lookup Receiver — No Match ---
+Method: GET
+URL: /api/v1/receivers/lookup-by-name?name=NonexistentXYZ
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: [] }
+
+--- TEST 5: Sender Lookup Still Works (Regression) ---
+Method: GET
+URL: /api/v1/senders/names
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - data contains "John Doe", "Jane Smith"
+  - Does NOT contain "Receiver Corp" or "Warehouse Delhi"
+
+--- TEST 6: Unauthenticated Access ---
+Method: GET
+URL: /api/v1/receivers/names
+Headers: (none)
+
+Assertions:
+  - Status: 401

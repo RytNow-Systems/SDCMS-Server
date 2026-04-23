@@ -103,39 +103,43 @@ class SenderService {
   }
 
   // ============================================================================
-  // SENDER LOOKUP OPERATIONS (autocomplete dropdowns)
+  // PARTY LOOKUP OPERATIONS (shared by senders & receivers)
+  // partyTypeId: 1=Sender, 2=Receiver, null=all
   // ============================================================================
 
   /**
-   * Retrieves all distinct active sender names.
-   * @returns {Promise<Array<string>>} List of sender name strings.
+   * Retrieves all distinct active party names, filtered by party type.
+   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
+   * @returns {Promise<Array<string>>} List of party name strings.
    */
-  async getAllSenderNames() {
-    return await senderRepository.findAllNames();
+  async getAllSenderNames(partyTypeId = null) {
+    return await senderRepository.findAllNames(partyTypeId);
   }
 
   /**
-   * Retrieves all distinct active phone numbers.
+   * Retrieves all distinct active phone numbers, filtered by party type.
+   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
    * @returns {Promise<Array<string>>} List of phone number strings.
    */
-  async getAllPhoneNumbers() {
-    return await senderRepository.findAllPhones();
+  async getAllPhoneNumbers(partyTypeId = null) {
+    return await senderRepository.findAllPhones(partyTypeId);
   }
 
   /**
-   * Search senders by name (partial match).
+   * Search parties by name (partial match), filtered by party type.
    * @param {string} name - Search query string.
-   * @returns {Promise<Array>} List of matching sender records (API format).
+   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
+   * @returns {Promise<Array>} List of matching party records (API format).
    * @throws {Error} 400 if name param is missing.
    */
-  async lookupByName(name) {
+  async lookupByName(name, partyTypeId = null) {
     if (!name) {
       const error = new Error('Name query parameter is required for lookup');
       error.statusCode = 400;
       throw error;
     }
-    const senders = await senderRepository.findByName(name);
-    return senders.map((s) => this._mapToApi(s));
+    const parties = await senderRepository.findByName(name, partyTypeId);
+    return parties.map((s) => this._mapToApi(s));
   }
 
   // ============================================================================
