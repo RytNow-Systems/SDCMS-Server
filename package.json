@@ -12,9 +12,11 @@
     "check:env": "node -e \"If(!process.version.startsWith('v24')){console.error('!!! Use Node 24');process.exit(1)} else {console.log('Node Version OK')}\"",
     "start": "node src/server.js",
     "server": "nodemon --ext js,yaml src/server.js",
+    "dev:mock": "USE_MOCK_DB=true nodemon --ext js,yaml src/server.js",
     "seed": "node src/infrastructure/database/seeders.js",
     "test": "jest",
-    "test:e2e": "USE_MOCK_DB=true jest tests/e2e/mock_api.test.js"
+    "test:e2e": "USE_MOCK_DB=true jest tests/e2e/mock_api.test.js",
+    "docs": "node scripts/generate-api-docs.js"
   },
   "repository": {
     "type": "git",

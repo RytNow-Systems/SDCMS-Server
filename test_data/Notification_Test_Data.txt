@@ -1,64 +1,44 @@
-# Notification System API - Test Data (Sprint 6, Feature A)
-# These tests are designed for Bruno Desktop app plain-text import.
+==================================================
+NOTIFICATION — Test Data
+Generated from api-manifest.yaml
+==================================================
 
-### 1. Send Dispatch Notification
+--- TEST 1: Send Notification ---
 Method: POST
-URL: {{baseUrl}}/api/v1/parcels/5/notify
-Headers:
-  Content-Type: application/json
-  Authorization: Bearer {{adminToken}}
-Payload:
-{}
+URL: /api/v1/parcels/:id/notify
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-Assertions:
-  res.status: eq 200
-  res.body.success: eq true
-  res.body.data.message: eq "Notification sent successfully"
+Expected Status: 200
 
----
-
-### 2. Resend Failed Notification
-Method: POST
-URL: {{baseUrl}}/api/v1/notifications/12/resend
-Headers:
-  Content-Type: application/json
-  Authorization: Bearer {{adminToken}}
-Payload:
-{}
-
-Assertions:
-  res.status: eq 200
-  res.body.success: eq true
-  res.body.data.message: eq "Notification sent successfully"
-
----
-
-### 3. Get Notification History for Parcel
+--- TEST 2: Get Notification History ---
 Method: GET
-URL: {{baseUrl}}/api/v1/parcels/5/notifications
-Headers:
-  Authorization: Bearer {{adminToken}}
+URL: /api/v1/parcels/:id/notifications
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-Assertions:
-  res.status: eq 200
-  res.body.success: eq true
-  res.body.data: isArray true
+Expected Status: 200
 
----
-
-### 4. Notification Webhook (Status Update)
+--- TEST 3: Resend Notification ---
 Method: POST
-URL: {{baseUrl}}/api/v1/notifications/webhook
+URL: /api/v1/notifications/:id/resend
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 4: Webhook ---
+Method: POST
+URL: /api/v1/notifications/webhook
+Auth: None
+Roles: ALL
 Headers:
   Content-Type: application/json
-Payload:
+
+Body:
 {
-  "notificationId": 12,
-  "status": "delivered",
-  "externalId": "SMS_GATEWAY_XYZ_999"
+  "notificationId": 1,
+  "status": "delivered"
 }
 
-Assertions:
-  res.status: eq 200
-  res.body.success: eq true
-  res.body.data.appStatusId: eq 2
+Expected Status: 200

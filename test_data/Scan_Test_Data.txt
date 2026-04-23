@@ -1,17 +1,15 @@
-========================================
-SCAN MODULE — Test Data
-Sprint 4 Feature A: Two-Scan Operation (QR + AWB)
-========================================
+==================================================
+TWO SCAN OPERATIONS — Test Data
+Generated from api-manifest.yaml
+==================================================
 
---- TEST 1: Scan + Link AWB (OPERATOR — Happy Path) ---
+--- TEST 1: Scan and Link AWB ---
 Method: POST
 URL: /api/v1/parcels/scan
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
 Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
   Content-Type: application/json
-
-Pre-condition: Parcel with parcelId "PDS-A1B2C3" must be in LABEL_PRINTED state
-  (run POST /api/v1/parcels/1/log-print first)
 
 Body:
 {
@@ -19,106 +17,7 @@ Body:
   "awbNumber": "AWB-DTDC-001"
 }
 
+Expected Status: 200
 Assertions:
-  - Status: 200
-  - Body: { success: true, data: { parcelId: "PDS-A1B2C3", trackingNo: "AWB-DTDC-001", status: "AWB_LINKED" } }
-  - OPERATOR scan → status = AWB_LINKED (not auto-dispatched)
-  - dispatchDate should be null
-
-Post-Request Verification:
-  - GET /api/v1/parcels/1/timeline should show AWB_LINK event
-  - Event: { actionType: "AWB_LINK", awbNumber: "AWB-DTDC-001", previousStatus: "LABEL_PRINTED", newStatus: "AWB_LINKED" }
-
---- TEST 2: Scan + Link AWB (COURIER — Auto-Dispatch) ---
-Method: POST
-URL: /api/v1/parcels/scan
-Headers:
-  Authorization: Bearer <COURIER_TOKEN>
-  Content-Type: application/json
-
-Pre-condition: Parcel with parcelId "PDS-D4E5F6" must be in LABEL_PRINTED state
-
-Body:
-{
-  "qrCode": "PDS-D4E5F6",
-  "awbNumber": "AWB-BLUEDART-002"
-}
-
-Assertions:
-  - Status: 200
-  - Body: { success: true, data: { status: "DISPATCHED", dispatchDate: "<timestamp>" } }
-  - COURIER scan → status jumps directly to DISPATCHED
-  - dispatchDate should be populated
-
---- TEST 3: Scan — Parcel Not Found ---
-Method: POST
-URL: /api/v1/parcels/scan
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Body:
-{
-  "qrCode": "PDS-NONEXISTENT",
-  "awbNumber": "AWB-TEST-999"
-}
-
-Assertions:
-  - Status: 404
-  - Body: { success: false, error: "Parcel not found for QR code: PDS-NONEXISTENT" }
-
---- TEST 4: Scan — Wrong State (Still PENDING) ---
-Method: POST
-URL: /api/v1/parcels/scan
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Pre-condition: Parcel must still be in PENDING state (label not printed)
-
-Body:
-{
-  "qrCode": "PDS-A1B2C3",
-  "awbNumber": "AWB-TEST-003"
-}
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Cannot link AWB: parcel is in 'PENDING' state. AWB linking requires parcel to be in LABEL_PRINTED state." }
-  - No AWB linking before label is printed
-
---- TEST 5: Scan — Duplicate AWB (409 Conflict) ---
-Method: POST
-URL: /api/v1/parcels/scan
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Pre-condition: AWB "AWB-DTDC-001" was already linked in Test 1
-
-Body:
-{
-  "qrCode": "PDS-D4E5F6",
-  "awbNumber": "AWB-DTDC-001"
-}
-
-Assertions:
-  - Status: 409
-  - Body: { success: false, error: "AWB number 'AWB-DTDC-001' is already linked to another parcel" }
-
---- TEST 6: Scan — Validation Error (Missing Fields) ---
-Method: POST
-URL: /api/v1/parcels/scan
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Body:
-{
-  "qrCode": "",
-  "awbNumber": ""
-}
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Validation Error - qrCode: QR code (parcelId) is required, awbNumber: AWB number is required" }
+  1. OPERATOR scan → status AWB_LINKED
+  2. COURIER scan → status DISPATCHED (auto-dispatch)

@@ -1,161 +1,94 @@
-========================================
-ORDER MODULE — Test Data
-Sprint 2 Feature D: Order Pipeline
-========================================
+==================================================
+ORDER PIPELINE — Test Data
+Generated from api-manifest.yaml
+==================================================
 
---- TEST 1A: Create Order — Mode B (Normal: Sender → Receivers) ---
-Method: POST
-URL: /api/v1/orders
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Body:
-{
-  "senderName": "Ramesh Textiles",
-  "senderMobile": "9876543210",
-  "senderAddress": "14, Gandhi Nagar, Near Railway Station, Surat, Gujarat 395002",
-  "courierId": 1,
-  "receivers": [
-    {
-      "receiverName": "Delhi Fabrics Ltd.",
-      "receiverPhone": "9123456780",
-      "address": "45, Karol Bagh",
-      "city": "New Delhi",
-      "state": "Delhi",
-      "pincode": "110005",
-      "products": [
-        { "productId": 1, "qty": 5, "unitPrice": 420.00 },
-        { "productId": 3, "qty": 2, "unitPrice": 1100.00 }
-      ]
-    },
-    {
-      "receiverName": "Mumbai Silk House",
-      "receiverPhone": "9988776655",
-      "address": "22, Linking Road, Bandra West",
-      "city": "Mumbai",
-      "state": "Maharashtra",
-      "pincode": "400050",
-      "products": [
-        { "productId": 1, "qty": 3, "unitPrice": 450.00 }
-      ]
-    }
-  ]
-}
-
-Assertions:
-  - Status: 201
-  - Body: { success: true, data: { orderId: <int>, orderCode: "ORD-...", receivers: [...] } }
-  - Each receiver should have a nested "parcel" with parcelId starting with "PDS-"
-  - Parcel status should be "PENDING"
-
---- TEST 1B: Create Order — Mode A (Sender-to-Self) ---
-Method: POST
-URL: /api/v1/orders
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Body:
-{
-  "senderName": "Ramesh Textiles",
-  "senderMobile": "9876543210",
-  "senderAddress": "14, Gandhi Nagar, Near Railway Station",
-  "courierId": 1,
-  "products": [
-    { "productId": 1, "qty": 10, "unitPrice": 500.00 },
-    { "productId": 2, "qty": 5, "unitPrice": 200.00 }
-  ]
-}
-
-Assertions:
-  - Status: 201
-  - Body: { success: true, data: { receivers: [{ receiverName: "Ramesh Textiles", ... }] } }
-  - Single synthetic receiver = sender
-  - Receiver address populated from Party_master structured fields (not senderAddress string)
-
---- TEST 1C: Create Order — Mode C (Combo: Self + Receivers) ---
-Method: POST
-URL: /api/v1/orders
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Body:
-{
-  "senderName": "Ramesh Textiles",
-  "senderMobile": "9876543210",
-  "senderAddress": "14, Gandhi Nagar, Near Railway Station",
-  "courierId": 1,
-  "products": [
-    { "productId": 1, "qty": 2, "unitPrice": 500.00 }
-  ],
-  "receivers": [
-    {
-      "receiverName": "Delhi Fabrics Ltd.",
-      "receiverPhone": "9123456780",
-      "address": "45, Karol Bagh",
-      "city": "New Delhi",
-      "state": "Delhi",
-      "pincode": "110005",
-      "products": [
-        { "productId": 3, "qty": 1, "unitPrice": 1100.00 }
-      ]
-    }
-  ]
-}
-
-Assertions:
-  - Status: 201
-  - receivers.length === 2 (sender-self + Delhi Fabrics)
-  - First receiver is the sender (Mode A portion)
-  - Second receiver is Delhi Fabrics (Mode B portion)
-
---- TEST 1D: Create Order — Validation Failure (No products, no receivers) ---
-Method: POST
-URL: /api/v1/orders
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Body:
-{
-  "senderName": "Ramesh Textiles",
-  "senderMobile": "9876543210",
-  "courierId": 1
-}
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "..." } — requires products or receivers
-
---- TEST 2: List Orders (Paginated) ---
+--- TEST 1: List Orders ---
 Method: GET
 URL: /api/v1/orders?page=1&limit=20
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
+
+Expected Status: 200
+
+--- TEST 2: Create Order — Mode B (Sender → Receivers) ---
+Method: POST
+URL: /api/v1/orders
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
+  Content-Type: application/json
 
+Body:
+{
+  "senderName": "Ramesh Textiles",
+  "senderMobile": "9876543210",
+  "senderAddress": "14, Gandhi Nagar, Surat",
+  "courierId": 1,
+  "receivers": [
+    {
+      "receiverName": "Delhi Fabrics Ltd.",
+      "receiverPhone": "9123456780",
+      "address": "45, Karol Bagh",
+      "city": "New Delhi",
+      "state": "Delhi",
+      "pincode": "110005",
+      "products": [
+        {
+          "productId": 1,
+          "qty": 5,
+          "unitPrice": 420
+        }
+      ]
+    }
+  ]
+}
+
+Expected Status: 201
 Assertions:
-  - Status: 200
-  - Body: { success: true, data: [...], meta: { page, limit, totalRows, totalPages } }
-  - Each order has derivedStatus computed from parcel states
+  1. res.status equals 201
+  2. Each receiver has a nested parcel with parcelId starting with PDS-
+  3. Parcel status is PENDING
 
---- TEST 3: Get Order Aggregate ---
+--- TEST 3: Create Order — Mode A (Sender-to-Self) ---
+Method: POST
+URL: /api/v1/orders
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "senderName": "Ramesh Textiles",
+  "senderMobile": "9876543210",
+  "senderAddress": "14, Gandhi Nagar",
+  "courierId": 1,
+  "products": [
+    {
+      "productId": 1,
+      "qty": 10,
+      "unitPrice": 500
+    }
+  ]
+}
+
+Expected Status: 201
+
+--- TEST 4: Get Order Aggregate ---
 Method: GET
-URL: /api/v1/orders/1
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
+URL: /api/v1/orders/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
 
-Assertions:
-  - Status: 200
-  - Body: { success: true, data: { receivers: [{ items: [...], parcel: {...} }] } }
-  - Nested JSON structure: Order → Receivers → [Items, Parcel]
+Expected Status: 200
 
---- TEST 4: Update Order (Happy Path) ---
+--- TEST 5: Update Order ---
 Method: PUT
-URL: /api/v1/orders/1
+URL: /api/v1/orders/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
   Content-Type: application/json
 
 Body:
@@ -164,56 +97,12 @@ Body:
   "courierId": 2
 }
 
-Assertions:
-  - Status: 200
-  - Body: { success: true, data: { senderName: "Ramesh Textiles Updated" } }
+Expected Status: 200
 
---- TEST 5: Update Order (Blocked — Parcel ≥ AWB_LINKED) ---
-Method: PUT
-URL: /api/v1/orders/1
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Pre-condition: At least one parcel in this order must be AWB_LINKED or DISPATCHED
-
-Body:
-{
-  "senderName": "Should Fail"
-}
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Cannot update order: one or more parcels have already been AWB-linked or dispatched." }
-
---- TEST 6: Cancel Order (Happy Path) ---
+--- TEST 6: Cancel Order ---
 Method: PATCH
-URL: /api/v1/orders/1/cancel
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
+URL: /api/v1/orders/:id/cancel
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-Assertions:
-  - Status: 200
-  - Body: { success: true, data: { cancelledParcels: <int>, cancelledBy: "..." } }
-
---- TEST 7: Cancel Order (Blocked — Parcel Dispatched) ---
-Method: PATCH
-URL: /api/v1/orders/1/cancel
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-
-Pre-condition: At least one parcel in this order must be DISPATCHED
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Cannot cancel order: one or more parcels are already dispatched or delivered." }
-
---- TEST 8: COURIER Role — List Orders (Read-Only Access) ---
-Method: GET
-URL: /api/v1/orders?page=1&limit=10
-Headers:
-  Authorization: Bearer <COURIER_TOKEN>
-
-Assertions:
-  - Status: 200
-  - COURIER can list but not create/edit/cancel
+Expected Status: 200

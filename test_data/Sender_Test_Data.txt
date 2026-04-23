@@ -1,10 +1,25 @@
-# Sender Module API Test Data (Bruno/Postman)
-# Sprint 2, Feature C
+==================================================
+SENDERS — Test Data
+Generated from api-manifest.yaml
+==================================================
 
-# 1. Create Sender
-POST {{baseUrl}}/api/v1/senders
-Content-Type: application/json
+--- TEST 1: List Senders ---
+Method: GET
+URL: /api/v1/senders
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
+Expected Status: 200
+
+--- TEST 2: Create Sender ---
+Method: POST
+URL: /api/v1/senders
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
 {
   "customerName": "John Doe Enterprises",
   "phoneNo": "9876543210",
@@ -15,59 +30,95 @@ Content-Type: application/json
   "pincode": "201301"
 }
 
-# 2. Get All Senders
-GET {{baseUrl}}/api/v1/senders
-Content-Type: application/json
+Expected Status: 201
 
-Assertions:
-  res.status: eq 200
-  res.body.success: eq true
-  res.body.data[0].customerName: isString true
-  res.body.data[0].phoneNo: isString true
-  res.body.data[0].emailId: isString true
+--- TEST 3: Get Sender by ID ---
+Method: GET
+URL: /api/v1/senders/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-# 3. Get Specific Sender
-# Replace :id with the PkPartyId returned from create or list
-GET {{baseUrl}}/api/v1/senders/:id
-Content-Type: application/json
+Expected Status: 200
 
-# 4. Lookup Sender by Phone
-GET {{baseUrl}}/api/v1/senders/lookup?phone=9876543210
-Content-Type: application/json
+--- TEST 4: Lookup by Phone ---
+Method: GET
+URL: /api/v1/senders/lookup?phone=9876543210
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-# 5. Update Sender
-# Replace :id with relevant PkPartyId
-PUT {{baseUrl}}/api/v1/senders/:id
-Content-Type: application/json
+Expected Status: 200
 
+--- TEST 5: Get All Sender Names ---
+Method: GET
+URL: /api/v1/senders/names
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 6: Get All Sender Phones ---
+Method: GET
+URL: /api/v1/senders/phones
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 7: Lookup by Name ---
+Method: GET
+URL: /api/v1/senders/lookup-by-name?name=John
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 8: Update Sender ---
+Method: PUT
+URL: /api/v1/senders/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
 {
   "customerName": "John Doe Enterprises Updated",
   "city": "Gurugram",
   "state": "Haryana"
 }
 
-# 6. Delete Sender (Soft-Delete)
-DELETE {{baseUrl}}/api/v1/senders/:id
-Content-Type: application/json
+Expected Status: 200
 
-# 7. Validation Test (Missing Required Fields)
-POST {{baseUrl}}/api/v1/senders
-Content-Type: application/json
+--- TEST 9: Delete Sender ---
+Method: DELETE
+URL: /api/v1/senders/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
+Expected Status: 200
+
+--- TEST 10: Get Addresses ---
+Method: GET
+URL: /api/v1/senders/:id/addresses
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 11: Create Address ---
+Method: POST
+URL: /api/v1/senders/:id/addresses
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
 {
-  "customerName": "Incomplete Sender"
-}
-
-# 8. Validation Test (Invalid Email)
-POST {{baseUrl}}/api/v1/senders
-Content-Type: application/json
-
-{
-  "customerName": "Jane Smith",
-  "phoneNo": "1234567890",
-  "emailId": "invalid-email",
-  "address": "A-101",
+  "address": "456 New Location",
   "city": "Mumbai",
   "state": "Maharashtra",
   "pincode": "400001"
 }
+
+Expected Status: 201

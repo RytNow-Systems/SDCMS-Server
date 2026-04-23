@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Parcels Retrieval and Label Data — SDCMS Backend API</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#232736;--border:#2d3148;--text:#e2e8f0;--muted:#94a3b8;--accent:#6366f1;--accent2:#818cf8}
+    body{font-family:'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;display:flex;min-height:100vh}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    a{color:var(--accent2);text-decoration:none}
+
+    /* Sidebar */
+    .sidebar{width:280px;background:var(--surface);border-right:1px solid var(--border);padding:24px 16px;position:fixed;top:0;left:0;bottom:0;overflow-y:auto}
+    .sidebar h1{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;font-weight:600}
+    .sidebar h2{font-size:18px;font-weight:700;margin-bottom:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .sidebar p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.4}
+    .toc-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:13px;color:var(--text);transition:background .15s}
+    .toc-item:hover{background:var(--surface2)}
+
+    /* Main */
+    .main{margin-left:280px;padding:40px 48px;flex:1;max-width:900px}
+    .main>h2{font-size:28px;font-weight:700;margin-bottom:8px}
+    .main>p{color:var(--muted);margin-bottom:32px;font-size:15px}
+    .endpoint-count{font-size:13px;color:var(--accent2);margin-bottom:32px;display:block}
+
+    /* Cards */
+    .endpoint-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;transition:border-color .2s}
+    .endpoint-card:hover{border-color:var(--accent)}
+    .endpoint-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .method-badge{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid;letter-spacing:.5px}
+    .method-badge-sm{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;font-family:'JetBrains Mono',monospace}
+    .method-badge-sm.get{background:#064e3b;color:#34d399}
+    .method-badge-sm.post{background:#1e3a5f;color:#60a5fa}
+    .method-badge-sm.put{background:#78350f;color:#fbbf24}
+    .method-badge-sm.patch{background:#4c1d95;color:#a78bfa}
+    .method-badge-sm.delete{background:#7f1d1d;color:#f87171}
+    .endpoint-path{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text);background:var(--surface2);padding:4px 8px;border-radius:4px}
+    .endpoint-name{font-size:18px;font-weight:600;margin-bottom:6px}
+    .endpoint-desc{color:var(--muted);font-size:14px;margin-bottom:12px}
+    .endpoint-meta{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+    .meta-chip{font-size:11px;padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--muted)}
+
+    /* Code */
+    .section-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:8px;margin-top:16px;display:flex;align-items:center;gap:8px}
+    .status-badge{background:var(--accent);color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+    .code-block{background:#141720;border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+    .json-key{color:#93c5fd}
+    .json-string{color:#86efac}
+    .json-number{color:#fbbf24}
+    .json-bool{color:#c084fc}
+    .json-null{color:#f87171}
+
+    /* Assertions */
+    .assertion-list{list-style:none;padding:0}
+    .assertion-list li{padding:6px 0 6px 20px;position:relative;font-size:13px;color:var(--muted)}
+    .assertion-list li::before{content:'✓';position:absolute;left:0;color:#34d399;font-weight:700}
+
+    /* Responsive */
+    @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:20px}}
+
+    /* Footer */
+    .footer{text-align:center;padding:32px;color:var(--muted);font-size:12px;border-top:1px solid var(--border);margin-top:40px}
+  </style>
+</head>
+<body>
+  <nav class="sidebar">
+    <h1>SDCMS Backend API</h1>
+    <h2>Parcels Retrieval and Label Data</h2>
+    <p>Parcel read operations, label data, and timeline</p>
+    <a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Parcels</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm get">GET</span>Get Parcel by ID</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Label Data</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Get Timeline</a>
+  </nav>
+  <main class="main">
+    <h2>Parcels Retrieval and Label Data</h2>
+    <p>Parcel read operations, label data, and timeline</p>
+    <span class="endpoint-count">4 endpoints</span>
+    
+    <div class="endpoint-card" id="ep-0">
+      <div class="endpoint-header">
+        <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+        <code class="endpoint-path">/parcels</code>
+      </div>
+      <h3 class="endpoint-name">List Parcels</h3>
+      <p class="endpoint-desc">Paginated parcel list.</p>
+      <div class="endpoint-meta">
+        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
+        <span class="meta-chip" title="Roles">ADMIN, OPERATOR, COURIER</span>
+      </div>
+      
+      
+      <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      
+    </div>
+    <div class="endpoint-card" id="ep-1">
+      <div class="endpoint-header">
+        <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+        <code class="endpoint-path">/parcels/:id</code>
+      </div>
+      <h3 class="endpoint-name">Get Parcel by ID</h3>
+      <p class="endpoint-desc">Single parcel details.</p>
+      <div class="endpoint-meta">
+        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
+        <span class="meta-chip" title="Roles">ADMIN, OPERATOR, COURIER</span>
+      </div>
+      
+      
+      <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      
+    </div>
+    <div class="endpoint-card" id="ep-2">
+      <div class="endpoint-header">
+        <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+        <code class="endpoint-path">/parcels/:id/label-data</code>
+      </div>
+      <h3 class="endpoint-name">Get Label Data</h3>
+      <p class="endpoint-desc">On-demand label generation data for printing.</p>
+      <div class="endpoint-meta">
+        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
+        <span class="meta-chip" title="Roles">ADMIN, OPERATOR</span>
+      </div>
+      
+      
+      <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      
+    </div>
+    <div class="endpoint-card" id="ep-3">
+      <div class="endpoint-header">
+        <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+        <code class="endpoint-path">/parcels/:id/timeline</code>
+      </div>
+      <h3 class="endpoint-name">Get Timeline</h3>
+      <p class="endpoint-desc">Append-only event timeline for a parcel.</p>
+      <div class="endpoint-meta">
+        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
+        <span class="meta-chip" title="Roles">ADMIN, OPERATOR, COURIER</span>
+      </div>
+      
+      
+      <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      
+    </div>
+    <div class="footer">
+      Generated from api-manifest.yaml — 2026-04-23 — SDCMS Backend API v1.0.0
+    </div>
+  </main>
+</body>
+</html>

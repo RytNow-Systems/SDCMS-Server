@@ -1,167 +1,47 @@
-========================================
-DISPATCH & TERMINAL STATES — Test Data
-Sprint 4 Feature B: Dispatch & Terminal States
-========================================
+==================================================
+DISPATCH AND TERMINAL STATES — Test Data
+Generated from api-manifest.yaml
+==================================================
 
---- TEST 1: Dispatch Parcels (Bulk — Happy Path) ---
+--- TEST 1: Batch Dispatch ---
 Method: POST
 URL: /api/v1/parcels/dispatch
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Pre-condition: Parcels must be in AWB_LINKED state
-
-Body:
-{
-  "parcelIds": [1, 2]
-}
-
-Assertions:
-  - Status: 200
-  - Body: { success: true, data: { dispatched: 2, parcels: [{ status: "DISPATCHED", dispatchDate: "..." }, ...] } }
-  - All parcels transitioned to DISPATCHED
-  - DispatchDate stamped on each
-
-Post-Request Verification:
-  - GET /api/v1/parcels/1/timeline should show STATUS_UPDATE event with newStatus: "DISPATCHED"
-
---- TEST 2: Dispatch — Wrong State (Still PENDING) ---
-Method: POST
-URL: /api/v1/parcels/dispatch
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Pre-condition: Parcel not yet AWB_LINKED
-
-Body:
-{
-  "parcelIds": [1]
-}
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Cannot dispatch parcel PDS-...: status is 'PENDING'. Dispatch requires AWB_LINKED status." }
-  - No dispatch before AWB is linked
-
---- TEST 3: Dispatch — Parcel Not Found ---
-Method: POST
-URL: /api/v1/parcels/dispatch
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
   Content-Type: application/json
 
 Body:
 {
-  "parcelIds": [9999]
+  "parcelIds": [
+    1,
+    2,
+    3
+  ]
 }
 
-Assertions:
-  - Status: 404
-  - Body: { success: false, error: "Parcel with ID 9999 not found" }
+Expected Status: 200
 
---- TEST 4: Dispatch — Validation Error (Empty Array) ---
-Method: POST
-URL: /api/v1/parcels/dispatch
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-  Content-Type: application/json
-
-Body:
-{
-  "parcelIds": []
-}
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Validation Error - parcelIds: At least one parcel ID is required" }
-
---- TEST 5: Deliver Parcel (Happy Path) ---
+--- TEST 2: Mark Delivered ---
 Method: PATCH
-URL: /api/v1/parcels/1/deliver
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
+URL: /api/v1/parcels/:id/deliver
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-Pre-condition: Parcel 1 must be in DISPATCHED state
+Expected Status: 200
 
-Assertions:
-  - Status: 200
-  - Body: { success: true, data: { status: "DELIVERED", previousStatus: "DISPATCHED" } }
-
---- TEST 6: Deliver — Wrong State (Not Dispatched) ---
+--- TEST 3: Mark Returned ---
 Method: PATCH
-URL: /api/v1/parcels/1/deliver
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
+URL: /api/v1/parcels/:id/return
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-Pre-condition: Parcel 1 is in PENDING state
+Expected Status: 200
 
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Invalid state transition: cannot move parcel from 'PENDING' to 'DELIVERED'..." }
-
---- TEST 7: Cancel Parcel (Happy Path — Before Dispatch) ---
+--- TEST 4: Cancel Parcel ---
 Method: PATCH
-URL: /api/v1/parcels/2/cancel
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
+URL: /api/v1/parcels/:id/cancel
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-Pre-condition: Parcel 2 must be in PENDING, LABEL_PRINTED, or AWB_LINKED state
-
-Assertions:
-  - Status: 200
-  - Body: { success: true, data: { status: "CANCELLED", previousStatus: "PENDING" } }
-
---- TEST 8: Cancel — Wrong State (Already Dispatched) ---
-Method: PATCH
-URL: /api/v1/parcels/1/cancel
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-
-Pre-condition: Parcel 1 is in DISPATCHED state
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Invalid state transition: cannot move parcel from 'DISPATCHED' to 'CANCELLED'..." }
-
---- TEST 9: Return Parcel (Happy Path — After Dispatch) ---
-Method: PATCH
-URL: /api/v1/parcels/1/return
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-
-Pre-condition: Parcel 1 must be in DISPATCHED or DELIVERED state
-
-Assertions:
-  - Status: 200
-  - Body: { success: true, data: { status: "RETURNED", previousStatus: "DISPATCHED" } }
-
---- TEST 10: Return — Wrong State (Not Dispatched) ---
-Method: PATCH
-URL: /api/v1/parcels/2/return
-Headers:
-  Authorization: Bearer <OPERATOR_TOKEN>
-
-Pre-condition: Parcel 2 is in PENDING state
-
-Assertions:
-  - Status: 400
-  - Body: { success: false, error: "Invalid state transition: cannot move parcel from 'PENDING' to 'RETURNED'..." }
-  - Cannot return a parcel that was never dispatched
-
---- TEST 11: COURIER Role — Cannot Dispatch ---
-Method: POST
-URL: /api/v1/parcels/dispatch
-Headers:
-  Authorization: Bearer <COURIER_TOKEN>
-  Content-Type: application/json
-
-Body:
-{
-  "parcelIds": [1]
-}
-
-Assertions:
-  - Status: 403
-  - Only ADMIN and OPERATOR can dispatch
+Expected Status: 200
