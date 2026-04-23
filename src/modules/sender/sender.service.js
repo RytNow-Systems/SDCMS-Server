@@ -99,6 +99,11 @@ class SenderService {
       throw error;
     }
     const sender = await senderRepository.findByPhone(phone);
+    if (!sender) {
+      const error = new Error(`No sender found for phone: ${phone}`);
+      error.statusCode = 404;
+      throw error;
+    }
     return this._mapToApi(sender);
   }
 

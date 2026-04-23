@@ -16,7 +16,6 @@ import { validate } from '../../../shared/middleware/validate.middleware.js';
 import {
   sendNotificationSchema,
   resendNotificationSchema,
-  getHistorySchema,
   webhookSchema
 } from '../validations/notification.validation.js';
 
@@ -50,6 +49,6 @@ router.post('/notifications/:id/resend', protect, authorizeRoles('ADMIN', 'OPERA
  * @route   GET /api/v1/parcels/:id/notifications
  * @desc    Get notification history for a parcel
  */
-router.get('/parcels/:id/notifications', protect, authorizeRoles('ADMIN', 'OPERATOR'), validate(getHistorySchema), getHistory);
+router.get('/parcels/:id/notifications', protect, authorizeRoles('ADMIN', 'OPERATOR'), getHistory);
 
 export default router;

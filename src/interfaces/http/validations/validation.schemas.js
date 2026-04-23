@@ -72,7 +72,7 @@ const productItemSchema = z.object({
   unitPrice: z.number().nonnegative().nullable().optional()
 });
 
-export const createOrderSchema = z.object({
+const baseOrderSchema = z.object({
   senderName: z.string().min(1, 'Sender name is required'),
   senderMobile: z.string().min(1, 'Sender mobile is required'),
   senderAddress: z.string().optional(),
@@ -92,7 +92,9 @@ export const createOrderSchema = z.object({
         .min(1, 'At least one product is required for each receiver')
     })
   ).optional()
-}).superRefine((data, ctx) => {
+});
+
+export const createOrderSchema = baseOrderSchema.superRefine((data, ctx) => {
   const hasRootProducts = Array.isArray(data.products) && data.products.length > 0;
   const hasReceivers = Array.isArray(data.receivers) && data.receivers.length > 0;
 
@@ -105,7 +107,7 @@ export const createOrderSchema = z.object({
   }
 });
 
-export const updateOrderSchema = createOrderSchema.partial();
+export const updateOrderSchema = baseOrderSchema.partial();
 
 // ----------------------------------------------------------------------------
 // SENDER (PARTY) SCHEMAS
