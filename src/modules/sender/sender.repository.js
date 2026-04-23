@@ -46,6 +46,58 @@ let mockSenders = [
   }
 ];
 
+// ============================================================================
+// MOCK MODE: In-Memory Seed Data for Party_Details (Address Book)
+// Used when USE_MOCK_DB=true for frontend development without a live database.
+// ============================================================================
+let mockPartyDetails = [
+  {
+    PkPartyDetailsId: 1,
+    FkPartyId: 1,
+    PartyName: 'John Doe',
+    PhoneNo: '9876543210',
+    EmailId: 'john@example.com',
+    Address: '123 Test Street',
+    City: 'Mumbai',
+    State: 'Maharashtra',
+    Pincode: '400001',
+    Country: 'India',
+    IsActive: 1,
+    IsDefault: 1,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    PkPartyDetailsId: 2,
+    FkPartyId: 1,
+    PartyName: 'John Doe',
+    PhoneNo: '9876543210',
+    EmailId: 'john@example.com',
+    Address: '78 Warehouse Lane',
+    City: 'Pune',
+    State: 'Maharashtra',
+    Pincode: '411001',
+    Country: 'India',
+    IsActive: 1,
+    IsDefault: 0,
+    CreatedDate: '2026-04-05T10:00:00Z'
+  },
+  {
+    PkPartyDetailsId: 3,
+    FkPartyId: 2,
+    PartyName: 'Jane Smith',
+    PhoneNo: '9876543211',
+    EmailId: 'jane@example.com',
+    Address: '456 Sample Road',
+    City: 'Delhi',
+    State: 'Delhi',
+    Pincode: '110001',
+    Country: 'India',
+    IsActive: 1,
+    IsDefault: 1,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  }
+];
+
 class SenderRepository {
   /**
    * Upsert a sender (Create or Update).
@@ -174,6 +226,106 @@ class SenderRepository {
     // MOCK MODE: In-memory lookup by phone
     // ------------------------------------------------------------------
     return mockSenders.find(s => s.PhoneNo === phone && s.IsActive === 1) || null;
+  }
+
+  // ============================================================================
+  // PARTY_DETAILS (ADDRESS BOOK) OPERATIONS
+  // SP Convention:
+  //   - Upsert: prc_Party_Details_set (ID=0 insert, >0 update)
+  //   - Read:   prc_Party_Details_get (pAction=0 all-by-party, pAction=1 by-id)
+  // ============================================================================
+
+  /**
+   * Get all active addresses for a given party.
+   * Procedure: CALL prc_Party_Details_get(?, ?, ?)
+   * pAction=0 → All active addresses for a party (WHERE FkPartyId=? AND IsActive=1)
+   *
+   * @param {number|string} partyId - PkPartyId of the party.
+   * @returns {Promise<Array>} List of Party_Details records.
+   */
+  async findAddressesByPartyId(partyId) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_Party_Details_get (pAction=0)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_Party_Details_get(?, ?, ?)', [
+        0, // pAction=0 → All addresses for party
+        0,
+        partyId
+      ]);
+      return rows[0];
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory filter by FkPartyId
+    // ------------------------------------------------------------------
+    return mockPartyDetails.filter(
+      (d) => d.FkPartyId === parseInt(partyId) && d.IsActive === 1
+    );
+  }
+
+  /**
+   * Create a new address entry in Party_Details.
+   * Procedure: CALL prc_Party_Details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+   * Convention: ID=0 → Insert new address.
+   *
+   * @param {number|string} partyId - FkPartyId to link to.
+   * @param {object} data - Address fields { partyName, phoneNo, emailId, address, city, state, pincode, country, isDefault }.
+   * @param {object} user - Authenticated user from JWT.
+   * @returns {Promise<object>} The created Party_Details record.
+   */
+  async createPartyDetail(partyId, data, user) {
+    const createdBy = user?.id || user?.employeeCode || null;
+
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_Party_Details_set (ID=0 → Insert)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_Party_Details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          0, // ID=0 → Insert
+          partyId,
+          data.partyName || null,
+          data.phoneNo || null,
+          data.emailId || null,
+          data.address,
+          data.city,
+          data.state,
+          data.pincode,
+          data.country || null,
+          createdBy,
+          1, // IsActive=1
+          data.isDefault ? 1 : 0
+        ]
+      );
+      return rows[0][0];
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory insert
+    // ------------------------------------------------------------------
+    const newId = mockPartyDetails.length > 0
+      ? Math.max(...mockPartyDetails.map((d) => d.PkPartyDetailsId)) + 1
+      : 1;
+
+    const newDetail = {
+      PkPartyDetailsId: newId,
+      FkPartyId: parseInt(partyId),
+      PartyName: data.partyName || null,
+      PhoneNo: data.phoneNo || null,
+      EmailId: data.emailId || null,
+      Address: data.address,
+      City: data.city,
+      State: data.state,
+      Pincode: data.pincode,
+      Country: data.country || null,
+      IsActive: 1,
+      IsDefault: data.isDefault ? 1 : 0,
+      CreatedDate: new Date().toISOString()
+    };
+    mockPartyDetails.push(newDetail);
+    return newDetail;
   }
 }
 

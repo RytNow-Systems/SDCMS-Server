@@ -91,3 +91,35 @@ export const deleteSender = asyncHandler(async (req, res) => {
     message: 'Sender successfully deactivated'
   });
 });
+
+// ============================================================================
+// ADDRESS BOOK (PARTY_DETAILS) CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get all addresses for a party (address book dropdown)
+ * @route   GET /api/v1/senders/:id/addresses
+ * @access  Private (ADMIN, OPERATOR)
+ */
+export const getAddresses = asyncHandler(async (req, res) => {
+  const addresses = await senderService.getAddressesByPartyId(req.params.id);
+
+  res.status(200).json({
+    success: true,
+    data: addresses
+  });
+});
+
+/**
+ * @desc    Create a new address for a party
+ * @route   POST /api/v1/senders/:id/addresses
+ * @access  Private (ADMIN, OPERATOR)
+ */
+export const createAddress = asyncHandler(async (req, res) => {
+  const address = await senderService.createAddress(req.params.id, req.body, req.user);
+
+  res.status(201).json({
+    success: true,
+    data: address
+  });
+});

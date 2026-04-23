@@ -7,7 +7,7 @@ import express from 'express';
 import * as senderController from '../controllers/sender.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 import { validate } from '../../../shared/middleware/validate.middleware.js';
-import { createSenderSchema, updateSenderSchema } from '../validations/validation.schemas.js';
+import { createSenderSchema, updateSenderSchema, createAddressSchema } from '../validations/validation.schemas.js';
 
 const router = express.Router();
 
@@ -50,5 +50,21 @@ router.put('/:id', validate(updateSenderSchema), senderController.updateSender);
  * @desc    Soft-delete a sender
  */
 router.delete('/:id', senderController.deleteSender);
+
+// ============================================================================
+// ADDRESS BOOK (PARTY_DETAILS) ROUTES
+// ============================================================================
+
+/**
+ * @route   GET /api/v1/senders/:id/addresses
+ * @desc    Get all addresses for a party (address book dropdown)
+ */
+router.get('/:id/addresses', senderController.getAddresses);
+
+/**
+ * @route   POST /api/v1/senders/:id/addresses
+ * @desc    Create a new address for a party
+ */
+router.post('/:id/addresses', validate(createAddressSchema), senderController.createAddress);
 
 export default router;

@@ -105,3 +105,18 @@ export const createSenderSchema = z.object({
 });
 
 export const updateSenderSchema = createSenderSchema.partial();
+
+// ----------------------------------------------------------------------------
+// ADDRESS (PARTY_DETAILS) SCHEMAS
+// ----------------------------------------------------------------------------
+export const createAddressSchema = z.object({
+  partyName: z.string().optional(),
+  phoneNo: z.string().optional(),
+  emailId: z.string().email('Invalid email format').optional().nullable(),
+  address: z.string().min(1, 'Address is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(1, 'State is required'),
+  pincode: z.string().min(1, 'Pincode is required'),
+  country: z.string().optional(),
+  isDefault: z.boolean().optional()
+});

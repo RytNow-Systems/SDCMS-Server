@@ -101,6 +101,73 @@ class SenderService {
     const sender = await senderRepository.findByPhone(phone);
     return this._mapToApi(sender);
   }
+
+  // ============================================================================
+  // ADDRESS BOOK (PARTY_DETAILS) OPERATIONS
+  // ============================================================================
+
+  /**
+   * Maps a Party_Details DB record to the API response shape.
+   * @param {object} detail - Raw Party_Details record.
+   * @returns {object} API-formatted address object.
+   */
+  _mapAddressToApi(detail) {
+    if (!detail) return null;
+    return {
+      id: detail.PkPartyDetailsId,
+      partyId: detail.FkPartyId,
+      partyName: detail.PartyName,
+      phoneNo: detail.PhoneNo,
+      emailId: detail.EmailId,
+      address: detail.Address,
+      city: detail.City,
+      state: detail.State,
+      pincode: detail.Pincode,
+      country: detail.Country,
+      isDefault: detail.IsDefault === 1 || detail.IsDefault === true,
+      createdAt: detail.CreatedDate
+    };
+  }
+
+  /**
+   * Retrieves all active addresses for a given party (address book dropdown).
+   * @param {number|string} partyId - PkPartyId.
+   * @returns {Promise<Array>} List of address objects.
+   * @throws {Error} 404 if party not found.
+   */
+  async getAddressesByPartyId(partyId) {
+    // Verify party exists first
+    const party = await senderRepository.findById(partyId);
+    if (!party) {
+      const error = new Error('Party not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const addresses = await senderRepository.findAddressesByPartyId(partyId);
+    return addresses.map((d) => this._mapAddressToApi(d));
+  }
+
+  /**
+   * Creates a new address entry for a party.
+   * @param {number|string} partyId - PkPartyId to link address to.
+   * @param {object} data - Validated address payload.
+   * @param {object} user - Authenticated user from JWT.
+   * @returns {Promise<object>} The created address object.
+   * @throws {Error} 404 if party not found.
+   */
+  async createAddress(partyId, data, user) {
+    // Verify party exists first
+    const party = await senderRepository.findById(partyId);
+    if (!party) {
+      const error = new Error('Party not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const result = await senderRepository.createPartyDetail(partyId, data, user);
+    return this._mapAddressToApi(result);
+  }
 }
 
 export default new SenderService();
