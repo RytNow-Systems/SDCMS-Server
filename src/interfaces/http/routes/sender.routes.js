@@ -28,6 +28,24 @@ router.get('/', senderController.getSenders);
 router.get('/lookup', senderController.lookupByPhone);
 
 /**
+ * @route   GET /api/v1/senders/names
+ * @desc    Get all distinct active sender names (autocomplete dropdown)
+ */
+router.get('/names', senderController.getAllNames);
+
+/**
+ * @route   GET /api/v1/senders/phones
+ * @desc    Get all distinct active phone numbers (autocomplete dropdown)
+ */
+router.get('/phones', senderController.getAllPhones);
+
+/**
+ * @route   GET /api/v1/senders/lookup-by-name
+ * @desc    Search senders by name (partial match)
+ */
+router.get('/lookup-by-name', senderController.lookupByName);
+
+/**
  * @route   GET /api/v1/senders/:id
  * @desc    Get sender by ID
  */

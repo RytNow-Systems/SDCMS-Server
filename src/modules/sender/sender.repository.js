@@ -229,6 +229,86 @@ class SenderRepository {
   }
 
   // ============================================================================
+  // SENDER LOOKUP OPERATIONS
+  // SP Convention:
+  //   - prc_Party_master_get (pAction=3 allNames, pAction=4 allPhones, pAction=5 byName)
+  // ============================================================================
+
+  /**
+   * Get all distinct active sender names.
+   * Procedure: CALL prc_Party_master_get(?, ?, ?)
+   * pAction=3 → All distinct CustomerName where IsActive=1
+   *
+   * @returns {Promise<Array<string>>} List of sender names.
+   */
+  async findAllNames() {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_Party_master_get (pAction=3)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [3, 0, null]);
+      return rows[0].map((r) => r.CustomerName);
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory distinct names
+    // ------------------------------------------------------------------
+    return [...new Set(
+      mockSenders.filter((s) => s.IsActive === 1).map((s) => s.CustomerName)
+    )];
+  }
+
+  /**
+   * Get all distinct active sender phone numbers.
+   * Procedure: CALL prc_Party_master_get(?, ?, ?)
+   * pAction=4 → All distinct PhoneNo where IsActive=1
+   *
+   * @returns {Promise<Array<string>>} List of phone numbers.
+   */
+  async findAllPhones() {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_Party_master_get (pAction=4)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [4, 0, null]);
+      return rows[0].map((r) => r.PhoneNo);
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory distinct phones
+    // ------------------------------------------------------------------
+    return [...new Set(
+      mockSenders.filter((s) => s.IsActive === 1).map((s) => s.PhoneNo)
+    )];
+  }
+
+  /**
+   * Search senders by name (partial match).
+   * Procedure: CALL prc_Party_master_get(?, ?, ?)
+   * pAction=5 → Partial match on CustomerName where IsActive=1
+   *
+   * @param {string} name - Search string for partial match.
+   * @returns {Promise<Array>} List of matching sender records.
+   */
+  async findByName(name) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_Party_master_get (pAction=5)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [5, 0, name]);
+      return rows[0];
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory partial name match (case-insensitive)
+    // ------------------------------------------------------------------
+    const q = name.toLowerCase();
+    return mockSenders.filter(
+      (s) => s.IsActive === 1 && s.CustomerName.toLowerCase().includes(q)
+    );
+  }
+
+  // ============================================================================
   // PARTY_DETAILS (ADDRESS BOOK) OPERATIONS
   // SP Convention:
   //   - Upsert: prc_Party_Details_set (ID=0 insert, >0 update)

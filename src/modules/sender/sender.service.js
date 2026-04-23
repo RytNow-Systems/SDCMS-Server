@@ -103,6 +103,42 @@ class SenderService {
   }
 
   // ============================================================================
+  // SENDER LOOKUP OPERATIONS (autocomplete dropdowns)
+  // ============================================================================
+
+  /**
+   * Retrieves all distinct active sender names.
+   * @returns {Promise<Array<string>>} List of sender name strings.
+   */
+  async getAllSenderNames() {
+    return await senderRepository.findAllNames();
+  }
+
+  /**
+   * Retrieves all distinct active phone numbers.
+   * @returns {Promise<Array<string>>} List of phone number strings.
+   */
+  async getAllPhoneNumbers() {
+    return await senderRepository.findAllPhones();
+  }
+
+  /**
+   * Search senders by name (partial match).
+   * @param {string} name - Search query string.
+   * @returns {Promise<Array>} List of matching sender records (API format).
+   * @throws {Error} 400 if name param is missing.
+   */
+  async lookupByName(name) {
+    if (!name) {
+      const error = new Error('Name query parameter is required for lookup');
+      error.statusCode = 400;
+      throw error;
+    }
+    const senders = await senderRepository.findByName(name);
+    return senders.map((s) => this._mapToApi(s));
+  }
+
+  // ============================================================================
   // ADDRESS BOOK (PARTY_DETAILS) OPERATIONS
   // ============================================================================
 

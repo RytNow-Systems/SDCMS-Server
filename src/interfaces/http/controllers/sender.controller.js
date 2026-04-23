@@ -93,6 +93,52 @@ export const deleteSender = asyncHandler(async (req, res) => {
 });
 
 // ============================================================================
+// SENDER LOOKUP CONTROLLERS (autocomplete dropdowns)
+// ============================================================================
+
+/**
+ * @desc    Get all distinct active sender names
+ * @route   GET /api/v1/senders/names
+ * @access  Private (ADMIN, OPERATOR)
+ */
+export const getAllNames = asyncHandler(async (req, res) => {
+  const names = await senderService.getAllSenderNames();
+
+  res.status(200).json({
+    success: true,
+    data: names
+  });
+});
+
+/**
+ * @desc    Get all distinct active phone numbers
+ * @route   GET /api/v1/senders/phones
+ * @access  Private (ADMIN, OPERATOR)
+ */
+export const getAllPhones = asyncHandler(async (req, res) => {
+  const phones = await senderService.getAllPhoneNumbers();
+
+  res.status(200).json({
+    success: true,
+    data: phones
+  });
+});
+
+/**
+ * @desc    Lookup senders by name (partial match)
+ * @route   GET /api/v1/senders/lookup-by-name?name=...
+ * @access  Private (ADMIN, OPERATOR)
+ */
+export const lookupByName = asyncHandler(async (req, res) => {
+  const senders = await senderService.lookupByName(req.query.name);
+
+  res.status(200).json({
+    success: true,
+    data: senders
+  });
+});
+
+// ============================================================================
 // ADDRESS BOOK (PARTY_DETAILS) CONTROLLERS
 // ============================================================================
 
