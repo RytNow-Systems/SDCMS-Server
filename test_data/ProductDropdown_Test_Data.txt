@@ -1,0 +1,55 @@
+========================================
+PRODUCT + CATEGORY DROPDOWN — Test Data
+Feature E: Combined Search-Friendly Dropdown
+========================================
+
+--- TEST 1: Get All Products with Categories ---
+Method: GET
+URL: /api/v1/products/dropdown
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: [...] }
+  - Each item has: id, productName, materialRate, cuItemCode, categoryName, categoryId
+  - categoryName is populated from product_category join
+
+--- TEST 2: Search by Product Name ---
+Method: GET
+URL: /api/v1/products/dropdown?search=Cotton
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - data contains product with productName matching "Cotton"
+
+--- TEST 3: Search by Category Name ---
+Method: GET
+URL: /api/v1/products/dropdown?search=Textiles
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - data contains products where categoryName === "Textiles"
+
+--- TEST 4: Search — No Match ---
+Method: GET
+URL: /api/v1/products/dropdown?search=NonexistentXYZ
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: [] }
+
+--- TEST 5: Unauthenticated Access ---
+Method: GET
+URL: /api/v1/products/dropdown
+Headers: (none)
+
+Assertions:
+  - Status: 401
+  - Requires JWT token

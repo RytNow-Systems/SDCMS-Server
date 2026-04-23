@@ -107,6 +107,37 @@ class ProductService {
     return this._mapToApi(updatedProduct);
   }
 
+  // ============================================================================
+  // PRODUCT + CATEGORY COMBINED DROPDOWN (Feature E — Spike)
+  // ============================================================================
+
+  /**
+   * Maps a joined product+category record to the dropdown API shape.
+   * @param {object} product - Raw product record with CategoryName.
+   * @returns {object} Dropdown-friendly item.
+   */
+  _mapToDropdownItem(product) {
+    if (!product) return null;
+    return {
+      id: product.PkProductId || product.id,
+      productName: product.MaterialName || product.materialName,
+      materialRate: product.MaterialRate || product.materialRate,
+      cuItemCode: product.cu_item_code || product.cuItemCode || null,
+      categoryName: product.CategoryName || product.categoryName || null,
+      categoryId: product.FkProductCategoryId || product.categoryId || null
+    };
+  }
+
+  /**
+   * Returns products enriched with category name for a search-friendly dropdown.
+   * @param {string} [search] - Optional search term.
+   * @returns {Promise<Array>} Dropdown items.
+   */
+  async getProductDropdown(search = '') {
+    const products = await productRepository.findProductsWithCategories(search);
+    return products.map((p) => this._mapToDropdownItem(p));
+  }
+
   async deleteProduct(id) {
     // Ensure product exists
     await this.getProductById(id);

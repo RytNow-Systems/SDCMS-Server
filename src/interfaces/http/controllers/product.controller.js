@@ -65,6 +65,19 @@ export const updateProduct = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get products + categories combined dropdown (search-friendly)
+// @route   GET /api/v1/products/dropdown
+// @access  Private/Admin,Operator
+export const getProductDropdown = asyncHandler(async (req, res) => {
+  const search = req.query.search || '';
+  const items = await productService.getProductDropdown(search);
+
+  res.status(200).json({
+    success: true,
+    data: items
+  });
+});
+
 // @desc    Delete product
 // @route   DELETE /api/v1/products/:id
 // @access  Private/Admin,Operator

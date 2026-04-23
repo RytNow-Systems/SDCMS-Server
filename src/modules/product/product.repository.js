@@ -17,6 +17,15 @@ import db from '../../infrastructure/database/db.js';
 // MOCK MODE: In-Memory Seed Data
 // Used when USE_MOCK_DB=true for frontend development without a live database.
 // ============================================================================
+// ============================================================================
+// MOCK MODE: In-Memory Seed Data for product_category
+// ============================================================================
+let seedCategories = [
+  { PkProductCategoryId: 1, CategoryName: 'Textiles', IsActive: true },
+  { PkProductCategoryId: 2, CategoryName: 'Accessories', IsActive: true },
+  { PkProductCategoryId: 3, CategoryName: 'Raw Materials', IsActive: true }
+];
+
 let seedProducts = [];
 
 const initializeSeedData = () => {
@@ -27,7 +36,7 @@ const initializeSeedData = () => {
       MaterialRate: 450.00,
       cu_item_code: 'CS-001',
       MaterialDescription: null,
-      FkProductCategoryId: null,
+      FkProductCategoryId: 1,
       FkUnitId: null,
       IsActive: true,
       CreatedDate: new Date().toISOString()
@@ -38,7 +47,18 @@ const initializeSeedData = () => {
       MaterialRate: 1200.00,
       cu_item_code: 'DJ-002',
       MaterialDescription: null,
-      FkProductCategoryId: null,
+      FkProductCategoryId: 1,
+      FkUnitId: null,
+      IsActive: true,
+      CreatedDate: new Date().toISOString()
+    },
+    {
+      PkProductId: 3,
+      MaterialName: 'Silk Scarf',
+      MaterialRate: 800.00,
+      cu_item_code: 'SS-003',
+      MaterialDescription: null,
+      FkProductCategoryId: 2,
       FkUnitId: null,
       IsActive: true,
       CreatedDate: new Date().toISOString()
@@ -236,6 +256,62 @@ class ProductRepository {
 
     seedProducts[index].IsActive = false;
     return true;
+  }
+
+  // ============================================================================
+  // PRODUCT + CATEGORY COMBINED DROPDOWN (Feature E — Spike)
+  // SP Convention:
+  //   - prc_product_master_get (pAction=2 → products joined with product_category)
+  // ============================================================================
+
+  /**
+   * Get all active products joined with their category name.
+   * Procedure: CALL prc_product_master_get(?, ?, ?, ?)
+   * pAction=2 → Flat list: product fields + CategoryName, for search-friendly dropdown.
+   *
+   * @param {string} [search] - Optional search term (matches product name or category name).
+   * @returns {Promise<Array>} Products enriched with categoryName.
+   */
+  async findProductsWithCategories(search = '') {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_product_master_get (pAction=2)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_master_get(?, ?, ?, ?)', [
+        2, // pAction=2 → Products + categories combined
+        1,
+        1000,
+        search || null
+      ]);
+      return rows[0];
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory join products ↔ categories
+    // ------------------------------------------------------------------
+    let results = seedProducts
+      .filter((p) => p.IsActive)
+      .map((p) => {
+        const category = seedCategories.find(
+          (c) => c.PkProductCategoryId === p.FkProductCategoryId && c.IsActive
+        );
+        return {
+          ...p,
+          CategoryName: category?.CategoryName || null
+        };
+      });
+
+    if (search) {
+      const q = search.toLowerCase();
+      results = results.filter(
+        (p) =>
+          p.MaterialName.toLowerCase().includes(q) ||
+          (p.CategoryName && p.CategoryName.toLowerCase().includes(q)) ||
+          (p.cu_item_code && p.cu_item_code.toLowerCase().includes(q))
+      );
+    }
+
+    return results;
   }
 }
 
