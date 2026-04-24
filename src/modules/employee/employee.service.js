@@ -88,9 +88,13 @@ class EmployeeService {
     const internalData = this._mapToInternal(employeeData);
 
     // 1. Check if email already exists
-    const existingEmployee = await employeeRepository.findByEmail(internalData.EmailAddress || internalData.email);
-    if (existingEmployee) {
-      const error = new Error('An employee with this email already exists');
+    const isDuplicate = await employeeRepository.checkDuplicate(
+      0, 
+      internalData.EmailAddress || internalData.email, 
+      internalData.UserName || internalData.EmailAddress || internalData.email
+    );
+    if (isDuplicate) {
+      const error = new Error('An employee with this email or username already exists');
       error.statusCode = 409;
       throw error;
     }
@@ -120,6 +124,20 @@ class EmployeeService {
     }
 
     const updates = this._mapToInternal(employeeData);
+
+    // Check for duplicate email/username
+    if (updates.EmailAddress || updates.UserName) {
+      const isDuplicate = await employeeRepository.checkDuplicate(
+        id, 
+        updates.EmailAddress || existingEmployee.EmailAddress, 
+        updates.UserName || existingEmployee.UserName
+      );
+      if (isDuplicate) {
+        const error = new Error('An employee with this email or username already exists');
+        error.statusCode = 409;
+        throw error;
+      }
+    }
 
     // If password is included in updates, hash it
     if (updates.Password) {

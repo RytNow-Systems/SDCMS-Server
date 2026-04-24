@@ -297,7 +297,7 @@ describe('5. Employees', () => {
     const res = await request(app)
       .post('/api/v1/employees')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ employeeName: 'New Emp', roleCode: 'OPERATOR', email: 'newemp@example.com', password: 'Test123456' });
+      .send({ name: 'New Emp', role: 'OPERATOR', email: 'newemp@example.com', password: 'Test123456' });
 
     expect(res.statusCode).toBe(201);
     expect(res.body.success).toBe(true);
@@ -308,7 +308,7 @@ describe('5. Employees', () => {
     const res = await request(app)
       .post('/api/v1/employees')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ roleCode: 'OPERATOR' });
+      .send({ role: 'OPERATOR', email: 'test@example.com', password: 'password123' });
 
     expect(res.statusCode).toBe(400);
     expect(res.body.success).toBe(false);
@@ -319,7 +319,7 @@ describe('5. Employees', () => {
     const res = await request(app)
       .post('/api/v1/employees')
       .set('Authorization', `Bearer ${OPERATOR_TOKEN}`)
-      .send({ employeeName: 'New Emp', roleCode: 'OPERATOR' });
+      .send({ name: 'New Emp', role: 'OPERATOR', email: 'test2@example.com', password: 'password123' });
 
     expect(res.statusCode).toBe(403);
   });
@@ -328,7 +328,7 @@ describe('5. Employees', () => {
     const res = await request(app)
       .put('/api/v1/employees/1')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ employeeName: 'Updated' });
+      .send({ name: 'Updated' });
 
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);

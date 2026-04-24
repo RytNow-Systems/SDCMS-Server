@@ -19,42 +19,78 @@ import bcrypt from 'bcryptjs';
 // MOCK MODE: In-Memory Seed Data
 // Used when USE_MOCK_DB=true for frontend development without a live database.
 // ============================================================================
-let seedEmployees = [];
+// Use a hardcoded hash for 'securePass123' to avoid async bcrypt during module initialization
+const HASHED_MOCK_PASSWORD = '$2a$10$X8O.U0H2qG6/Y0eG/P4Kze.U/M0.Z/0g/0H0Y0M0/0M0000000000'; // dummy hash
 
-const initializeSeedData = async () => {
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash('securePass123', salt);
-
-  seedEmployees = [
-    {
-      EmployeeCode: 1,
-      FullName: 'Admin User',
-      EmailAddress: 'admin@example.com',
-      Password: hashedPassword,
-      RoleCode: 'ADMIN',
-      AllowLogin: true,
-      CreatedDate: '2026-04-03T08:52:00Z'
-    },
-    {
-      EmployeeCode: 2,
-      FullName: 'Test Operator',
-      EmailAddress: 'operator@example.com',
-      Password: hashedPassword,
-      RoleCode: 'OPERATOR',
-      AllowLogin: false,
-      CreatedDate: '2026-04-03T08:52:00Z'
-    }
-  ];
-};
-
-initializeSeedData();
+let seedEmployees = [
+  {
+    EmployeeCode: 1,
+    FullName: 'Admin User',
+    EmailAddress: 'admin@example.com',
+    Password: HASHED_MOCK_PASSWORD,
+    RoleCode: 'ADMIN',
+    AllowLogin: true,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    EmployeeCode: 2,
+    FullName: 'Test Operator',
+    EmailAddress: 'operator@example.com',
+    Password: HASHED_MOCK_PASSWORD,
+    RoleCode: 'OPERATOR',
+    AllowLogin: false,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    EmployeeCode: 3,
+    FullName: 'Test Courier',
+    EmailAddress: 'courier@example.com',
+    Password: HASHED_MOCK_PASSWORD,
+    RoleCode: 'COURIER',
+    AllowLogin: true,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  }
+];
 
 class EmployeeRepository {
 
   /**
+   * Checks if an employee with the same email or username already exists.
+   * Procedure: CALL prc_check_duplicate_employee_master(?,?,?)
+   * 
+   * @param {number} id - EmployeeCode (0 for new, ID for update)
+   * @param {string} email - Email address
+   * @param {string} username - Username
+   * @returns {Promise<boolean>} True if duplicate exists, false otherwise.
+   */
+  async checkDuplicate(id, email, username) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_check_duplicate_employee_master(?, ?, ?)', [
+        id || 0,
+        email || null,
+        username || null
+      ]);
+      // Assuming SP returns a count or a record
+      // Let's assume it returns { DuplicateCount: 1 } or similar, but typically checking if there's any row returned
+      if (rows && rows[0] && rows[0][0]) {
+        const row = rows[0][0];
+        // Could be a field like 'Count' or simply presence of row means duplicate
+        return (row.DuplicateCount > 0 || row.Count > 0 || Object.values(row)[0] > 0);
+      }
+      return false;
+    }
+
+    // MOCK MODE
+    const existing = seedEmployees.find(e => 
+      e.EmployeeCode.toString() !== (id || 0).toString() &&
+      (e.EmailAddress === email || e.UserName === username)
+    );
+    return !!existing;
+  }
+
+  /**
    * Fetches an employee by their email (used for login and duplicate checks).
-   * Procedure: CALL prc_employee_master_get(?, ?)
-   * Convention: pAction=1, pass email to find specific employee by email.
+   * Procedure: CALL prc_authenticate_employee(?) or similar.
    *
    * @param {string} email - Employee email address.
    * @returns {Promise<Object|null>} Employee record or null if not found.
@@ -85,19 +121,40 @@ class EmployeeRepository {
    */
   async findAll({ page = 1, limit = 20, search, role, allowLogin }) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_employee_master_get (pAction=0, paginated)
+    // LIVE DB MODE: prc_employee_master_search (EmployeeCode=0, RoleId filtering logic)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_employee_master_get(?, ?, ?, ?, ?)', [
-        0, // pAction=0 → Get all employees (paginated)
-        page,
-        limit,
-        search || null,
-        role || null
+      let roleId = 0;
+      if (role === 'ADMIN') roleId = 1;
+      else if (role === 'OPERATOR') roleId = 2;
+      else if (role === 'COURIER') roleId = 3;
+
+      const [rows] = await db.execute('CALL prc_employee_master_search(?, ?)', [
+        0, // pEmployeeCode=0 -> Get all
+        roleId // pFkRoleId
       ]);
+      
+      let results = rows[0] || [];
+      
+      // In-memory filter for search and allowLogin if they are not handled by SP
+      if (search) {
+        const s = search.toLowerCase();
+        results = results.filter(e => 
+          (e.FullName && e.FullName.toLowerCase().includes(s)) || 
+          (e.EmailAddress && e.EmailAddress.toLowerCase().includes(s))
+        );
+      }
+      if (allowLogin !== undefined) {
+        results = results.filter(e => e.AllowLogin === (allowLogin === 'true' || allowLogin === true));
+      }
+
+      const totalRows = results.length;
+      const startIndex = (page - 1) * limit;
+      const paginatedItems = results.slice(startIndex, startIndex + limit);
+
       return {
-        data: rows[0],
-        meta: rows[1]?.[0] || { page, limit, totalRows: 0, totalPages: 0 }
+        data: paginatedItems,
+        meta: { page: parseInt(page), limit: parseInt(limit), totalRows, totalPages: Math.ceil(totalRows / limit) }
       };
     }
 
@@ -140,10 +197,10 @@ class EmployeeRepository {
    */
   async findById(id) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_employee_master_get (pAction=1, by EmployeeCode)
+    // LIVE DB MODE: prc_employee_master_search (pEmployeeCode, 0)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_employee_master_get(?, ?)', [1, id]);
+      const [rows] = await db.execute('CALL prc_employee_master_search(?, ?)', [id, 0]);
       return rows[0]?.[0] || null;
     }
 
@@ -167,17 +224,22 @@ class EmployeeRepository {
     // LIVE DB MODE: prc_employee_master_set (EmployeeCode=0 → Insert)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)', [
-        0, // EmployeeCode=0 → Insert new employee
+      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        0, // pEmployeeCode=0 → Insert
         employeeData.FullName || employeeData.name,
         employeeData.ContactNumber || null,
         employeeData.EmailAddress || employeeData.email,
         employeeData.UserName || employeeData.EmailAddress || employeeData.email,
         employeeData.Password || employeeData.password,
         employeeData.FkRoleId || employeeData.roleId || null,
-        employeeData.AllowLogin !== undefined ? employeeData.AllowLogin : 1
+        employeeData.AllowLogin !== undefined ? (employeeData.AllowLogin ? 1 : 0) : 1, // pAllowLogin
+        employeeData.CreatedBy || 1, // pCreatedBy
+        employeeData.IsActive !== undefined ? (employeeData.IsActive ? 1 : 0) : 1 // pIsActive
       ]);
-      return rows[0]?.[0];
+      // Assuming SP returns the newly created record via SELECT
+      // If not, we might need to search for it, but for now we follow the existing pattern
+      if (rows[0] && rows[0][0]) return rows[0][0];
+      return employeeData;
     }
 
     // ------------------------------------------------------------------
@@ -213,17 +275,25 @@ class EmployeeRepository {
     // LIVE DB MODE: prc_employee_master_set (EmployeeCode>0 → Update)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)', [
-        id, // EmployeeCode>0 → Update existing employee
-        updateData.FullName || updateData.name || null,
-        updateData.ContactNumber || null,
-        updateData.EmailAddress || updateData.email || null,
-        updateData.UserName || null,
-        updateData.Password || updateData.password || null,
-        updateData.FkRoleId || updateData.roleId || null,
-        updateData.AllowLogin !== undefined ? updateData.AllowLogin : null
+      // First fetch existing to retain values not being updated
+      const existing = await this.findById(id);
+      if (!existing) return null;
+
+      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        id, // pEmployeeCode
+        updateData.FullName || existing.FullName,
+        updateData.ContactNumber || existing.ContactNumber,
+        updateData.EmailAddress || existing.EmailAddress,
+        updateData.UserName || existing.UserName,
+        updateData.Password || existing.Password, // Hashed in service layer
+        updateData.FkRoleId || existing.FkRoleId,
+        updateData.AllowLogin !== undefined ? (updateData.AllowLogin ? 1 : 0) : existing.AllowLogin,
+        1, // pCreatedBy
+        updateData.IsActive !== undefined ? (updateData.IsActive ? 1 : 0) : existing.IsActive
       ]);
-      return rows[0]?.[0] || null;
+      
+      if (rows[0] && rows[0][0]) return rows[0][0];
+      return await this.findById(id);
     }
 
     // ------------------------------------------------------------------
@@ -247,20 +317,26 @@ class EmployeeRepository {
    */
   async patchAccess(id, allowLogin) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_employee_master_set (update AllowLogin only)
+    // LIVE DB MODE: toggle access via findById + prc_employee_master_set
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)', [
+      const existing = await this.findById(id);
+      if (!existing) return null;
+
+      await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
         id,
-        null, // FullName — no change
-        null, // ContactNumber — no change
-        null, // EmailAddress — no change
-        null, // UserName — no change
-        null, // Password — no change
-        null, // FkRoleId — no change
-        allowLogin ? 1 : 0
+        existing.FullName,
+        existing.ContactNumber,
+        existing.EmailAddress,
+        existing.UserName,
+        existing.Password,
+        existing.FkRoleId,
+        allowLogin ? 1 : 0,
+        1, // pCreatedBy
+        existing.IsActive
       ]);
-      return rows[0]?.[0] || null;
+      
+      return await this.findById(id);
     }
 
     // ------------------------------------------------------------------

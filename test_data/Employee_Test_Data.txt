@@ -21,8 +21,8 @@ Headers:
 
 Body:
 {
-  "employeeName": "New Emp",
-  "roleCode": "OPERATOR",
+  "name": "New Emp",
+  "role": "OPERATOR",
   "email": "newemp@example.com",
   "password": "Test123456"
 }
@@ -47,7 +47,7 @@ Headers:
 
 Body:
 {
-  "employeeName": "Updated Name"
+  "name": "Updated Name"
 }
 
 Expected Status: 200

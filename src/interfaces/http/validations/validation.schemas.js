@@ -18,13 +18,10 @@ export const loginSchema = z.object({
 // EMPLOYEE SCHEMAS
 // ----------------------------------------------------------------------------
 export const createEmployeeSchema = z.object({
-  employeeCode: z.string().optional(),
-  employeeName: z.string().min(1, 'Employee name is required'),
-  email: z.string().email().optional(),
-  phoneNo: z.string().optional(),
-  roleCode: z.enum(['ADMIN', 'OPERATOR', 'COURIER']),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
-  isActive: z.boolean().optional()
+  name: z.string().min(1, 'Employee name is required'),
+  email: z.string().email('Invalid email format'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.enum(['ADMIN', 'OPERATOR', 'COURIER']),
 });
 
 export const updateEmployeeSchema = createEmployeeSchema.partial();

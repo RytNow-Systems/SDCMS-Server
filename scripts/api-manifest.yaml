@@ -143,7 +143,7 @@ collections:
         description: Creates a new employee account.
         headers: { Content-Type: application/json }
         body: |
-          { "employeeName": "New Emp", "roleCode": "OPERATOR", "email": "newemp@example.com", "password": "Test123456" }
+          { "name": "New Emp", "role": "OPERATOR", "email": "newemp@example.com", "password": "Test123456" }
         responseStatus: 201
 
       - name: Get Employee by ID
@@ -160,7 +160,7 @@ collections:
         description: Updates employee details.
         headers: { Content-Type: application/json }
         body: |
-          { "employeeName": "Updated Name" }
+          { "name": "Updated Name" }
         responseStatus: 200
 
       - name: Toggle Employee Access
