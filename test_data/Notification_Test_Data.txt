@@ -1,44 +1,49 @@
-==================================================
-NOTIFICATION — Test Data
-Generated from api-manifest.yaml
-==================================================
+### NOTIFICATION MODULE TEST DATA ###
 
---- TEST 1: Send Notification ---
-Method: POST
-URL: /api/v1/parcels/:id/notify
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
+# 1. Send Dispatch Notification
+POST {{baseUrl}}/api/v1/parcels/1/notify
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
 
-Expected Status: 200
+{}
 
---- TEST 2: Get Notification History ---
-Method: GET
-URL: /api/v1/parcels/:id/notifications
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
+# Expected Response:
+# {
+#   "success": true,
+#   "data": {
+#     "message": "Notification sent successfully",
+#     "trackingUrl": "...",
+#     "logEntry": { ... }
+#   }
+# }
 
-Expected Status: 200
+# 2. Resend Failed Notification
+POST {{baseUrl}}/api/v1/notifications/1/resend
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
 
---- TEST 3: Resend Notification ---
-Method: POST
-URL: /api/v1/notifications/:id/resend
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
+{}
 
-Expected Status: 200
+# 3. Get Notification History for Parcel
+GET {{baseUrl}}/api/v1/parcels/1/notifications
+Authorization: Bearer {{adminToken}}
 
---- TEST 4: Webhook ---
-Method: POST
-URL: /api/v1/notifications/webhook
-Auth: None
-Roles: ALL
-Headers:
-  Content-Type: application/json
+# 4. Webhook Callback (Sent)
+POST {{baseUrl}}/api/v1/notifications/webhook
+Content-Type: application/json
 
-Body:
 {
   "notificationId": 1,
-  "status": "delivered"
+  "status": "delivered",
+  "externalId": "SMS_999888"
 }
 
-Expected Status: 200
+# 5. Webhook Callback (Failed)
+POST {{baseUrl}}/api/v1/notifications/webhook
+Content-Type: application/json
+
+{
+  "notificationId": 1,
+  "status": "failed",
+  "externalId": "SMS_999889"
+}

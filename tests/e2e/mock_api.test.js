@@ -1344,14 +1344,14 @@ describe('15. Bulk Upload', () => {
 // ██████ 16. NOTIFICATIONS (PARTIAL — SEE §5 BLOCKERS) ██████
 // ============================================================================
 describe('16. Notifications', () => {
-  // SKIP: notification.service.js calls db.execute directly — bypasses USE_MOCK_DB
-  it.skip('16.1 POST /api/v1/parcels/1/notify → 200 sends notification', async () => {
+  it('16.1 POST /api/v1/parcels/1/notify → 200 sends notification', async () => {
     const res = await request(app)
       .post('/api/v1/parcels/1/notify')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
 
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(res.body.data.message).toContain('sent successfully');
   });
 
   it('16.2 GET /api/v1/parcels/1/notifications → 200 returns notification history', async () => {
@@ -1364,28 +1364,23 @@ describe('16. Notifications', () => {
     expect(res.body.data).toBeInstanceOf(Array);
   });
 
-  // SKIP: notification.service.js calls db.execute directly — bypasses USE_MOCK_DB
-  it.skip('16.3 POST /api/v1/notifications/1/resend → 200 resends notification', async () => {
+  it('16.3 POST /api/v1/notifications/1/resend → 200 resends notification', async () => {
     const res = await request(app)
       .post('/api/v1/notifications/1/resend')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
 
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(res.body.data.message).toContain('sent successfully');
   });
 
-  it('16.4 POST /api/v1/notifications/webhook → 200 or 400 (known schema bug)', async () => {
+  it('16.4 POST /api/v1/notifications/webhook → 200 succeeds with valid payload', async () => {
     const res = await request(app)
       .post('/api/v1/notifications/webhook')
       .send({ notificationId: 1, status: 'delivered' });
 
-    // Known bug: webhookSchema wraps body in z.object({ body: ... }) but validate middleware parses req.body directly
-    // Expecting 400 due to schema mismatch bug
-    if (res.statusCode === 400) {
-      expect(res.body.success).toBe(false);
-    } else {
-      expect(res.statusCode).toBe(200);
-      expect(res.body.success).toBe(true);
-    }
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.statusId).toBe(2); // 2 = Delivered
   });
 });

@@ -9,8 +9,8 @@
 //   - USE_MOCK_DB=false → Live MySQL stored procedures
 //
 // SP Convention:
-//   - prc_Notification_log_set (upsert)
-//   - prc_Notification_log_get (pAction=1 by parcel, pAction=2 by ID)
+//   - prc_parcel_notification_log_set (append-only log)
+//   - prc_parcel_notification_log_search (search by ID or ParcelId)
 // ============================================================================
 
 import db from '../../infrastructure/database/db.js';
@@ -20,103 +20,36 @@ import db from '../../infrastructure/database/db.js';
 // ============================================================================
 let mockNotifications = [
   {
-    PkNotificationId: 1,
+    PkNotificationLogId: 1,
     FkParcelDetailsId: 1,
-    FkReceiverDetailsId: 1,
-    NotificationType: 'SMS',
-    SmsStatus: 'SENT',
-    EmailStatus: 'PENDING',
-    AppStatus: 'PENDING',
-    NotificationLevel: 1,
-    IsActive: 1,
-    RequestedBy: 'SYSTEM',
+    RecipientPhone: '9876543210',
+    NotificationChannel: 'SMS',
+    MessageContent: 'Your parcel is dispatched. Track here: https://track.it/AWB123',
+    FkNotificationStatusId: 1, // Sent
+    RequestedBy: 1,
     CreatedDate: '2026-04-10T10:00:00Z'
   }
 ];
 
 class NotificationRepository {
   /**
-   * Upsert a notification log entry.
-   * Procedure: CALL prc_Notification_log_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-   * 
-   * @param {object} params - Notification parameters.
-   * @returns {Promise<object>} The created or updated notification record.
-   */
-  async createOrUpdateNotification(params) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_Notification_log_set
-    // REPOSITORY INJECTION SITE:
-    // This method is the single point of entry for mutation on Notification_log.
-    // It maps the domain object to the flat parameter list for the SP.
-    // ------------------------------------------------------------------
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Notification_log_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        params.notificationId || 0,
-        params.parcelId,
-        params.receiverId || null,
-        params.notificationTypeId || 1,
-        params.clientId || null,
-        params.plantId || null,
-        params.reasonId || null,
-        params.reasonDetailsId || null,
-        params.appStatusId || 0,
-        params.smsStatusId || 0,
-        params.emailStatusId || 0,
-        params.notificationLevel || 1,
-        params.isActive !== undefined ? params.isActive : 1,
-        params.requestedBy || 'SYSTEM',
-        params.isPaymentCheck || 0,
-        params.lastNotificationTime || null
-      ]);
-      return rows[0][0];
-    }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory upsert
-    // ------------------------------------------------------------------
-    if (params.notificationId && params.notificationId > 0) {
-      const index = mockNotifications.findIndex(n => n.PkNotificationId === params.notificationId);
-      if (index !== -1) {
-        mockNotifications[index] = { ...mockNotifications[index], ...params };
-        return mockNotifications[index];
-      }
-    }
-
-    const newId = mockNotifications.length > 0 ? Math.max(...mockNotifications.map(n => n.PkNotificationId)) + 1 : 1;
-    const notification = {
-      PkNotificationId: newId,
-      FkParcelDetailsId: params.parcelId,
-      FkReceiverDetailsId: params.receiverId || null,
-      NotificationType: 'SMS',
-      SmsStatus: 'PENDING',
-      EmailStatus: 'PENDING',
-      AppStatus: 'PENDING',
-      NotificationLevel: params.notificationLevel || 1,
-      IsActive: params.isActive !== undefined ? params.isActive : 1,
-      RequestedBy: params.requestedBy || 'SYSTEM',
-      CreatedDate: new Date().toISOString()
-    };
-    mockNotifications.push(notification);
-    return notification;
-  }
-
-  /**
    * Retrieve notification history for a specific parcel.
-   * Procedure: CALL prc_Notification_log_get(?, ?)
+   * Procedure: CALL prc_parcel_notification_log_search(0, parcelId, 0)
    * 
    * @param {number|string} parcelId - The ID of the parcel.
    * @returns {Promise<Array>} List of notification logs.
    */
-  async getNotificationsByParcelId(parcelId) {
+  async getHistoryByParcelId(parcelId) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_Notification_log_get (pAction=1)
+    // LIVE DB MODE: prc_parcel_notification_log_search
     // REPOSITORY INJECTION SITE:
-    // Fetches history using pAction=1 as per api_procedure_spec.
+    // Fetches history using pPkNotificationLogId=0 and pFkParcelId.
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Notification_log_get(?, ?)', [
-        1, // pAction = 1 (Get by ParcelId)
-        parcelId
+      const [rows] = await db.execute('CALL prc_parcel_notification_log_search(?, ?, ?)', [
+        0, // pPkNotificationLogId
+        parcelId, // pFkParcelId
+        0  // pFkNotificationStatusId
       ]);
       return rows[0];
     }
@@ -129,19 +62,20 @@ class NotificationRepository {
 
   /**
    * Retrieve a specific notification by its ID.
-   * Procedure: CALL prc_Notification_log_get(?, ?)
+   * Procedure: CALL prc_parcel_notification_log_search(notificationId, 0, 0)
    * 
    * @param {number|string} notificationId - The ID of the notification.
    * @returns {Promise<object>} The notification record.
    */
-  async getNotificationById(notificationId) {
+  async findById(notificationId) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_Notification_log_get (pAction=2)
+    // LIVE DB MODE: prc_parcel_notification_log_search
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Notification_log_get(?, ?)', [
-        2, // pAction = 2 (Get by ID)
-        notificationId
+      const [rows] = await db.execute('CALL prc_parcel_notification_log_search(?, ?, ?)', [
+        notificationId, // pPkNotificationLogId
+        0, // pFkParcelId
+        0  // pFkNotificationStatusId
       ]);
       return rows[0][0];
     }
@@ -149,7 +83,72 @@ class NotificationRepository {
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory lookup by ID
     // ------------------------------------------------------------------
-    return mockNotifications.find(n => n.PkNotificationId === parseInt(notificationId)) || null;
+    return mockNotifications.find(n => n.PkNotificationLogId === parseInt(notificationId)) || null;
+  }
+
+  /**
+   * Log a notification entry.
+   * Procedure: CALL prc_parcel_notification_log_set(?, ?, ?, ?, ?, ?)
+   * 
+   * @param {object} data - Notification parameters.
+   * @param {number} adminId - The employee ID who requested the notification.
+   * @returns {Promise<object>} The created notification record.
+   */
+  async logNotification(data, adminId) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_parcel_notification_log_set
+    // REPOSITORY INJECTION SITE:
+    // This procedure acts as an append-only log for notifications.
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_notification_log_set(?, ?, ?, ?, ?, ?)', [
+        data.parcelId,
+        data.recipientPhone,
+        data.notificationChannel || 'SMS',
+        data.messageContent,
+        data.statusId || 1, // Default to 1 (Sent)
+        adminId
+      ]);
+      return rows[0][0];
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory append
+    // ------------------------------------------------------------------
+    const newId = mockNotifications.length > 0 ? Math.max(...mockNotifications.map(n => n.PkNotificationLogId)) + 1 : 1;
+    const notification = {
+      PkNotificationLogId: newId,
+      FkParcelDetailsId: data.parcelId,
+      RecipientPhone: data.recipientPhone,
+      NotificationChannel: data.notificationChannel || 'SMS',
+      MessageContent: data.messageContent,
+      FkNotificationStatusId: data.statusId || 1,
+      RequestedBy: adminId,
+      CreatedDate: new Date().toISOString()
+    };
+    mockNotifications.push(notification);
+    return notification;
+  }
+
+  /**
+   * Update notification status via webhook (Append-only log).
+   * 
+   * @param {number} notificationId 
+   * @param {number} statusId 
+   */
+  async updateWebhookStatus(notificationId, statusId) {
+    const existing = await this.findById(notificationId);
+    if (!existing) return null;
+
+    const data = {
+      parcelId: existing.FkParcelDetailsId || existing.parcelId,
+      recipientPhone: existing.RecipientPhone || existing.recipientPhone,
+      notificationChannel: existing.NotificationChannel || existing.notificationChannel,
+      messageContent: existing.MessageContent || existing.messageContent,
+      statusId: statusId
+    };
+
+    return await this.logNotification(data, existing.RequestedBy || existing.requestedBy || 1);
   }
 }
 

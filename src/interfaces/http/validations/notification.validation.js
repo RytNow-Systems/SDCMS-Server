@@ -1,44 +1,32 @@
 // ============================================================================
 // File: src/interfaces/http/validations/notification.validation.js
 // Description: Zod schema definitions for Notification request payloads.
+// Note: validate.middleware.js parses req.body against these schemas.
 // ============================================================================
 
 import { z } from 'zod';
 
 /**
  * Validation for sending a notification.
+ * (Params only, no body required)
+ * Uses z.any() to allow undefined/empty body from Supertest/Clients.
  */
-export const sendNotificationSchema = z.object({
-  params: z.object({
-    id: z.string().regex(/^\d+$/, 'Parcel ID must be numeric')
-  })
-});
+export const sendNotificationSchema = z.any();
 
 /**
  * Validation for resending a notification.
+ * (Params only, no body required)
  */
-export const resendNotificationSchema = z.object({
-  params: z.object({
-    id: z.string().regex(/^\d+$/, 'Notification ID must be numeric')
-  })
-});
-
-/**
- * Validation for fetching notification history.
- */
-export const getHistorySchema = z.object({
-  params: z.object({
-    id: z.string().regex(/^\d+$/, 'Parcel ID must be numeric')
-  })
-});
+export const resendNotificationSchema = z.any();
 
 /**
  * Validation for external webhooks.
+ * This schema matches the structure of req.body directly.
  */
 export const webhookSchema = z.object({
-  body: z.object({
-    notificationId: z.number().int().positive(),
-    status: z.enum(['sent', 'delivered', 'failed']),
-    externalId: z.string().optional()
-  })
+  notificationId: z.number().int().positive('Notification ID must be a positive integer'),
+  status: z.enum(['sent', 'delivered', 'failed'], {
+    errorMap: () => ({ message: "Status must be 'sent', 'delivered', or 'failed'" })
+  }),
+  externalId: z.string().optional()
 });
