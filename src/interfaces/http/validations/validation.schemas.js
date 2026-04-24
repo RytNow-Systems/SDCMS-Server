@@ -20,8 +20,10 @@ export const loginSchema = z.object({
 export const createEmployeeSchema = z.object({
   name: z.string().min(1, 'Employee name is required'),
   email: z.string().email('Invalid email format'),
+  phoneNo: z.string().optional(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   role: z.enum(['ADMIN', 'OPERATOR', 'COURIER']),
+  isActive: z.boolean().optional()
 });
 
 export const updateEmployeeSchema = createEmployeeSchema.partial();

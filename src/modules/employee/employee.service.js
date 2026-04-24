@@ -51,7 +51,9 @@ class EmployeeService {
     if (apiData.role) internal.RoleCode = apiData.role;
     if (apiData.roleId) internal.FkRoleId = apiData.roleId;
     if (apiData.contactNumber) internal.ContactNumber = apiData.contactNumber;
+    if (apiData.phoneNo) internal.ContactNumber = apiData.phoneNo;
     if (apiData.allowLogin !== undefined) internal.AllowLogin = apiData.allowLogin;
+    if (apiData.isActive !== undefined) internal.IsActive = apiData.isActive;
     return internal;
   }
 
