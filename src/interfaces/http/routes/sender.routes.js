@@ -4,7 +4,7 @@
 // ============================================================================
 
 import express from 'express';
-import * as senderController from '../controllers/sender.controller.js';
+import senderController from '../controllers/sender.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 import { validate } from '../../../shared/middleware/validate.middleware.js';
 import { createSenderSchema, updateSenderSchema, createAddressSchema } from '../validations/validation.schemas.js';

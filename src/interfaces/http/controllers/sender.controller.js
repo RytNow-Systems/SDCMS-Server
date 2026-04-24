@@ -1,171 +1,124 @@
 // ============================================================================
 // File: src/interfaces/http/controllers/sender.controller.js
-// Description: HTTP controllers for Sender (Party) module.
-// Uses express-async-handler for centralized error handling.
+// Description: HTTP Controller for Senders (Parties) and Address Book.
+//
+// [INJECTION SITE] Controller Dependencies:
+// - senderService: Encapsulates business logic and uniqueness constraints.
+// - express-async-handler: Automates global error catching for async routes.
 // ============================================================================
 
 import asyncHandler from 'express-async-handler';
 import senderService from '../../../modules/sender/sender.service.js';
 
 /**
- * @desc    Get all active senders
- * @route   GET /api/v1/senders
- * @access  Private
+ * Controller for managing Senders and Party Address Book entries.
  */
-export const getSenders = asyncHandler(async (req, res) => {
-  const senders = await senderService.getSenders();
-  
-  res.status(200).json({
-    success: true,
-    data: senders
+class SenderController {
+  /**
+   * @route GET /api/v1/senders
+   * @desc  Retrieves all active senders.
+   */
+  getSenders = asyncHandler(async (req, res) => {
+    const senders = await senderService.getSenders();
+    res.json({ success: true, data: senders });
   });
-});
 
-/**
- * @desc    Get sender by ID
- * @route   GET /api/v1/senders/:id
- * @access  Private
- */
-export const getSenderById = asyncHandler(async (req, res) => {
-  const sender = await senderService.getSenderById(req.params.id);
-  
-  res.status(200).json({
-    success: true,
-    data: sender
+  /**
+   * @route GET /api/v1/senders/:id
+   * @desc  Retrieves a specific sender by ID.
+   */
+  getSenderById = asyncHandler(async (req, res) => {
+    const sender = await senderService.getSenderById(req.params.id);
+    res.json({ success: true, data: sender });
   });
-});
 
-/**
- * @desc    Lookup sender by phone number
- * @route   GET /api/v1/senders/lookup
- * @access  Private
- */
-export const lookupByPhone = asyncHandler(async (req, res) => {
-  const phone = req.query.phone;
-  const sender = await senderService.lookupByPhone(phone);
-  
-  res.status(200).json({
-    success: true,
-    data: sender
+  /**
+   * @route POST /api/v1/senders
+   * @desc  Creates a new sender (PartyTypeId=30).
+   */
+  createSender = asyncHandler(async (req, res) => {
+    const sender = await senderService.createSender(req.body, req.user);
+    res.status(201).json({ success: true, data: sender });
   });
-});
 
-/**
- * @desc    Create a new sender
- * @route   POST /api/v1/senders
- * @access  Private
- */
-export const createSender = asyncHandler(async (req, res) => {
-  const sender = await senderService.createSender(req.body, req.user);
-  
-  res.status(201).json({
-    success: true,
-    data: sender
+  /**
+   * @route PUT /api/v1/senders/:id
+   * @desc  Updates an existing sender.
+   */
+  updateSender = asyncHandler(async (req, res) => {
+    const sender = await senderService.updateSender(req.params.id, req.body, req.user);
+    res.json({ success: true, data: sender });
   });
-});
 
-/**
- * @desc    Update an existing sender
- * @route   PUT /api/v1/senders/:id
- * @access  Private
- */
-export const updateSender = asyncHandler(async (req, res) => {
-  const sender = await senderService.updateSender(req.params.id, req.body, req.user);
-  
-  res.status(200).json({
-    success: true,
-    data: sender
+  /**
+   * @route DELETE /api/v1/senders/:id
+   * @desc  Soft-deletes a sender.
+   */
+  deleteSender = asyncHandler(async (req, res) => {
+    await senderService.deleteSender(req.params.id, req.user);
+    res.json({ success: true, message: 'Sender deleted successfully' });
   });
-});
 
-/**
- * @desc    Soft-delete a sender
- * @route   DELETE /api/v1/senders/:id
- * @access  Private
- */
-export const deleteSender = asyncHandler(async (req, res) => {
-  await senderService.deleteSender(req.params.id, req.user);
-  
-  res.status(200).json({
-    success: true,
-    message: 'Sender successfully deactivated'
+  /**
+   * @route GET /api/v1/senders/lookup?phone=...
+   * @desc  Finds a sender by phone number for form auto-fill.
+   */
+  lookupByPhone = asyncHandler(async (req, res) => {
+    const sender = await senderService.lookupByPhone(req.query.phone);
+    res.json({ success: true, data: sender });
   });
-});
 
-// ============================================================================
-// SENDER LOOKUP CONTROLLERS (autocomplete dropdowns)
-// ============================================================================
-
-/**
- * @desc    Get all distinct active sender names
- * @route   GET /api/v1/senders/names
- * @access  Private (ADMIN, OPERATOR)
- */
-export const getAllNames = asyncHandler(async (req, res) => {
-  const names = await senderService.getAllSenderNames(1);
-
-  res.status(200).json({
-    success: true,
-    data: names
+  /**
+   * @route GET /api/v1/senders/names
+   * @desc  Autocomplete for distinct sender names.
+   */
+  getAllNames = asyncHandler(async (req, res) => {
+    const names = await senderService.getAllSenderNames(30);
+    res.json({ success: true, data: names });
   });
-});
 
-/**
- * @desc    Get all distinct active phone numbers
- * @route   GET /api/v1/senders/phones
- * @access  Private (ADMIN, OPERATOR)
- */
-export const getAllPhones = asyncHandler(async (req, res) => {
-  const phones = await senderService.getAllPhoneNumbers(1);
-
-  res.status(200).json({
-    success: true,
-    data: phones
+  /**
+   * @route GET /api/v1/senders/phones
+   * @desc  Autocomplete for distinct sender phone numbers.
+   */
+  getAllPhones = asyncHandler(async (req, res) => {
+    const phones = await senderService.getAllPhoneNumbers(30);
+    res.json({ success: true, data: phones });
   });
-});
 
-/**
- * @desc    Lookup senders by name (partial match)
- * @route   GET /api/v1/senders/lookup-by-name?name=...
- * @access  Private (ADMIN, OPERATOR)
- */
-export const lookupByName = asyncHandler(async (req, res) => {
-  const senders = await senderService.lookupByName(req.query.name, 1);
-
-  res.status(200).json({
-    success: true,
-    data: senders
+  /**
+   * @route GET /api/v1/senders/lookup-by-name?name=...
+   * @desc  Partial name search for party suggestions.
+   */
+  lookupByName = asyncHandler(async (req, res) => {
+    const parties = await senderService.lookupByName(req.query.name, 30);
+    res.json({ success: true, data: parties });
   });
-});
 
-// ============================================================================
-// ADDRESS BOOK (PARTY_DETAILS) CONTROLLERS
-// ============================================================================
-
-/**
- * @desc    Get all addresses for a party (address book dropdown)
- * @route   GET /api/v1/senders/:id/addresses
- * @access  Private (ADMIN, OPERATOR)
- */
-export const getAddresses = asyncHandler(async (req, res) => {
-  const addresses = await senderService.getAddressesByPartyId(req.params.id);
-
-  res.status(200).json({
-    success: true,
-    data: addresses
+  /**
+   * @route GET /api/v1/senders/:id/addresses
+   * @desc  Retrieves secondary addresses from the Address Book.
+   */
+  getAddresses = asyncHandler(async (req, res) => {
+    const addresses = await senderService.getAddressesByPartyId(req.params.id);
+    res.json({ success: true, data: addresses });
   });
-});
 
-/**
- * @desc    Create a new address for a party
- * @route   POST /api/v1/senders/:id/addresses
- * @access  Private (ADMIN, OPERATOR)
- */
-export const createAddress = asyncHandler(async (req, res) => {
-  const address = await senderService.createAddress(req.params.id, req.body, req.user);
-
-  res.status(201).json({
-    success: true,
-    data: address
+  /**
+   * @route POST /api/v1/senders/:id/addresses
+   * @desc  Adds a new secondary address to a sender's profile.
+   */
+  createAddress = asyncHandler(async (req, res) => {
+    const address = await senderService.createAddress(req.params.id, req.body, req.user);
+    res.status(201).json({ success: true, data: address });
   });
-});
+}
+
+const senderControllerInstance = new SenderController();
+export default senderControllerInstance;
+
+// Named exports to support both import styles
+export const {
+  getSenders, getSenderById, createSender, updateSender, deleteSender,
+  lookupByPhone, getAllNames, getAllPhones, lookupByName, getAddresses, createAddress
+} = senderControllerInstance;

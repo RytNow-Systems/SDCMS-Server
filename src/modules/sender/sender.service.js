@@ -1,30 +1,62 @@
 // ============================================================================
 // File: src/modules/sender/sender.service.js
 // Description: Business logic layer for Senders (Parties).
+//
+// [INJECTION SITE] Service Dependencies:
+// - senderRepository: Handles all direct database / stored procedure interactions.
+// - partyTypeId: Enforced as 30 for Senders and 31 for Receivers.
 // ============================================================================
 
 import senderRepository from './sender.repository.js';
 
 class SenderService {
+  /**
+   * Internal mapper to standardize Party DB records to the camelCase API contract.
+   * @param {object} sender - Raw database record from Party_master.
+   * @returns {object} API-formatted sender object.
+   */
   _mapToApi(sender) {
     if (!sender) return null;
     return {
       id: sender.PkPartyId,
       customerName: sender.CustomerName,
       phoneNo: sender.PhoneNo,
-      emailId: sender.EmailId,
-      address: sender.Address,
-      city: sender.City,
-      state: sender.State,
-      pincode: sender.Pincode,
+      emailId: sender.EmailId || null,
+      address: sender.Address || null,
+      city: sender.City || null,
+      state: sender.State || null,
+      pincode: sender.Pincode || null,
       isActive: sender.IsActive === 1 || sender.IsActive === true,
       createdAt: sender.CreatedDate
     };
   }
 
   /**
-   * Retrieves all active senders.
-   * @returns {Promise<Array>}
+   * Internal mapper for Address Book entries.
+   * @param {object} detail - Raw database record from Party_Details.
+   * @returns {object} API-formatted address object.
+   */
+  _mapAddressToApi(detail) {
+    if (!detail) return null;
+    return {
+      id: detail.PkPartyDetailsId,
+      partyId: detail.FkPartyId,
+      partyName: detail.PartyName,
+      phoneNo: detail.PhoneNo,
+      emailId: detail.EmailId || null,
+      address: detail.Address,
+      city: detail.City,
+      state: detail.State,
+      pincode: detail.Pincode,
+      country: detail.Country || null,
+      isDefault: detail.IsDefault === 1 || detail.IsDefault === true,
+      createdAt: detail.CreatedDate
+    };
+  }
+
+  /**
+   * Retrieves all active senders (PartyTypeId=30).
+   * @returns {Promise<Array<object>>} List of senders in API format.
    */
   async getSenders() {
     const senders = await senderRepository.findAll(30);
@@ -33,8 +65,9 @@ class SenderService {
 
   /**
    * Retrieves a specific sender by ID.
-   * @param {number|string} id 
-   * @returns {Promise<object>}
+   * @param {number|string} id - PkPartyId.
+   * @returns {Promise<object>} API-formatted sender object.
+   * @throws {Error} 404 if sender not found or is not a sender type.
    */
   async getSenderById(id) {
     const sender = await senderRepository.findById(id, 30);
@@ -47,10 +80,11 @@ class SenderService {
   }
 
   /**
-   * Creates a new sender.
-   * @param {object} senderData 
-   * @param {object} user 
-   * @returns {Promise<object>}
+   * Creates a new sender after uniqueness validation.
+   * @param {object} senderData - Payload from client.
+   * @param {object} user - Authenticated user context.
+   * @returns {Promise<object>} Created sender in API format.
+   * @throws {Error} 409 if phone number is duplicated.
    */
   async createSender(senderData, user) {
     const count = await senderRepository.checkDuplicate(0, senderData.phoneNo);
@@ -59,22 +93,20 @@ class SenderService {
       error.statusCode = 409;
       throw error;
     }
-
     const adminId = user?.id || user?.employeeCode || 1;
     const result = await senderRepository.create(senderData, adminId, 30);
     return this._mapToApi(result);
   }
 
   /**
-   * Updates an existing sender.
-   * @param {number|string} id 
-   * @param {object} senderData 
-   * @param {object} user 
-   * @returns {Promise<object>}
+   * Updates sender details with conditional duplicate checking.
+   * @param {number|string} id - PkPartyId.
+   * @param {object} senderData - Partial updates.
+   * @param {object} user - Authenticated user context.
+   * @returns {Promise<object>} Updated sender.
    */
   async updateSender(id, senderData, user) {
     const existing = await this.getSenderById(id);
-
     if (senderData.phoneNo && senderData.phoneNo !== existing.phoneNo) {
       const count = await senderRepository.checkDuplicate(id, senderData.phoneNo);
       if (count > 0) {
@@ -83,22 +115,16 @@ class SenderService {
         throw error;
       }
     }
-
     const adminId = user?.id || user?.employeeCode || 1;
-    // merge existing with update data
-    const payload = {
-      ...existing,
-      ...senderData
-    };
-    const result = await senderRepository.update(id, payload, adminId, 30);
+    const result = await senderRepository.update(id, { ...existing, ...senderData }, adminId, 30);
     return this._mapToApi(result);
   }
 
   /**
-   * Soft-deletes a sender.
-   * @param {number|string} id 
-   * @param {object} user 
-   * @returns {Promise<object>}
+   * Performs soft-delete by deactivating the Party record.
+   * @param {number|string} id - PkPartyId.
+   * @param {object} user - Authenticated user context.
+   * @returns {Promise<boolean>} True on success.
    */
   async deleteSender(id, user) {
     await this.getSenderById(id);
@@ -108,10 +134,9 @@ class SenderService {
   }
 
   /**
-   * Looks up a sender by phone number.
-   * Useful for frontend auto-fill or duplicate checks.
-   * @param {string} phone 
-   * @returns {Promise<object|null>}
+   * Auto-fill lookup using phone number as unique key.
+   * @param {string} phone - Target phone number.
+   * @returns {Promise<object>} Matching sender.
    */
   async lookupByPhone(phone) {
     if (!phone) {
@@ -129,27 +154,20 @@ class SenderService {
     return this._mapToApi(sender);
   }
 
-  // ============================================================================
-  // PARTY LOOKUP OPERATIONS (shared by senders & receivers)
-  // partyTypeId: 1=Sender, 2=Receiver, null=all
-  // ============================================================================
-
   /**
-   * Retrieves all distinct active party names, filtered by party type.
-   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
-   * @returns {Promise<Array<string>>} List of party name strings.
+   * Autocomplete lookup for party names.
+   * @param {number|null} [partyTypeId=null] - Optional filter.
+   * @returns {Promise<Array<string>>}
    */
   async getAllSenderNames(partyTypeId = null) {
-    // For senders, partyTypeId is 30 in the DB, though the arg might be 1 from the controller.
-    // Let's use 30 if partyTypeId is 1 (or 31 if 2), or just map directly.
     const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
     return await senderRepository.findAllNames(typeId);
   }
 
   /**
-   * Retrieves all distinct active phone numbers, filtered by party type.
-   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
-   * @returns {Promise<Array<string>>} List of phone number strings.
+   * Autocomplete lookup for phone numbers.
+   * @param {number|null} [partyTypeId=null] - Optional filter.
+   * @returns {Promise<Array<string>>}
    */
   async getAllPhoneNumbers(partyTypeId = null) {
     const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
@@ -157,11 +175,10 @@ class SenderService {
   }
 
   /**
-   * Search parties by name (partial match), filtered by party type.
-   * @param {string} name - Search query string.
-   * @param {number|null} [partyTypeId=null] - 1=Sender, 2=Receiver, null=all.
-   * @returns {Promise<Array>} List of matching party records (API format).
-   * @throws {Error} 400 if name param is missing.
+   * Search parties by name prefix/partial.
+   * @param {string} name - Partial name.
+   * @param {number|null} [partyTypeId=null] - Optional filter.
+   * @returns {Promise<Array<object>>}
    */
   async lookupByName(name, partyTypeId = null) {
     if (!name) {
@@ -174,84 +191,41 @@ class SenderService {
     return parties.map((s) => this._mapToApi(s));
   }
 
-  // ============================================================================
-  // ADDRESS BOOK (PARTY_DETAILS) OPERATIONS
-  // ============================================================================
-
   /**
-   * Maps a Party_Details DB record to the API response shape.
-   * @param {object} detail - Raw Party_Details record.
-   * @returns {object} API-formatted address object.
-   */
-  _mapAddressToApi(detail) {
-    if (!detail) return null;
-    return {
-      id: detail.PkPartyDetailsId,
-      partyId: detail.FkPartyId,
-      partyName: detail.PartyName,
-      phoneNo: detail.PhoneNo,
-      emailId: detail.EmailId,
-      address: detail.Address,
-      city: detail.City,
-      state: detail.State,
-      pincode: detail.Pincode,
-      country: detail.Country,
-      isDefault: detail.IsDefault === 1 || detail.IsDefault === true,
-      createdAt: detail.CreatedDate
-    };
-  }
-
-  /**
-   * Retrieves all active addresses for a given party (address book dropdown).
+   * Retrieves all secondary addresses from the Address Book.
    * @param {number|string} partyId - PkPartyId.
-   * @returns {Promise<Array>} List of address objects.
-   * @throws {Error} 404 if party not found.
+   * @returns {Promise<Array<object>>} API-formatted addresses.
    */
   async getAddressesByPartyId(partyId) {
-    // Verify party exists first
     const party = await senderRepository.findById(partyId, null);
     if (!party) {
       const error = new Error('Party not found');
       error.statusCode = 404;
       throw error;
     }
-
     const addresses = await senderRepository.findAddressesByPartyId(partyId);
     return addresses.map((d) => this._mapAddressToApi(d));
   }
 
   /**
-   * Creates a new address entry for a party.
-   * @param {number|string} partyId - PkPartyId to link address to.
-   * @param {object} data - Validated address payload.
-   * @param {object} user - Authenticated user from JWT.
-   * @returns {Promise<object>} The created address object.
-   * @throws {Error} 404 if party not found.
+   * Adds a new entry to the Party's Address Book.
+   * @param {number|string} partyId - Parent Party ID.
+   * @param {object} data - Address fields.
+   * @param {object} user - Creator context.
+   * @returns {Promise<object>} Created address object.
    */
   async createAddress(partyId, data, user) {
-    // Verify party exists first
     const party = await senderRepository.findById(partyId, null);
     if (!party) {
       const error = new Error('Party not found');
       error.statusCode = 404;
       throw error;
     }
-
-
-    // Use party master fields from :id (ignore identity fields from client body)
     const payload = {
-      partyName: party.CustomerName || null,
-      phoneNo: party.PhoneNo || null,
-      emailId: party.EmailId || null,
-      address: data.address,
-      city: data.city,
-      state: data.state,
-      pincode: data.pincode,
-      country: data.country || null,
-      isDefault: data.isDefault
+      partyName: party.CustomerName, phoneNo: party.PhoneNo, emailId: party.EmailId,
+      address: data.address, city: data.city, state: data.state, pincode: data.pincode,
+      country: data.country || null, isDefault: data.isDefault
     };
-
-
     const result = await senderRepository.createPartyDetail(partyId, payload, user);
     return this._mapAddressToApi(result);
   }
