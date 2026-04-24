@@ -61,10 +61,10 @@ class EmployeeRepository {
    */
   async findByEmail(email) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_employee_master_get (pAction=1, by email)
+    // LIVE DB MODE: prc_authenticate_employee (by email)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_employee_master_get(?, ?)', [1, email]);
+      const [rows] = await db.execute('CALL prc_authenticate_employee(?)', [email]);
       return rows[0]?.[0] || null;
     }
 

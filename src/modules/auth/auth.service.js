@@ -35,7 +35,7 @@ class AuthService {
         id: empCode,
         employeeCode: empCode,
         name: employee.FullName || employee.name,
-        email: employee.EmailAddress || employee.email,
+        email: employee.UserName || employee.EmailAddress || employee.email,
         role: employee.RoleCode || employee.role,
         token: generateToken(empCode), // Using employeeCode as identifier in JWT
       };
