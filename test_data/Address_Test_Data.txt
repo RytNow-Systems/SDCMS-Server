@@ -1,0 +1,101 @@
+========================================
+ADDRESS (PARTY_DETAILS) MODULE — Test Data
+Feature A: Address Book APIs
+========================================
+
+--- TEST 1: Get All Addresses for Party ---
+Method: GET
+URL: /api/v1/senders/1/addresses
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 200
+  - Body: { success: true, data: [...] }
+  - Each address has: id, address, city, state, pincode, country, isDefault
+  - At least one address should have isDefault: true
+
+--- TEST 2: Create New Address for Party ---
+Method: POST
+URL: /api/v1/senders/1/addresses
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+  Content-Type: application/json
+Body:
+{
+  "partyName": "John Doe",
+  "phoneNo": "9876543210",
+  "emailId": "john@example.com",
+  "address": "99 New Commerce Hub",
+  "city": "Ahmedabad",
+  "state": "Gujarat",
+  "pincode": "380001",
+  "country": "India",
+  "isDefault": false
+}
+
+Assertions:
+  - Status: 201
+  - Body: { success: true, data: { id: <new_id>, address: "99 New Commerce Hub", isDefault: false, ... } }
+
+--- TEST 3: Get Addresses — Party Not Found ---
+Method: GET
+URL: /api/v1/senders/999/addresses
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+
+Assertions:
+  - Status: 404
+  - Body: { success: false, error: "Party not found" }
+
+--- TEST 4: Create Address — Party Not Found ---
+Method: POST
+URL: /api/v1/senders/999/addresses
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+  Content-Type: application/json
+Body:
+{
+  "address": "Some Address",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "pincode": "400001"
+}
+
+Assertions:
+  - Status: 404
+  - Body: { success: false, error: "Party not found" }
+
+--- TEST 5: Create Address — Validation Failure (Missing Required Fields) ---
+Method: POST
+URL: /api/v1/senders/1/addresses
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+  Content-Type: application/json
+Body:
+{
+  "partyName": "John Doe"
+}
+
+Assertions:
+  - Status: 400
+  - Body: { success: false, error: "..." } — missing address, city, state, pincode
+
+--- TEST 6: Create Address with IsDefault Flag ---
+Method: POST
+URL: /api/v1/senders/2/addresses
+Headers:
+  Authorization: Bearer <OPERATOR_TOKEN>
+  Content-Type: application/json
+Body:
+{
+  "address": "12 Market Street",
+  "city": "Jaipur",
+  "state": "Rajasthan",
+  "pincode": "302001",
+  "isDefault": true
+}
+
+Assertions:
+  - Status: 201
+  - Body: { success: true, data: { isDefault: true, ... } }

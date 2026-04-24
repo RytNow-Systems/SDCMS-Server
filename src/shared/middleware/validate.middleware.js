@@ -10,7 +10,9 @@ export const validate = (schema) => (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === 'ZodError') {
-      const errorMsg = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+      // Zod 3.24+ uses `.issues`; older versions used `.errors`.
+      const zodIssues = error.issues || error.errors || [];
+      const errorMsg = zodIssues.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
       return res.status(400).json({ success: false, error: `Validation Error - ${errorMsg}` });
     }
     return res.status(400).json({ success: false, error: 'Bad Request Payload' });

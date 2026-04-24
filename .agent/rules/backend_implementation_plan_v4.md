@@ -1,5 +1,6 @@
 ---
 trigger: model_decision
+description: Trigger when the user commands "Implement Sprint [X] Feature [Y]". Provides the exact backend API roadmap, enforcing zero direct DB access (use SPs), plain-text Bruno testing, and heavy commentary for the Antigravity project.
 ---
 
 # Backend API Implementation Plan — v3

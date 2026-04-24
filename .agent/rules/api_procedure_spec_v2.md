@@ -1,9 +1,9 @@
 ---
 trigger: model_decision
-description: Defines API-to-MySQL stored procedure contracts. Outlines backend vs DB responsibilities (validation vs transactions) and prc_LogReceiverStatus logging. Load when writing Repositories, mapping payloads, or translating MySQL errors.
+description: Defines API-to-MySQL stored procedure contracts (v2). Outlines backend vs DB responsibilities (validation vs transactions) and prc_LogReceiverStatus logging. Load when writing Repositories, mapping payloads, or translating MySQL errors.
 ---
 
-# SDCMS — API ↔ Stored Procedure Contract Specification
+# SDCMS — API ↔ Stored Procedure Contract Specification v2
 
 ---
 
@@ -48,7 +48,7 @@ const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ...)', [para
 
 ### 2.4 Transaction Policy & Naming Rules
 - **Upsert (`_set`):** Handles all Inserts, Updates, Deletions. **NO** `pAction` parameter is used here. Controlled by passing ID=0 (Insert) or ID>0 (Update).
-- **Read (`_get`):** Handles all queries. **MUST** use the `pAction` integer parameter. (`0` = get all, `1` = get specific).
+- **Read (`_get`):** Handles all queries. **MUST** use the `pAction` integer parameter. Standard: `0` = get all, `1` = get specific. Higher values are module-specific (see sections below).
 - **Transactions:** `_set` procedures are fully atomic wrappers. Backend MUST NOT wrap them in additional transactions.
 
 ### 2.5 Logging Rule (Non-Negotiable)
@@ -59,11 +59,16 @@ Every state-changing operations within `prc_parcel_details_set`, `prc_order_mast
 ## 3. Shared Data Contracts
 
 ### 3.1 OrderPayload (Canonical Input Model)
+
+> v2 CHANGE: `products` and `receivers` are now both optional at the root level to support Mode A/B/C.
+
 ```json
 {
   "senderName": "string",
   "senderMobile": "string",
+  "senderAddress": "string (optional)",
   "courierId": "number",
+  "products": [{ "productId": "number", "qty": "number", "unitPrice": "number|null" }],
   "receivers": [
     {
       "receiverName": "string",
@@ -72,6 +77,11 @@ Every state-changing operations within `prc_parcel_details_set`, `prc_order_mast
   ]
 }
 ```
+
+**Order Modes (determined by payload shape):**
+- **Mode A (Sender-to-Self):** `products[]` only, no `receivers[]`. Backend creates synthetic receiver from Party_master.
+- **Mode B (Normal):** `receivers[]` only, no root `products[]`. Standard multi-receiver flow.
+- **Mode C (Combo):** Both `products[]` and `receivers[]`. Synthetic sender-receiver + external receivers.
 
 ---
 
@@ -102,7 +112,10 @@ Every state-changing operations within `prc_parcel_details_set`, `prc_order_mast
 | Create/Update Product | POST / PUT /products | `prc_product_master_set` (0 = Create) |
 | Get Products | GET /products | `prc_product_master_get` (`pAction = 0`) |
 | Get Product Info | GET /products/:id | `prc_product_master_get` (`pAction = 1`) |
+| Product+Category Dropdown | GET /products/dropdown | `prc_product_master_get` (`pAction = 2`) |
 | Soft Delete Product | DELETE /products/:id | `prc_product_master_set` (Passing `IsActive = 0`) |
+
+> v2 ADDITION: `pAction = 2` returns products JOINed with `product_category.CategoryName` for dropdown search.
 
 ---
 
@@ -122,13 +135,30 @@ Every state-changing operations within `prc_parcel_details_set`, `prc_order_mast
 **Endpoint:** `POST /api/v1/senders`  
 **Procedure:** `prc_Party_master_set`
 - Evaluates if logical sender exists by phone; if yes updates/returns, else inserts.
+- v2: Uses single `Address` field (not AddressLine1/2).
 
 ### Standard Operations
-| API | Procedure |
-|---|---|
-| Get Parties | `prc_Party_master_get` (`pAction = 0`) |
-| Get Specific Party | `prc_Party_master_get` (`pAction = 1`) |
-| Update/Delete Party| `prc_Party_master_set` |
+| API | Procedure | pAction |
+|---|---|---|
+| Get All Parties | `prc_Party_master_get` | `0` |
+| Get Specific Party | `prc_Party_master_get` | `1` |
+| Find by Phone | `prc_Party_master_get` | `2` |
+| Get All Names (dropdown) | `prc_Party_master_get` | `3` |
+| Get All Phones (dropdown) | `prc_Party_master_get` | `4` |
+| Search by Name (partial) | `prc_Party_master_get` | `5` |
+| Update/Delete Party | `prc_Party_master_set` | — |
+
+> v2 ADDITIONS: pAction 3, 4, 5 support autocomplete dropdowns and partial name search.
+
+### Party_Details (Address Book) APIs
+
+| API | Endpoint | Procedure | pAction |
+|---|---|---|---|
+| Get All Addresses for Party | GET /senders/:id/addresses | `prc_Party_Details_get` | `0` |
+| Get Address by ID | — (future) | `prc_Party_Details_get` | `1` |
+| Create Address | POST /senders/:id/addresses | `prc_Party_Details_set` | — (ID=0) |
+
+> v2 NEW: `Party_Details` stores per-party address book entries with `IsDefault` flag.
 
 ---
 

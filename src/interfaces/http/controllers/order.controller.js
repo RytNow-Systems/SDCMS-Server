@@ -64,7 +64,7 @@ export const getOrderById = asyncHandler(async (req, res) => {
  * ❗ Fails if any parcel status ≥ AWB_LINKED
  */
 export const updateOrder = asyncHandler(async (req, res) => {
-  const result = await orderService.updateOrder(req.params.id, req.body);
+  const result = await orderService.updateOrder(req.params.id, req.body, req.user);
   res.json({ success: true, data: result });
 });
 

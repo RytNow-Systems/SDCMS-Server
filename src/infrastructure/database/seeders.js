@@ -1,5 +1,6 @@
 import pool from './db.js';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 // Load environment variables
 dotenv.config();
@@ -10,13 +11,37 @@ dotenv.config();
 const simpleSeedData = [
   {
     table: 'lu_user_role',
-    columns: ['RoleCode', 'Description'],
+    columns: ['RoleCode', 'RoleDescription', 'IsActive'],
     data: [
-      ['ADMIN', 'The boss. Full access to everything'],
-      ['OPERATOR', 'Desk staff. Creates orders, prints labels'],
-      ['COURIER', 'Delivery staff. Scans parcels, links AWBs, dispatches']
+      ['ADMIN', 'The boss. Full access to everything', 1],
+      ['OPERATOR', 'Desk staff. Creates orders, prints labels', 1],
+      ['COURIER', 'Delivery staff. Scans parcels, links AWBs, dispatches', 1]
     ],
     duplicateCheckColumn: 'RoleCode'
+  },
+  {
+    table: 'lu_unit',
+    columns: ['UnitTitle', 'UnitCode', 'ConversionFactor', 'IsActive'],
+    data: [
+      ['Kilogram',  'KG',  1.000, 1],
+      ['Pieces',    'PCS', 1.000, 1],
+      ['Litre',     'LTR', 1.000, 1],
+      ['Metre',     'MTR', 1.000, 1],
+      ['Box',       'BOX', 1.000, 1]
+    ],
+    duplicateCheckColumn: 'UnitCode'
+  },
+  {
+    table: 'product_category',
+    columns: ['CategoryName', 'IsActive'],
+    data: [
+      ['Electronics',        1],
+      ['Clothing',           1],
+      ['Documents',          1],
+      ['Food & Perishables', 1],
+      ['Fragile Items',      1]
+    ],
+    duplicateCheckColumn: 'CategoryName'
   }
 ];
 
@@ -159,8 +184,106 @@ const seedLookupHierarchy = async (connection) => {
 };
 
 // ============================================================================
+// COURIER PARTNER SEEDS — Sample courier companies with tracking URL templates
+// ============================================================================
+const courierPartnerData = [
+  { CourierName: 'BlueDart',     TrackingUrlTemplate: 'https://www.bluedart.com/tracking?awb={AWB}',        IsActive: 1 },
+  { CourierName: 'Delhivery',    TrackingUrlTemplate: 'https://www.delhivery.com/track/package/{AWB}',      IsActive: 1 },
+  { CourierName: 'DTDC',         TrackingUrlTemplate: 'https://www.dtdc.in/tracking/shipment-tracking/{AWB}', IsActive: 1 }
+];
+
+/**
+ * Seeds courier_partner_master with sample couriers.
+ * Uses CourierName (UNIQUE) for duplicate checking.
+ */
+const seedCourierPartners = async (connection) => {
+  console.log('Seeding table: courier_partner_master');
+
+  for (const courier of courierPartnerData) {
+    const [existing] = await connection.query(
+      `SELECT 1 FROM courier_partner_master WHERE CourierName = ? LIMIT 1`,
+      [courier.CourierName]
+    );
+
+    if (existing.length === 0) {
+      await connection.query(
+        `INSERT INTO courier_partner_master (CourierName, TrackingUrlTemplate, IsActive) VALUES (?, ?, ?)`,
+        [courier.CourierName, courier.TrackingUrlTemplate, courier.IsActive]
+      );
+      console.log(`  [+] Inserted courier: ${courier.CourierName}`);
+    } else {
+      console.log(`  [~] Skipped (already exists): ${courier.CourierName}`);
+    }
+  }
+};
+
+// ============================================================================
+// DEFAULT ADMIN EMPLOYEE — Bootstrap user so the system is usable after seeding
+// ============================================================================
+const DEFAULT_ADMIN = {
+  FullName: 'System Admin',
+  ContactNumber: '0000000000',
+  EmailAddress: 'admin@sdcms.local',
+  UserName: 'admin',
+  Password: 'Admin@123',       // Will be bcrypt-hashed before insert
+  AllowLogin: 1,
+  IsActive: 1
+};
+
+// ============================================================================
 // MAIN SEEDER RUNNER
 // ============================================================================
+/**
+ * Seeds the default admin employee so the system is usable after fresh setup.
+ * Resolves the ADMIN role PK from lu_user_role and bcrypt-hashes the password.
+ * EmployeeCode is auto-increment — let MySQL assign it.
+ */
+const seedDefaultAdmin = async (connection) => {
+  console.log('Seeding default admin employee');
+
+  // Check if already exists by UserName (EmployeeCode is auto-increment)
+  const [existing] = await connection.query(
+    `SELECT 1 FROM employee_master WHERE UserName = ? LIMIT 1`,
+    [DEFAULT_ADMIN.UserName]
+  );
+
+  if (existing.length > 0) {
+    console.log(`  [~] Skipped (already exists): ${DEFAULT_ADMIN.UserName}`);
+    return;
+  }
+
+  // Resolve ADMIN role PK
+  const [roleRows] = await connection.query(
+    `SELECT PkUserRoleId FROM lu_user_role WHERE RoleCode = 'ADMIN' LIMIT 1`
+  );
+
+  if (roleRows.length === 0) {
+    console.error('  [!] FATAL: ADMIN role not found in lu_user_role. Seed roles first.');
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN.Password, 10);
+
+  await connection.query(
+    `INSERT INTO employee_master
+       (FullName, ContactNumber, EmailAddress, UserName, Password, FkRoleId, AllowLogin, IsActive, CreatedDate)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [
+      DEFAULT_ADMIN.FullName,
+      DEFAULT_ADMIN.ContactNumber,
+      DEFAULT_ADMIN.EmailAddress,
+      DEFAULT_ADMIN.UserName,
+      hashedPassword,
+      roleRows[0].PkUserRoleId,
+      DEFAULT_ADMIN.AllowLogin,
+      DEFAULT_ADMIN.IsActive
+    ]
+  );
+
+  console.log(`  [+] Inserted admin: ${DEFAULT_ADMIN.UserName}`);
+  console.log(`      Default credentials → username: ${DEFAULT_ADMIN.UserName} / password: ${DEFAULT_ADMIN.Password}`);
+};
+
 export async function runAllSeeders() {
   console.log('--- Database Seeding Started ---');
   let connection;
@@ -168,11 +291,17 @@ export async function runAllSeeders() {
   try {
     connection = await pool.getConnection();
 
-    // Phase 1: Simple tables (no FK dependencies)
+    // Phase 1: Simple tables (lu_user_role, lu_unit, product_category)
     await seedSimpleTables(connection);
 
     // Phase 2: Unified lookup hierarchy (lu_master → lu_details)
     await seedLookupHierarchy(connection);
+
+    // Phase 3: Courier partners (standalone master data)
+    await seedCourierPartners(connection);
+
+    // Phase 4: Default admin employee (depends on lu_user_role from Phase 1)
+    await seedDefaultAdmin(connection);
 
     console.log('--- Database Seeding Completed Successfully ---');
   } catch (error) {

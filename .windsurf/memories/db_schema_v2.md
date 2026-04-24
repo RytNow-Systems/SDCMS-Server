@@ -1,5 +1,6 @@
 ---
 trigger: model_decision
+description: Primary reference for the v2 database physical schema (tables, columns, types, and FKs). Use for data structure context. For logic and stored procedures, refer to api_procedure_spec document.
 ---
 
 ## 🔷 MASTER TABLES
@@ -10,8 +11,7 @@ trigger: model_decision
 - CustomerName
 - PhoneNo
 - EmailId
-- AddressLine1
-- AddressLine2
+- Address (varchar 255 — replaces AddressLine1/AddressLine2)
 - City
 - State
 - Pincode
@@ -20,6 +20,31 @@ trigger: model_decision
 - UpdatedBy
 - UpdatedDate
 - IsActive
+
+> ⚠️ v2 CHANGE: `AddressLine1` + `AddressLine2` consolidated into single `Address` field.
+
+---
+
+### Party_Details (Address Book)
+- PkPartyDetailsId (PK)
+- FkPartyId (FK → Party_master)
+- PartyName
+- PhoneNo
+- EmailId
+- Address
+- City
+- State
+- Pincode
+- Country
+- IsActive
+- IsDefault (boolean — marks default address for a party)
+- CreatedBy
+- CreatedDate
+- UpdatedBy
+- UpdatedDate
+
+> ✅ NEW in v2: Per-party address book. A party can have multiple shipping addresses.
+> Convention: `FkPartyId` links back to `Party_master.PkPartyId`.
 
 ---
 
@@ -141,13 +166,14 @@ trigger: model_decision
 - ReceiverName
 - ReceiverPhone
 - ReceiverEmail
-- AddressLine1
-- AddressLine2
+- Address (varchar 255 — replaces AddressLine1/AddressLine2)
 - City
 - State
 - Pincode
 - Country
 - IsActive
+
+> ⚠️ v2 CHANGE: `AddressLine1` + `AddressLine2` consolidated into single `Address` field.
 
 ---
 

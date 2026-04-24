@@ -1,39 +1,59 @@
-# Courier Test Data
+==================================================
+COURIER PARTNERS — Test Data
+Generated from api-manifest.yaml
+==================================================
 
-## GET /api/v1/courier-partners
+--- TEST 1: List Couriers ---
 Method: GET
 URL: /api/v1/courier-partners
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-1. Status code is 200
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
 
-## POST /api/v1/courier-partners
+Expected Status: 200
+
+--- TEST 2: Create Courier ---
 Method: POST
 URL: /api/v1/courier-partners
-Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
-Payload:
-{
-  "courierName": "Speedy Express",
-  "phoneNo": "1234567890",
-  "trackingUrlTemplate": "https://speedy.express/track?awb={AWB}"
-}
-Assertions:
-1. Status code is 200
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
 
-## PUT /api/v1/courier-partners/:id
+Body:
+{
+  "courierName": "TestCourier Express",
+  "trackingUrlTemplate": "https://track.testcourier.com/awb/{AWB}"
+}
+
+Expected Status: 201
+
+--- TEST 3: Get Courier by ID ---
+Method: GET
+URL: /api/v1/courier-partners/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
+
+Expected Status: 200
+
+--- TEST 4: Update Courier ---
 Method: PUT
-URL: /api/v1/courier-partners/1
-Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
-Payload:
-{
-  "courierName": "Speedy Express Premium"
-}
-Assertions:
-1. Status code is 200
+URL: /api/v1/courier-partners/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
 
-## DELETE /api/v1/courier-partners/:id
+Body:
+{
+  "courierName": "Updated Courier"
+}
+
+Expected Status: 200
+
+--- TEST 5: Delete Courier ---
 Method: DELETE
-URL: /api/v1/courier-partners/1
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-1. Status code is 200
+URL: /api/v1/courier-partners/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200

@@ -7,15 +7,14 @@
 
 /**
  * Mock Party_master entries (unified senders/receivers).
- * Maps to: Party_master table (PkPartyId, CustomerName, PhoneNo, AddressLine1, City, State, Pincode)
+ * Maps to: Party_master table (PkPartyId, CustomerName, PhoneNo, Address, City, State, Pincode)
  */
 export const seedParties = [
   {
     id: 1,
     customerName: 'Ramesh Textiles',
     phoneNo: '9876543210',
-    addressLine1: '14, Gandhi Nagar',
-    addressLine2: 'Near Railway Station',
+    address: '14, Gandhi Nagar, Near Railway Station',
     city: 'Surat',
     state: 'Gujarat',
     pincode: '395002',
@@ -25,8 +24,7 @@ export const seedParties = [
     id: 2,
     customerName: 'Delhi Fabrics Ltd.',
     phoneNo: '9123456780',
-    addressLine1: '45, Karol Bagh',
-    addressLine2: '',
+    address: '45, Karol Bagh',
     city: 'New Delhi',
     state: 'Delhi',
     pincode: '110005',
@@ -57,7 +55,7 @@ export const seedOrders = [
 
 /**
  * Mock receiver_details entries.
- * Maps to: receiver_details (PkReceiverDetailsId, FkOrderId, ReceiverName, ReceiverPhone, AddressLine1, ...)
+ * Maps to: receiver_details (PkReceiverDetailsId, FkOrderId, ReceiverName, ReceiverPhone, Address, ...)
  */
 export const seedReceivers = [
   {
@@ -65,8 +63,7 @@ export const seedReceivers = [
     fkOrderId: 1,
     receiverName: 'Delhi Fabrics Ltd.',
     receiverPhone: '9123456780',
-    addressLine1: '45, Karol Bagh',
-    addressLine2: '',
+    address: '45, Karol Bagh',
     city: 'New Delhi',
     state: 'Delhi',
     pincode: '110005',
@@ -78,8 +75,7 @@ export const seedReceivers = [
     fkOrderId: 1,
     receiverName: 'Mumbai Silk House',
     receiverPhone: '9988776655',
-    addressLine1: '22, Linking Road',
-    addressLine2: 'Bandra West',
+    address: '22, Linking Road, Bandra West',
     city: 'Mumbai',
     state: 'Maharashtra',
     pincode: '400050',

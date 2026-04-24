@@ -8,7 +8,14 @@ import employeeRoutes from './interfaces/http/routes/employee.routes.js';
 import courierRoutes from './interfaces/http/routes/courier.routes.js';
 import productRoutes from './interfaces/http/routes/product.routes.js';
 import orderRoutes from './interfaces/http/routes/order.routes.js';
+import senderRoutes from './interfaces/http/routes/sender.routes.js';
+import receiverRoutes from './interfaces/http/routes/receiver.routes.js';
+import parcelRoutes from './interfaces/http/routes/parcel.routes.js';
+import parcelEventsRoutes from './interfaces/http/routes/parcel-events.routes.js';
+import bulkUploadRoutes from './interfaces/http/routes/bulk-upload.routes.js';
 import systemRoutes from './interfaces/http/routes/system.routes.js';
+import dashboardRoutes from './interfaces/http/routes/dashboard.routes.js';
+import notificationRoutes from './interfaces/http/routes/notification.routes.js';
 
 // Import Error Middlewares
 import { notFound, errorHandler } from './shared/middleware/error.middleware.js';
@@ -33,7 +40,14 @@ app.use('/api/v1/employees', employeeRoutes);
 app.use('/api/v1/courier-partners', courierRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/senders', senderRoutes);
+app.use('/api/v1/receivers', receiverRoutes);
+app.use('/api/v1/parcels', parcelRoutes);
+app.use('/api/v1/parcel-events', parcelEventsRoutes);
+app.use('/api/v1/bulk-uploads', bulkUploadRoutes);
 app.use('/api/v1/system', systemRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1', notificationRoutes);
 
 // SwaggerUI Documentation
 // app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));

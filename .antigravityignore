@@ -16,6 +16,7 @@ coverage/
 .turbo/
 test_data/
 bruno/
+sdcms-server.xml
 
 # 3. Lock files (Reduces index bloat)
 package-lock.json

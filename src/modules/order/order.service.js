@@ -1,189 +1,268 @@
 // ============================================================================
 // File: src/modules/order/order.service.js
 // Description: Business logic layer for the Order module.
-// Orchestrates repository calls and enforces business rules.
-// All business logic lives in stored procedures — this layer validates
-// and translates API payloads into procedure parameters.
+// Orchestrates Mode A (Self), Mode B (External), and Mode C (Combo) creation flows.
+// Standardizes database results (PascalCase/camelCase) for the API contract.
 // ============================================================================
 
 import orderRepository from './order.repository.js';
-// TODO: Import logger once infrastructure/logger module is implemented
-// import logger from '../../infrastructure/logger/logger.js';
 
 class OrderService {
   /**
-   * Process a new complex order creation.
-   * Maps API Contract §7.2 payload → prc_CreateComplexOrder flow.
-   *
-   * Flow: find-or-create sender → create order → add receivers → add items → generate parcels.
-   * In production, this entire flow is handled atomically by prc_CreateComplexOrder.
-   *
-   * @param {object} payload - Validated order payload from Zod schema.
-   * @param {object} user - Authenticated user from JWT (req.user).
-   * @returns {object} Created order with nested receivers and parcels.
+   * Orchestrates the creation of an order based on the identified Mode.
+   * 
+   * @param {object} payload - Zod-validated order payload.
+   * @param {object} user - Authenticated user context from auth middleware.
+   * @returns {Promise<object>} Created order aggregate or receiver array.
    */
   async createOrder(payload, user) {
     const { senderName, senderMobile, senderAddress, courierId, products, receivers } = payload;
     const createdBy = user?.employeeCode || null;
 
-    // Step 1: Find-or-create the sender in Party_master
+    // Detect Modes:
+    // Mode A: root products only.
+    // Mode B: receivers only.
+    // Mode C: both.
+    const hasRootProducts = Array.isArray(products) && products.length > 0;
+    const hasReceivers = Array.isArray(receivers) && receivers.length > 0;
+
+    if (process.env.USE_MOCK_DB !== 'true') {
+      return this._createOrderLive({ senderName, senderMobile, senderAddress, courierId, products, receivers, hasRootProducts, hasReceivers, createdBy });
+    }
+
+    return this._createOrderMock({ senderName, senderMobile, senderAddress, courierId, products, receivers, hasRootProducts, hasReceivers, createdBy });
+  }
+
+  /**
+   * Orchestration for LIVE database via managed repository transaction.
+   * @private
+   */
+  async _createOrderLive(ctx) {
+    // Step 1: Ensure the sender exists in Party_master
     const sender = await orderRepository.findOrCreateParty({
-      senderName,
-      senderMobile,
-      createdBy
+      senderName: ctx.senderName,
+      senderMobile: ctx.senderMobile,
+      address: ctx.senderAddress,
+      createdBy: ctx.createdBy
     });
 
-    // Step 2: Create the order header
+    // Step 2: Unify root products and external receivers into a single array
+    const normalizedReceivers = this._buildReceiversList(
+      ctx.hasRootProducts, ctx.hasReceivers, ctx.products, ctx.receivers,
+      ctx.senderName, ctx.senderMobile, sender
+    );
+
+    // Step 3: Build the aggregate graph for the repository
+    const orderPayload = {
+      senderId: sender.PkPartyId || sender.id, // Handle dual naming convention
+      senderName: ctx.senderName,
+      senderMobile: ctx.senderMobile,
+      senderAddress: ctx.senderAddress,
+      courierId: ctx.courierId,
+      totalAmount: this._calculateTotalAmount(normalizedReceivers),
+      receivers: normalizedReceivers
+    };
+
+    // Repository handles the atomic transaction across 4 tables
+    return orderRepository.createOrder(orderPayload, ctx.createdBy);
+  }
+
+  /**
+   * Orchestration for MOCK mode via individual repository calls.
+   * @private
+   */
+  async _createOrderMock(ctx) {
+    // Step 1: Find-or-create sender
+    const sender = await orderRepository.findOrCreateParty({
+      senderName: ctx.senderName,
+      senderMobile: ctx.senderMobile,
+      createdBy: ctx.createdBy
+    });
+
+    // Step 2: Create Order Header
     const order = await orderRepository.createOrder({
       senderId: sender.id,
-      senderName,
-      senderMobile,
-      senderAddress,
-      courierId,
-      createdBy
-    });
+      senderName: ctx.senderName,
+      senderMobile: ctx.senderMobile,
+      senderAddress: ctx.senderAddress,
+      courierId: ctx.courierId
+    }, ctx.createdBy);
 
-    // Step 3: Build receiver list
-    // If no receivers provided, default to sender-as-receiver (Mode A / Mode C)
-    let receiversList = receivers;
-    if (!receiversList || receiversList.length === 0) {
-      if (!products || products.length === 0) {
-        const error = new Error('An order must contain products at the root level if no explicit receivers are assigned.');
-        error.statusCode = 400;
-        throw error;
-      }
+    // Step 3: Normalize receivers based on Mode A/B/C
+    const receiversList = this._buildReceiversList(
+      ctx.hasRootProducts, ctx.hasReceivers, ctx.products, ctx.receivers,
+      ctx.senderName, ctx.senderMobile, sender
+    );
 
-      receiversList = [{
-        receiverName: senderName,
-        receiverPhone: senderMobile,
-        addressLine1: senderAddress,
-        products
-      }];
-    }
-
-    // Step 4: Process each receiver → items → parcel
-    const aggregatedReceivers = [];
-    let totalAmount = 0;
-
-    for (const rec of receiversList) {
-      const receiverRecord = await orderRepository.createReceiver(order.id, {
-        receiverName: rec.receiverName,
-        receiverPhone: rec.receiverPhone || null,
-        addressLine1: rec.addressLine1 || null,
-        addressLine2: rec.addressLine2 || null,
-        city: rec.city || null,
-        state: rec.state || null,
-        pincode: rec.pincode || null,
-        country: rec.country || 'India'
-      });
-
-      const savedItems = [];
-
-      for (const prod of rec.products || []) {
-        const item = await orderRepository.createOrderItem(
-          receiverRecord.id,
-          prod.productId,
-          prod.quantity,
-          prod.unitPrice || null
-        );
-        savedItems.push(item);
-
-        // Accumulate total
-        totalAmount += (prod.unitPrice || 0) * (prod.quantity || 0);
-      }
-
-      // 1 receiver = 1 parcel (Systemflow Part 3, Step 5)
-      const parcel = await orderRepository.createParcel(receiverRecord.id, courierId);
-
-      aggregatedReceivers.push({
-        ...receiverRecord,
-        items: savedItems,
-        parcel
-      });
-    }
+    // Step 4: Iteratively build the mock graph (receivers -> items -> parcels)
+    const aggregatedReceivers = await this._processMockReceivers(order.id, receiversList, ctx.courierId);
 
     return {
-      orderId: order.id,
-      orderCode: order.orderCode,
-      totalAmount,
-      senderName: order.senderName,
+      ...order,
       receivers: aggregatedReceivers
     };
   }
 
   /**
-   * Get paginated order summary list with derived statuses.
-   * Maps to prc_GetAllOrdersSummary.
-   *
-   * @param {object} filters - { page, limit, search, sortBy, sortOrder }
-   * @returns {object} { data: [...], total: number }
+   * Iterative processor for Mock mode creation.
+   * @private
+   */
+  async _processMockReceivers(orderId, list, courierId) {
+    const aggregated = [];
+    for (const rec of list) {
+      // 1 receiver record
+      const recRecord = await orderRepository.createReceiver(orderId, rec);
+      const items = [];
+      // multiple items
+      for (const prod of rec.products || []) {
+        items.push(await orderRepository.createOrderItem(recRecord.id, prod.productId, prod.qty, prod.unitPrice));
+      }
+      // 1 parcel execution unit (standard)
+      const parcel = await orderRepository.createParcel(recRecord.id, courierId);
+      aggregated.push({ ...recRecord, items, parcel });
+    }
+    return aggregated;
+  }
+
+  /**
+   * Business Logic: Calculate total order value across all items.
+   * @private
+   */
+  _calculateTotalAmount(receivers) {
+    return receivers.reduce((total, rec) => {
+      return total + (rec.products || []).reduce((sub, p) => sub + (p.unitPrice || 0) * (p.qty || 0), 0);
+    }, 0);
+  }
+
+  /**
+   * Domain Logic: Resolves Order Modes into a unified receiver array.
+   * Mode A: root products → synthetic receiver (self)
+   * Mode B: external receivers → list of receivers
+   * Mode C: both → synthetic receiver + external receivers
+   * @private
+   */
+  _buildReceiversList(hasRoot, hasRecs, rootProds, recs, sName, sPhone, sParty) {
+    const list = [];
+    // If root products exist, the sender is also a receiver (Mode A/C)
+    if (hasRoot) {
+      list.push({
+        receiverName: sName,
+        receiverPhone: sPhone,
+        address: sParty.address || sParty.Address || null,
+        city: sParty.city || sParty.City || null,
+        state: sParty.state || sParty.State || null,
+        pincode: sParty.pincode || sParty.Pincode || null,
+        products: rootProds
+      });
+    }
+    // External receivers (Mode B/C)
+    if (hasRecs) {
+      list.push(...recs);
+    }
+    return list;
+  }
+
+  /**
+   * Fetches paginated order summary list.
+   * Standardizes response to the API Contract.
    */
   async getOrderSummaryList(filters) {
-    return await orderRepository.findAllOrders(filters);
+    const result = await orderRepository.findAllOrders(filters);
+    return {
+      data: result.data.map((o) => this._mapOrderSummary(o)),
+      total: result.total
+    };
   }
 
   /**
-   * Get full order aggregate by ID (nested JSON).
-   * Maps to prc_GetOrderAggregate.
-   *
-   * @param {number|string} orderId
-   * @returns {object} Full nested order aggregate.
-   * @throws {Error} 404 if order not found.
+   * Fetches full aggregate graph for a single order.
+   * Standardizes response to the API Contract.
    */
   async getOrderDetails(orderId) {
-    const data = await orderRepository.findById(orderId);
-    if (!data) {
+    const order = await orderRepository.findById(orderId);
+    if (!order) {
       const error = new Error('Order not found');
       error.statusCode = 404;
       throw error;
     }
-    return data;
+    return this._mapOrderAggregate(order);
   }
 
   /**
-   * Update an existing order.
-   * Maps to prc_UpdateComplexOrder.
-   *
-   * ❗ Business rule: Must fail if any parcel status ≥ AWB_LINKED.
-   * This is enforced in both the repository mock and the stored procedure.
-   *
-   * @param {number|string} orderId
-   * @param {object} payload - Updated order data.
-   * @returns {object} Updated order record.
-   * @throws {Error} 404 if order not found, 400 if update blocked.
+   * Updates core order metadata before physical execution threshold.
    */
-  async updateOrder(orderId, payload) {
-    const result = await orderRepository.updateOrder(orderId, payload);
+  async updateOrder(orderId, payload, user) {
+    const adminId = user?.employeeCode || null;
+    const result = await orderRepository.updateOrder(orderId, payload, adminId);
     if (!result) {
       const error = new Error('Order not found');
       error.statusCode = 404;
       throw error;
     }
-    return result;
+    return this._mapOrderSummary(result);
   }
 
   /**
-   * Cancel an order and cascade to all parcels.
-   * Maps to prc_CancelOrder.
-   *
-   * ❌ Cannot cancel if any parcel is DISPATCHED or DELIVERED.
-   * ✔ Cascades cancellation to all parcels.
-   * ✔ Logs each status change to receiver_status_details.
-   *
-   * @param {number|string} orderId
-   * @param {object} user - Authenticated user from JWT (req.user).
-   * @returns {object} Cancellation result.
-   * @throws {Error} 404 if order not found, 400 if cancellation blocked.
+   * Cancels entire order flow.
    */
   async cancelOrder(orderId, user) {
-    const cancelledBy = user?.employeeCode || 'SYSTEM';
-    const result = await orderRepository.cancelOrder(orderId, cancelledBy);
+    const adminId = user?.employeeCode || null;
+    const result = await orderRepository.cancelOrder(orderId, adminId);
     if (!result) {
       const error = new Error('Order not found');
       error.statusCode = 404;
       throw error;
     }
     return result;
+  }
+
+  /**
+   * Internal mapper for Order Summary objects.
+   * Handles dual-case naming from Live DB vs Mock seeds.
+   * @private
+   */
+  _mapOrderSummary(o) {
+    return {
+      id: o.PkOrderId || o.id,
+      orderCode: o.OrderCode || o.orderCode,
+      senderName: o.SenderName || o.senderName,
+      senderMobile: o.SenderMobile || o.senderMobile,
+      totalAmount: o.TotalAmount || o.totalAmount,
+      derivedStatus: o.DerivedStatus || o.derivedStatus || 'Created',
+      createdAt: o.CreatedAt || o.createdAt
+    };
+  }
+
+  /**
+   * Internal mapper for Order Aggregate objects.
+   * Cascades through receivers, items, and parcels.
+   * @private
+   */
+  _mapOrderAggregate(o) {
+    return {
+      ...this._mapOrderSummary(o),
+      senderAddress: o.SenderAddress || o.senderAddress,
+      courierId: o.FkCourierId || o.fkCourierId,
+      receivers: (o.receivers || []).map((r) => ({
+        id: r.PkReceiverDetailsId || r.id,
+        receiverName: r.ReceiverName || r.receiverName,
+        receiverPhone: r.ReceiverPhone || r.receiverPhone,
+        address: r.Address || r.address,
+        city: r.City || r.city,
+        state: r.State || r.state,
+        pincode: r.Pincode || r.pincode,
+        parcel: r.parcel ? {
+          id: r.parcel.PkParcelDetailsId || r.parcel.id,
+          parcelId: r.parcel.ParcelID || r.parcel.parcel_id,
+          status: r.parcel.ParcelStatus || r.parcel.parcelStatusCode || 'PENDING'
+        } : null,
+        products: (r.items || []).map((i) => ({
+          productId: i.FkProductId || i.fkProductId,
+          qty: i.OutwardQty || i.outwardQty,
+          unitPrice: i.UnitPrice || i.unitPrice
+        }))
+      }))
+    };
   }
 }
 

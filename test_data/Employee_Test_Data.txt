@@ -1,48 +1,68 @@
-# Employee Test Data
+==================================================
+EMPLOYEE MANAGEMENT (ADMIN) — Test Data
+Generated from api-manifest.yaml
+==================================================
 
-## GET /api/v1/employees
+--- TEST 1: List Employees ---
 Method: GET
 URL: /api/v1/employees
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-1. Status code is 200
-2. res.body.success is true
+Auth: Bearer <TOKEN>
+Roles: ADMIN
 
-## POST /api/v1/employees
+Expected Status: 200
+
+--- TEST 2: Create Employee ---
 Method: POST
 URL: /api/v1/employees
-Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
-Payload:
-{
-  "employeeName": "John Doe",
-  "email": "john@example.com",
-  "roleCode": "OPERATOR",
-  "password": "password123"
-}
-Assertions:
-1. Status code is 200 or 201
-2. res.body.success is true
+Auth: Bearer <TOKEN>
+Roles: ADMIN
+Headers:
+  Content-Type: application/json
 
-## PUT /api/v1/employees/:id
+Body:
+{
+  "name": "New Emp",
+  "role": "OPERATOR",
+  "email": "newemp@example.com",
+  "password": "Test123456"
+}
+
+Expected Status: 201
+
+--- TEST 3: Get Employee by ID ---
+Method: GET
+URL: /api/v1/employees/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN
+
+Expected Status: 200
+
+--- TEST 4: Update Employee ---
 Method: PUT
-URL: /api/v1/employees/1
-Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
-Payload:
-{
-  "employeeName": "John Doe Updated"
-}
-Assertions:
-1. Status code is 200
-2. res.body.success is true
+URL: /api/v1/employees/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN
+Headers:
+  Content-Type: application/json
 
-## PATCH /api/v1/employees/:id/toggle-access
-Method: PATCH
-URL: /api/v1/employees/1/toggle-access
-Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
-Payload:
+Body:
 {
-  "allowLogin": false
+  "name": "Updated Name"
 }
-Assertions:
-1. Status code is 200
-2. res.body.success is true
+
+Expected Status: 200
+
+--- TEST 5: Toggle Employee Access ---
+Method: PATCH
+URL: /api/v1/employees/:id/toggle-access
+Auth: Bearer <TOKEN>
+Roles: ADMIN
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "allowLogin": true
+}
+
+Expected Status: 200

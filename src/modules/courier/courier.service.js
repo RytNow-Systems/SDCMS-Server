@@ -6,8 +6,23 @@
 import courierRepository from "./courier.repository.js";
 
 class CourierService {
+  _mapToApi(courier) {
+    if (!courier) return null;
+    return {
+      id: courier.CourierId,
+      courierName: courier.CourierName,
+      trackingUrlTemplate: courier.TrackingUrlTemplate,
+      isActive: courier.IsActive === 1 || courier.IsActive === true,
+      createdAt: courier.CreatedDate
+    };
+  }
+
   async getCouriers(page = 1, limit = 20, search = "") {
-    return await courierRepository.findAll(page, limit, search);
+    const result = await courierRepository.findAll(page, limit, search);
+    return {
+      ...result,
+      data: result.data.map(c => this._mapToApi(c))
+    };
   }
 
   async getCourierById(id) {
@@ -17,35 +32,50 @@ class CourierService {
       error.statusCode = 404;
       throw error;
     }
-    return courier;
+    return this._mapToApi(courier);
   }
 
-  async createCourier(courierData) {
-    if (!courierData.courierName || !courierData.trackingUrlTemplate) {
-      const error = new Error(
-        "Courier Name and Tracking URL Template are required",
-      );
+  async createCourier(courierData, adminId) {
+    if (!courierData.courierName) {
+      const error = new Error("Courier Name is required");
       error.statusCode = 400;
       throw error;
     }
 
-    return await courierRepository.create(courierData);
+    const duplicateCount = await courierRepository.checkDuplicate(0, courierData.courierName);
+    if (duplicateCount > 0) {
+      const error = new Error("Courier name already exists");
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const courier = await courierRepository.create(courierData, adminId);
+    return this._mapToApi(courier);
   }
 
-  async updateCourier(id, updates) {
-    const courier = await courierRepository.update(id, updates);
+  async updateCourier(id, updates, adminId) {
+    if (updates.courierName) {
+      const duplicateCount = await courierRepository.checkDuplicate(id, updates.courierName);
+      if (duplicateCount > 0) {
+        const error = new Error("Courier name already exists");
+        error.statusCode = 409;
+        throw error;
+      }
+    }
+
+    const courier = await courierRepository.update(id, updates, adminId);
     if (!courier) {
       const error = new Error("Courier partner not found");
       error.statusCode = 404;
       throw error;
     }
-    return courier;
+    return this._mapToApi(courier);
   }
 
-  async deleteCourier(id) {
+  async deleteCourier(id, adminId) {
     // Business Rule checking - in production, verify courier isn't linked to active orders
     // before allowing even a soft delete.
-    const success = await courierRepository.delete(id);
+    const success = await courierRepository.delete(id, adminId);
     if (!success) {
       const error = new Error("Courier partner not found");
       error.statusCode = 404;

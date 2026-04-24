@@ -9,7 +9,8 @@ import {
   getProductById,
   createProduct,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  getProductDropdown
 } from '../controllers/product.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 import { validate } from '../../../shared/middleware/validate.middleware.js';
@@ -26,6 +27,9 @@ router.use(authorizeRoles('ADMIN', 'OPERATOR'));
 router.route('/')
   .get(getProducts)
   .post(validate(createProductSchema), createProduct);
+
+// Product + Category combined dropdown (Feature E)
+router.get('/dropdown', getProductDropdown);
 
 router.route('/:id')
   .get(getProductById)
