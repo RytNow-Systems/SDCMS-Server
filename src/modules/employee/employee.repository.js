@@ -89,11 +89,11 @@ class EmployeeRepository {
   }
 
   /**
-   * Fetches an employee by their email (used for login and duplicate checks).
-   * Procedure: CALL prc_authenticate_employee(?) or similar.
+   * Fetches an employee by their email for authentication.
+   * Procedure: CALL prc_authenticate_employee(?)
    *
    * @param {string} email - Employee email address.
-   * @returns {Promise<Object|null>} Employee record or null if not found.
+   * @returns {Promise<Object|null>} { EmployeeCode, FullName, UserName, Password, RoleCode, AllowLogin } or null.
    */
   async findByEmail(email) {
     // ------------------------------------------------------------------

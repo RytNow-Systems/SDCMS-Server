@@ -10,7 +10,11 @@ import generateToken from '../../shared/utils/generateToken.js';
 
 class AuthService {
   /**
-   * Orchestrates the login flow.
+   * Orchestrates the login flow by validating credentials and generating a JWT.
+   * 
+   * @param {string} email - User's login email.
+   * @param {string} password - User's plain-text password.
+   * @returns {Promise<Object>} Object containing profile data and token.
    */
   async loginUser(email, password) {
     const employee = await employeeRepository.findByEmail(email);
@@ -35,6 +39,7 @@ class AuthService {
         id: empCode,
         employeeCode: empCode,
         name: employee.FullName || employee.name,
+        // prc_authenticate_employee returns 'UserName' as the email identifier.
         email: employee.UserName || employee.EmailAddress || employee.email,
         role: employee.RoleCode || employee.role,
         token: generateToken(empCode), // Using employeeCode as identifier in JWT
