@@ -504,7 +504,7 @@ collections:
   # ========== 11. DISPATCH AND TERMINAL STATES ==========
   - name: Dispatch and Terminal States
     slug: dispatch-terminal
-    description: Dispatch, deliver, return, and cancel parcel operations
+    description: Dispatch, deliver, and return parcel operations
     endpoints:
       - name: Batch Dispatch
         method: POST
@@ -530,12 +530,6 @@ collections:
         description: Terminal state — marks parcel as RETURNED.
         responseStatus: 200
 
-      - name: Cancel Parcel
-        method: PATCH
-        path: /parcels/:id/cancel
-        roles: [ADMIN, OPERATOR]
-        description: Cancels a parcel (blocked if dispatched/delivered).
-        responseStatus: 200
 
   # ========== 12. PARCEL EVENTS ==========
   - name: Parcel Events & Audit Export

@@ -37,11 +37,3 @@ Auth: Bearer <TOKEN>
 Roles: ADMIN, OPERATOR
 
 Expected Status: 200
-
---- TEST 4: Cancel Parcel ---
-Method: PATCH
-URL: /api/v1/parcels/:id/cancel
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-
-Expected Status: 200

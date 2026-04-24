@@ -140,12 +140,12 @@
         <h1>SDCMS Backend API</h1>
         <h2>Dispatch and Terminal States</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm post">POST</span>Batch Dispatch</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Mark Delivered</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Mark Returned</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Cancel Parcel</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm post">POST</span>Batch Dispatch</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Mark Delivered</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Mark Returned</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
         <h2>Dispatch and Terminal States</h2>
-        <p>Dispatch, deliver, return, and cancel parcel operations</p>
+        <p>Dispatch, deliver, and return parcel operations</p>
       </header>
 
       
@@ -257,40 +257,6 @@
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
         <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/parcels/:id/return&quot; \
-  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
-        
-        
-      <div class="section-group">
-        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
-      </div>
-      </div>
-    </div>
-    <div class="endpoint-card" id="ep-3">
-      <div class="endpoint-info">
-        <div class="endpoint-header">
-          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
-          <code class="endpoint-path">/parcels/:id/cancel</code>
-        </div>
-        <h3 class="endpoint-name">Cancel Parcel</h3>
-        <p class="endpoint-desc">Cancels a parcel (blocked if dispatched/delivered).</p>
-        
-        
-          <div class="meta-item">
-            <span class="meta-label">Authentication</span>
-            <span class="meta-value">Bearer Token</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Permissions</span>
-            <span class="meta-value">ADMIN, OPERATOR</span>
-          </div>
-        </div>
-
-        
-      </div>
-
-      <div class="endpoint-example">
-        <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/parcels/:id/cancel&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
         
         

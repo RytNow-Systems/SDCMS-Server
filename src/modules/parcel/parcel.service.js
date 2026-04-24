@@ -141,11 +141,8 @@ class ParcelService {
       throw error;
     }
 
-    // 1. Update State (Trigger 1 = PRINT_LABEL)
+    // Update State (Trigger 1 = PRINT_LABEL)
     const result = await parcelRepository.updateParcelState(id, 1, null, 0, employeeCode);
-    
-    // 2. Log Event
-    await parcelRepository.logEvent(id, parcel.receiverDetailsId, 'STATUS_UPDATE', null, employeeCode);
 
     return this._mapParcel(result);
   }
@@ -172,10 +169,7 @@ class ParcelService {
       // 2. Check for Duplicate AWB
       await this._ensureUniqueAWB(awbNumber);
 
-      // 3. Log initial QR Scan event
-      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'QR_SCAN', null, employeeCode);
-      
-      // 4. Perform linking based on role (Auto-dispatch for Couriers)
+      // 3. Perform linking based on role (Auto-dispatch for Couriers)
       const result = await this._executeLinkingFlow(parcel, awbNumber, role, employeeCode);
 
       return this._mapParcel(result);
@@ -199,7 +193,6 @@ class ParcelService {
       }
 
       const result = await parcelRepository.updateParcelState(id, 3, parcel.trackingNo, 0, employeeCode);
-      await parcelRepository.logEvent(id, parcel.receiverDetailsId, 'STATUS_UPDATE', parcel.trackingNo, employeeCode);
       dispatched.push(this._mapParcel(result));
     }
 
@@ -212,18 +205,6 @@ class ParcelService {
 
   async returnParcel(id, user) {
     return await this._transition(id, 5, STATUS.RETURNED, user);
-  }
-
-  async cancelParcel(id, user) {
-    // Note: Cancel doesn't have a specific trigger type in mapping provided (1-5), 
-    // but SP prc_parcel_details_set likely handles it. 
-    // If not in 1-5, I'll assume it's a separate logic or use a generic one if needed.
-    // User mapping says: 4=DELIVERED, 5=RETURNED.
-    // I'll assume Cancel is another trigger or handled via generic state update if allowed.
-    // Actually, I'll use Trigger 4/5 logic but for Cancel if I can find the trigger.
-    // User request only listed 1-5. I'll ask or assume it's handled.
-    // Wait, system flow says: "updates all associated parcel_details rows to 'Cancelled'".
-    return await this._transition(id, 0, STATUS.CANCELLED, user); // 0 or separate?
   }
 
   // ============================================================================
@@ -251,7 +232,6 @@ class ParcelService {
     }
 
     const result = await parcelRepository.updateParcelState(id, triggerType, parcel.trackingNo, 0, employeeCode);
-    await parcelRepository.logEvent(id, parcel.receiverDetailsId, 'STATUS_UPDATE', parcel.trackingNo, employeeCode);
     
     return this._mapParcel(result);
   }
@@ -296,16 +276,11 @@ class ParcelService {
   async _executeLinkingFlow(parcel, awbNumber, role, employeeCode) {
     if (role === 'COURIER') {
       // Auto-dispatch for couriers (Trigger 3)
-      const result = await parcelRepository.updateParcelState(parcel.id, 3, awbNumber, 0, employeeCode);
-      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'AWB_LINK', awbNumber, employeeCode);
-      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'STATUS_UPDATE', awbNumber, employeeCode);
-      return result;
+      return await parcelRepository.updateParcelState(parcel.id, 3, awbNumber, 0, employeeCode);
     } 
     
     // Normal linking (Trigger 2)
-    const result = await parcelRepository.updateParcelState(parcel.id, 2, awbNumber, 0, employeeCode);
-    await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'AWB_LINK', awbNumber, employeeCode);
-    return result;
+    return await parcelRepository.updateParcelState(parcel.id, 2, awbNumber, 0, employeeCode);
   }
 }
 

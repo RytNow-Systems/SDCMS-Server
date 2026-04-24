@@ -8,7 +8,6 @@ import {
   scanParcel,
   dispatchParcels,
   deliverParcel,
-  cancelParcel,
   returnParcel,
 } from '../controllers/parcel.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
@@ -53,9 +52,6 @@ router.post('/:id/log-print', protect, authorizeRoles('ADMIN', 'OPERATOR'), logP
 
 // PATCH  /api/v1/parcels/:id/deliver    → Mark as delivered (ADMIN, OPERATOR)
 router.patch('/:id/deliver', protect, authorizeRoles('ADMIN', 'OPERATOR'), deliverParcel);
-
-// PATCH  /api/v1/parcels/:id/cancel     → Cancel parcel (ADMIN, OPERATOR)
-router.patch('/:id/cancel', protect, authorizeRoles('ADMIN', 'OPERATOR'), cancelParcel);
 
 // PATCH  /api/v1/parcels/:id/return     → Mark as returned (ADMIN, OPERATOR)
 router.patch('/:id/return', protect, authorizeRoles('ADMIN', 'OPERATOR'), returnParcel);

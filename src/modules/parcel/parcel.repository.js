@@ -215,6 +215,8 @@ class ParcelRepository {
     const parcel = seedParcels[index];
     const previousStatus = parcel.parcelStatusCode;
 
+    let actionType = 'STATUS_UPDATE';
+
     switch (triggerType) {
       case 1: // PRINT_LABEL
         parcel.labelPrintCount += 1;
@@ -223,6 +225,7 @@ class ParcelRepository {
       case 2: // SCAN_LINK_AWB
         parcel.trackingNo = awbNumber;
         parcel.parcelStatusCode = 'AWB_LINKED';
+        actionType = 'AWB_LINK';
         break;
       case 3: // DISPATCH
         parcel.parcelStatusCode = 'DISPATCHED';
@@ -235,6 +238,17 @@ class ParcelRepository {
         parcel.parcelStatusCode = 'RETURNED';
         break;
     }
+
+    // Mock mode auto-logging
+    seedStatusLog.push({
+      id: seedStatusLog.length + 1,
+      fkParcelDetailsId: parseInt(parcelId),
+      fkReceiverDetailsId: parseInt(parcel.fkReceiverDetailsId),
+      actionType,
+      awbNumber: awbNumber || null,
+      createdBy: adminId,
+      createdDate: new Date()
+    });
 
     return { ...parcel, previousStatus };
   }
