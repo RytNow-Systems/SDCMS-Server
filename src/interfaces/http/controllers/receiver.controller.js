@@ -53,3 +53,45 @@ export const lookupByName = asyncHandler(async (req, res) => {
     data: receivers
   });
 });
+
+/**
+ * @desc    Lookup receivers by phone number (partial match)
+ * @route   GET /api/v1/receivers/lookup-by-phone?phone=...
+ * @access  Private (ADMIN, OPERATOR)
+ */
+export const lookupByPhone = asyncHandler(async (req, res) => {
+  const receivers = await senderService.lookupByPhone(req.query.phone, 2);
+
+  res.status(200).json({
+    success: true,
+    data: receivers
+  });
+});
+
+/** 
+ * @desc Get all addresses for a receiver
+ * @route GET /api/v1/receivers/:id/addresses
+ * @access Private (ADMIN, OPERATOR)
+ */
+export const getAddresses = asyncHandler(async (req, res) => {
+  const addresses = await senderService.getAddressesByPartyId(req.params.id);
+
+  res.status(200).json({
+    success: true,
+    data: addresses
+  });
+});
+
+/**
+ * @desc Create a new address for a receiver
+ * @route POST /api/v1/receivers/:id/addresses
+ * @access Private (ADMIN, OPERATOR)
+ */
+export const createAddress = asyncHandler(async (req, res) => {
+  const address = await senderService.createAddress(req.params.id, req.body, req.user);
+
+  res.status(201).json({
+    success: true,
+    data: address
+  });
+});

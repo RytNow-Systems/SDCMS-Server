@@ -32,4 +32,16 @@ router.get('/phones', receiverController.getAllPhones);
  */
 router.get('/lookup-by-name', receiverController.lookupByName);
 
+/**
+ * @route   GET /api/v1/receivers/:id/addresses
+ * @desc    Get all addresses for a receiver
+ */
+router.get('/:id/addresses', receiverController.getAddresses);
+
+/**
+ * @route   POST /api/v1/receivers/:id/addresses
+ * @desc    Create a new address for a receiver
+ */
+router.post('/:id/addresses', receiverController.createAddress);
+
 export default router;

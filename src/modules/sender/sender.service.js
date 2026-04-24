@@ -66,7 +66,7 @@ class SenderService {
   async updateSender(id, senderData) {
     // Verify existence first
     await this.getSenderById(id);
-    
+
     // Note: pPartyId = id for Update
     const result = await senderRepository.upsert(id, senderData);
     return this._mapToApi(result);
@@ -80,7 +80,7 @@ class SenderService {
   async deleteSender(id) {
     // Verify existence first
     await this.getSenderById(id);
-    
+
     // Note: pIsActive = 0 for Soft-Delete
     const result = await senderRepository.upsert(id, {}, 0);
     return true; // usually delete returns a truthy value or success message
@@ -210,7 +210,22 @@ class SenderService {
       throw error;
     }
 
-    const result = await senderRepository.createPartyDetail(partyId, data, user);
+
+    // Use party master fields from :id (ignore identity fields from client body)
+    const payload = {
+      partyName: party.CustomerName || null,
+      phoneNo: party.PhoneNo || null,
+      emailId: party.EmailId || null,
+      address: data.address,
+      city: data.city,
+      state: data.state,
+      pincode: data.pincode,
+      country: data.country || null,
+      isDefault: data.isDefault
+    };
+
+
+    const result = await senderRepository.createPartyDetail(partyId, payload, user);
     return this._mapAddressToApi(result);
   }
 }
