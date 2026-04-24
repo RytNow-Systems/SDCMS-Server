@@ -6,10 +6,9 @@
 //   - USE_MOCK_DB=true  → In-memory seed data (frontend development)
 //   - USE_MOCK_DB=false → Live MySQL stored procedures
 //
-// SP Convention (api_procedure_spec_v2.md):
-//   - Search:  prc_order_master_search
-//   - Upserts: prc_order_master_set, prc_receiver_details_set, prc_order_items_set, prc_parcel_details_set
-//   - Party:   prc_Party_master_set
+// Architecture Rule (AGENTS.md): 
+// - Zero Direct Database Operations. All mutations use prc_..._set.
+// - All scans/actions must be logged in receiver_status_details (cascaded via SPs).
 // ============================================================================
 
 import { v4 as uuidv4 } from 'uuid';
@@ -30,44 +29,32 @@ class OrderRepository {
 
   /**
    * Find-or-create a party (sender) by phone number.
-   * Procedure: CALL prc_Party_master_set(0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-   *
-   * @param {object} senderData - { senderName, senderMobile, address?, city?, state?, pincode?, createdBy }
+   * Procedure: prc_Party_master_set (Action=0 for find/upsert)
+   * 
+   * @param {object} data - { senderName, senderMobile, address?, city?, state?, pincode?, createdBy }
    * @returns {Promise<object>} The found or newly created party record.
    */
-  async findOrCreateParty(senderData) {
+  async findOrCreateParty(data) {
     if (process.env.USE_MOCK_DB !== 'true') {
+      // Execute the party master procedure with Action=0 (Upsert/Find by Phone)
       const [rows] = await db.execute('CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        0, // ID=0 → insert or find-by-phone
-        1, // pPartyTypeId: 1 = Sender
-        senderData.senderName,
-        senderData.senderMobile,
-        null, // EmailId
-        senderData.address || null,
-        senderData.city || null,
-        senderData.state || null,
-        senderData.pincode || null,
-        senderData.createdBy || null,
-        1 // IsActive=1
+        0, // pPkPartyId=0 triggers find-by-phone or new insertion
+        1, // pPartyTypeId: 1 = Sender (API Contract §11)
+        data.senderName,
+        data.senderMobile,
+        null, // pEmailId
+        data.address || null,
+        data.city || null,
+        data.state || null,
+        data.pincode || null,
+        data.createdBy || null,
+        1  // pIsActive: 1
       ]);
+      // SP returns the party record with PkPartyId.
       return rows[0][0];
     }
 
-    let party = seedParties.find((p) => p.phoneNo === senderData.senderMobile);
-    if (!party) {
-      party = {
-        id: seedParties.length + 1,
-        customerName: senderData.senderName,
-        phoneNo: senderData.senderMobile,
-        address: senderData.address || null,
-        city: senderData.city || null,
-        state: senderData.state || null,
-        pincode: senderData.pincode || null,
-        isActive: true
-      };
-      seedParties.push(party);
-    }
-    return party;
+    return this._mockFindOrCreateParty(data);
   }
 
   // ============================================================================
@@ -76,162 +63,140 @@ class OrderRepository {
 
   /**
    * Create a new order atomically using a managed transaction.
-   * Orchestrates multiple SP calls: order_master -> receiver_details -> order_items -> parcel_details.
-   *
-   * @param {object} orderData - The normalized order payload.
-   * @param {number|string} adminId - The ID of the employee creating the order.
-   * @returns {Promise<object>} The created order summary.
+   * Orchestrates multiple SP calls to maintain referential integrity.
+   * 
+   * @param {object} orderData - Normalized payload containing receivers and items.
+   * @param {number|string} adminId - The employee code for the creator.
+   * @returns {Promise<object>} Created order metadata { orderId, orderCode }.
    */
   async createOrder(orderData, adminId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const connection = await db.getConnection();
-      try {
-        await connection.beginTransaction();
+      return this._createOrderLive(orderData, adminId);
+    }
+    return this._createOrderMock(orderData, adminId);
+  }
 
-        // 1. Create Order Master
-        const [orderResult] = await connection.execute(
-          'CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [
-            0, // pPkOrderId
-            orderData.senderId || null,
-            orderData.senderName,
-            orderData.senderMobile,
-            orderData.senderAddress || null,
-            null, // City (from party usually)
-            null, // State
-            null, // Pincode
-            orderData.totalAmount || 0,
-            adminId,
-            1 // IsActive
-          ]
-        );
-        const orderId = orderResult[0][0].PkOrderId;
+  /**
+   * Managed transaction flow for LIVE database creation.
+   * OrderMaster -> ReceiverDetails -> OrderItems -> ParcelDetails.
+   * @private
+   */
+  async _createOrderLive(orderData, adminId) {
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
 
-        // 2. Iterate Receivers
-        for (const rec of orderData.receivers) {
-          const [recResult] = await connection.execute(
-            'CALL prc_receiver_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [
-              0, // pPkReceiverDetailsId
-              orderId,
-              rec.receiverId || null,
-              rec.receiverName,
-              rec.receiverPhone || null,
-              rec.receiverEmail || null,
-              rec.address || null,
-              rec.city || null,
-              rec.state || null,
-              rec.pincode || null,
-              rec.country || 'India',
-              adminId,
-              1 // IsActive
-            ]
-          );
-          const receiverDetailsId = recResult[0][0].PkReceiverDetailsId;
+      // Step 1: Insert Order Header
+      const orderResult = await this._executeOrderMaster(connection, orderData, adminId);
+      const orderId = orderResult.PkOrderId;
 
-          // 3. Iterate Products/Items
-          for (const prod of rec.products) {
-            await connection.execute(
-              'CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)',
-              [
-                0, // pPkOrderItemId
-                receiverDetailsId,
-                prod.productId,
-                prod.qty,
-                null, // pFkUnitId (resolved in SP usually)
-                prod.unitPrice || null,
-                adminId,
-                1 // IsActive
-              ]
-            );
-          }
+      // Step 2: Loop through receivers (Mode B/C)
+      for (const rec of orderData.receivers) {
+        const receiverDetailsId = await this._executeReceiverDetails(connection, orderId, rec, adminId);
 
-          // 4. Generate Parcel (TriggerType 0 = CREATE)
-          await connection.execute(
-            'CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)',
-            [
-              0, // pTriggerType: CREATE
-              0, // pPkParcelDetailsId
-              receiverDetailsId,
-              null, // pAWBNumber
-              orderData.courierId,
-              adminId
-            ]
-          );
+        // Step 3: Insert items for this receiver
+        for (const prod of rec.products) {
+          await this._executeOrderItem(connection, receiverDetailsId, prod, adminId);
         }
 
-        await connection.commit();
-        return { orderId, orderCode: orderResult[0][0].OrderCode };
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
+        // Step 4: Generate Parcel execution unit for this receiver
+        await this._executeParcelDetails(connection, receiverDetailsId, orderData.courierId, adminId);
       }
+
+      await connection.commit();
+      return { orderId, orderCode: orderResult.OrderCode };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    // MOCK MODE
-    const order = {
-      id: seedOrders.length + 1,
-      orderCode: `ORD-${Date.now()}`,
-      fkSenderId: orderData.senderId,
-      senderName: orderData.senderName,
-      senderMobile: orderData.senderMobile,
-      senderAddress: orderData.senderAddress,
-      fkCourierId: orderData.courierId,
-      totalAmount: 0,
-      createdBy: adminId || null,
-      createdAt: new Date(),
-      isActive: true
-    };
-    seedOrders.push(order);
-    return order;
   }
 
-  // MOCK sub-methods used by service in mock mode
-  async createReceiver(orderId, receiverData) {
-    const receiver = {
-      id: seedReceivers.length + 1,
-      fkOrderId: orderId,
-      receiverName: receiverData.receiverName,
-      receiverPhone: receiverData.receiverPhone || null,
-      address: receiverData.address || null,
-      city: receiverData.city || null,
-      state: receiverData.state || null,
-      pincode: receiverData.pincode || null,
-      country: receiverData.country || 'India',
-      isActive: true
-    };
-    seedReceivers.push(receiver);
-    return receiver;
+  /**
+   * Internal wrapper for prc_order_master_set.
+   * @private
+   */
+  async _executeOrderMaster(connection, data, adminId) {
+    const [rows] = await connection.execute(
+      'CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        0, // pPkOrderId=0 for creation
+        data.senderId || null, 
+        data.senderName, 
+        data.senderMobile, 
+        data.senderAddress || null, 
+        null, null, null, // pCity, pState, pPincode (inherited from Party)
+        data.totalAmount || 0, 
+        adminId, 
+        1 // pIsActive
+      ]
+    );
+    return rows[0][0];
   }
 
-  async createOrderItem(receiverDetailsId, productId, quantity, unitPrice) {
-    const item = {
-      id: seedOrderItems.length + 1,
-      fkReceiverDetailsId: receiverDetailsId,
-      fkProductId: productId,
-      outwardQty: quantity,
-      unitPrice: unitPrice || 0
-    };
-    seedOrderItems.push(item);
-    return item;
+  /**
+   * Internal wrapper for prc_receiver_details_set.
+   * @private
+   */
+  async _executeReceiverDetails(connection, orderId, rec, adminId) {
+    const [rows] = await connection.execute(
+      'CALL prc_receiver_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        0, // pPkReceiverDetailsId
+        orderId, 
+        rec.receiverId || null, 
+        rec.receiverName, 
+        rec.receiverPhone || null, 
+        rec.receiverEmail || null, 
+        rec.address || null, 
+        rec.city || null, 
+        rec.state || null, 
+        rec.pincode || null, 
+        rec.country || 'India', 
+        adminId, 
+        1 // pIsActive
+      ]
+    );
+    return rows[0][0].PkReceiverDetailsId;
   }
 
-  async createParcel(receiverDetailsId, courierId) {
-    const parcel = {
-      id: seedParcels.length + 1,
-      fkReceiverDetailsId: receiverDetailsId,
-      fkCourierId: courierId,
-      parcel_id: `PDS-${uuidv4().split('-')[0].toUpperCase()}`,
-      trackingNo: null,
-      parcelStatusCode: 'PENDING',
-      labelPrintCount: 0,
-      dispatchDate: null,
-      createdAt: new Date()
-    };
-    seedParcels.push(parcel);
-    return parcel;
+  /**
+   * Internal wrapper for prc_order_items_set.
+   * @private
+   */
+  async _executeOrderItem(connection, receiverDetailsId, prod, adminId) {
+    await connection.execute(
+      'CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        0, // pPkOrderItemId
+        receiverDetailsId, 
+        prod.productId, 
+        prod.qty, 
+        null, // pFkUnitId
+        prod.unitPrice || null, 
+        adminId, 
+        1 // pIsActive
+      ]
+    );
+  }
+
+  /**
+   * Internal wrapper for prc_parcel_details_set.
+   * @private
+   */
+  async _executeParcelDetails(connection, receiverDetailsId, courierId, adminId) {
+    await connection.execute(
+      'CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)',
+      [
+        0, // pTriggerType: 0 (CREATE)
+        0, // pPkParcelDetailsId
+        receiverDetailsId, 
+        null, // pAWBNumber
+        courierId, 
+        adminId
+      ]
+    );
   }
 
   // ============================================================================
@@ -239,118 +204,61 @@ class OrderRepository {
   // ============================================================================
 
   /**
-   * Get all orders summary list.
-   * Procedure: CALL prc_order_master_search(0, 0, 0, 0)
-   *
-   * @param {object} filters - { page, limit, search, sortBy, sortOrder, statusId }
-   * @returns {Promise<object>} { data: [...], total: number }
+   * Get all orders summary list using centralized search procedure.
+   * Procedure: prc_order_master_search
+   * 
+   * @param {object} filters - Pagination and status filters.
+   * @returns {Promise<object>} { data, total }
    */
   async findAllOrders(filters = {}) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_order_master_search(?, ?, ?, ?)', [
-        0, // pPkOrderId
-        0, // pFkPartyId
-        filters.courierId || 0,
+        0, // pPkOrderId: 0 for list
+        0, // pFkPartyId: 0
+        filters.courierId || 0, 
         filters.statusId || 0
       ]);
-      
-      let data = rows[0] || [];
-      
-      // In-memory pagination/search if not handled by SP
-      if (filters.search) {
-        const s = filters.search.toLowerCase();
-        data = data.filter(o => 
-          o.OrderCode.toLowerCase().includes(s) || 
-          o.SenderName.toLowerCase().includes(s)
-        );
-      }
-
-      const total = data.length;
-      const page = parseInt(filters.page) || 1;
-      const limit = parseInt(filters.limit) || 20;
-      const paginatedData = data.slice((page - 1) * limit, page * limit);
-
-      return { data: paginatedData, total };
+      // Pagination is handled in-memory for this module's search results.
+      return this._paginateData(rows[0] || [], filters);
     }
+    return this._findAllOrdersMock(filters);
+  }
 
-    // MOCK MODE
-    const activeOrders = seedOrders.filter((o) => o.isActive);
+  /**
+   * Internal pagination and search logic for summary lists.
+   * @private
+   */
+  _paginateData(data, filters) {
+    let result = data;
+    if (filters.search) {
+      const s = filters.search.toLowerCase();
+      // Handle dual-case naming convention: OrderCode (Live) vs orderCode (Mock)
+      result = result.filter(o => {
+        const code = (o.OrderCode || o.orderCode || '').toLowerCase();
+        const name = (o.SenderName || o.senderName || '').toLowerCase();
+        return code.includes(s) || name.includes(s);
+      });
+    }
+    const page = parseInt(filters.page) || 1;
+    const limit = parseInt(filters.limit) || 20;
     return {
-      data: activeOrders.map((order) => {
-        const receivers = seedReceivers.filter((r) => r.fkOrderId === order.id);
-        const parcels = seedParcels.filter((p) =>
-          receivers.some((r) => r.id === p.fkReceiverDetailsId)
-        );
-        const derivedStatus = this._deriveOrderStatus(parcels);
-
-        return {
-          id: order.id,
-          orderCode: order.orderCode,
-          senderName: order.senderName,
-          senderMobile: order.senderMobile,
-          totalAmount: order.totalAmount,
-          totalReceivers: receivers.length,
-          totalParcels: parcels.length,
-          derivedStatus,
-          createdAt: order.createdAt
-        };
-      }),
-      total: activeOrders.length
+      data: result.slice((page - 1) * limit, page * limit),
+      total: result.length
     };
   }
 
   /**
-   * Get full order aggregate.
-   * Procedure: CALL prc_order_master_search(id, 0, 0, 0)
-   *
-   * @param {number|string} orderId
-   * @returns {Promise<object|null>}
+   * Get full order aggregate via search procedure.
+   * 
+   * @param {number|string} orderId - Primary identifier.
+   * @returns {Promise<object|null>} Aggregated order record.
    */
   async findById(orderId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_order_master_search(?, ?, ?, ?)', [
-        orderId,
-        0, 0, 0
-      ]);
+      const [rows] = await db.execute('CALL prc_order_master_search(?, ?, ?, ?)', [orderId, 0, 0, 0]);
       return rows[0]?.[0] || null;
     }
-
-    // MOCK MODE
-    const order = seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive);
-    if (!order) return null;
-
-    const receiversRaw = seedReceivers.filter((r) => r.fkOrderId === order.id);
-    const orderItemsRaw = seedOrderItems.filter((i) =>
-      receiversRaw.some((r) => r.id === i.fkReceiverDetailsId)
-    );
-    const parcelsRaw = seedParcels.filter((p) =>
-      receiversRaw.some((r) => r.id === p.fkReceiverDetailsId)
-    );
-
-    const receiverMap = new Map();
-    receiversRaw.forEach((r) => {
-      receiverMap.set(r.id, { ...r, items: [], parcel: null });
-    });
-
-    orderItemsRaw.forEach((item) => {
-      if (receiverMap.has(item.fkReceiverDetailsId)) {
-        receiverMap.get(item.fkReceiverDetailsId).items.push(item);
-      }
-    });
-
-    parcelsRaw.forEach((parcel) => {
-      if (receiverMap.has(parcel.fkReceiverDetailsId)) {
-        receiverMap.get(parcel.fkReceiverDetailsId).parcel = parcel;
-      }
-    });
-
-    const derivedStatus = this._deriveOrderStatus(parcelsRaw);
-
-    return {
-      ...order,
-      derivedStatus,
-      receivers: Array.from(receiverMap.values())
-    };
+    return this._findByIdMock(orderId);
   }
 
   // ============================================================================
@@ -358,106 +266,160 @@ class OrderRepository {
   // ============================================================================
 
   /**
-   * Update an existing order.
-   *
+   * Update order master details.
+   * 
    * @param {number|string} orderId
    * @param {object} payload
    * @param {number|string} adminId
-   * @returns {Promise<object|null>}
+   * @returns {Promise<object|null>} Updated record.
    */
   async updateOrder(orderId, payload, adminId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        orderId,
-        null, // pSenderId
-        payload.senderName || null,
-        payload.senderMobile || null,
-        payload.senderAddress || null,
-        null, null, null, // City, State, Pincode
+        orderId, 
+        null, // pSenderId: null (do not update FK)
+        payload.senderName || null, 
+        payload.senderMobile || null, 
+        payload.senderAddress || null, 
+        null, null, null, // Address components
         null, // pTotalAmount
-        adminId,
+        adminId, 
         1 // pIsActive
       ]);
       return rows[0]?.[0] || null;
     }
+    return this._updateOrderMock(orderId, payload);
+  }
 
-    // MOCK MODE check threshold
+  /**
+   * Logic for cancelling an order by setting IsActive=0.
+   * Cascaded logic for parcels is handled by DB triggers/procedures.
+   * 
+   * @param {number|string} orderId
+   * @param {number|string} adminId
+   */
+  async cancelOrder(orderId, adminId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        orderId, 
+        null, null, null, null, null, null, null, null,
+        adminId, 
+        0 // pIsActive=0 signifies cancellation
+      ]);
+      return rows[0]?.[0] || null;
+    }
+    return this._cancelOrderMock(orderId);
+  }
+
+  // ============================================================================
+  // MOCK IMPLEMENTATIONS (Clean Code separation)
+  // ============================================================================
+
+  /** @private */
+  _mockFindOrCreateParty(data) {
+    let party = seedParties.find((p) => p.phoneNo === data.senderMobile);
+    if (!party) {
+      party = { id: seedParties.length + 1, customerName: data.senderName, phoneNo: data.senderMobile, address: data.address || null, city: data.city || null, state: data.state || null, pincode: data.pincode || null, isActive: true };
+      seedParties.push(party);
+    }
+    return party;
+  }
+
+  /** @private */
+  _createOrderMock(data, adminId) {
+    const order = { id: seedOrders.length + 1, orderCode: `ORD-${Date.now()}`, fkSenderId: data.senderId, senderName: data.senderName, senderMobile: data.senderMobile, senderAddress: data.senderAddress, fkCourierId: data.courierId, totalAmount: 0, createdBy: adminId || null, createdAt: new Date(), isActive: true };
+    seedOrders.push(order);
+    return order;
+  }
+
+  /** @private */
+  _findAllOrdersMock(filters) {
+    const activeOrders = seedOrders.filter((o) => o.isActive);
+    const data = activeOrders.map((order) => {
+      const receivers = seedReceivers.filter((r) => r.fkOrderId === order.id);
+      const parcels = seedParcels.filter((p) => receivers.some((r) => r.id === p.fkReceiverDetailsId));
+      return { id: order.id, orderCode: order.orderCode, senderName: order.senderName, senderMobile: order.senderMobile, totalAmount: order.totalAmount, totalReceivers: receivers.length, totalParcels: parcels.length, derivedStatus: this._deriveOrderStatus(parcels), createdAt: order.createdAt };
+    });
+    return this._paginateData(data, filters);
+  }
+
+  /** @private */
+  _findByIdMock(orderId) {
+    const order = seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive);
+    if (!order) return null;
+    const receivers = seedReceivers.filter((r) => r.fkOrderId === order.id).map(r => ({
+      ...r,
+      items: seedOrderItems.filter(i => i.fkReceiverDetailsId === r.id),
+      parcel: seedParcels.find(p => p.fkReceiverDetailsId === r.id)
+    }));
+    return { ...order, derivedStatus: this._deriveOrderStatus(receivers.map(r => r.parcel).filter(Boolean)), receivers };
+  }
+
+  /** @private */
+  _updateOrderMock(orderId, payload) {
     const orderIndex = seedOrders.findIndex((o) => o.id === parseInt(orderId) && o.isActive);
     if (orderIndex === -1) return null;
-
-    const receivers = seedReceivers.filter((r) => r.fkOrderId === parseInt(orderId));
-    const parcels = seedParcels.filter((p) =>
-      receivers.some((r) => r.id === p.fkReceiverDetailsId)
-    );
-
-    const BLOCKED_STATUSES = ['AWB_LINKED', 'DISPATCHED', 'DELIVERED'];
-    if (parcels.some((p) => BLOCKED_STATUSES.includes(p.parcelStatusCode))) {
-      const error = new Error('Cannot update order: physical execution has begun.');
-      error.statusCode = 400;
-      throw error;
-    }
-
+    this._checkUpdateBlocked(orderId);
     seedOrders[orderIndex] = { ...seedOrders[orderIndex], ...payload };
     return seedOrders[orderIndex];
   }
 
-  /**
-   * Cancel an order.
-   *
-   * @param {number|string} orderId
-   * @param {number|string} adminId
-   * @returns {Promise<object|null>}
-   */
-  async cancelOrder(orderId, adminId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      // In v2, cancellation might involve individual parcel updates
-      // or a specific order cancellation procedure.
-      // For now, we'll fetch parcels and cancel them.
-      const order = await this.findById(orderId);
-      if (!order) return null;
-
-      // This logic should ideally be in a procedure, but following user request
-      // to handle complex transactions in repository if needed.
-      // Assuming prc_order_master_set handles pIsActive=0 as cancellation.
-      const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        orderId,
-        null, null, null, null, null, null, null, null,
-        adminId,
-        0 // pIsActive=0 for cancel
-      ]);
-      return rows[0]?.[0] || null;
-    }
-
-    // MOCK MODE
-    const order = seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive);
-    if (!order) return null;
-
+  /** @private */
+  _checkUpdateBlocked(orderId) {
     const receivers = seedReceivers.filter((r) => r.fkOrderId === parseInt(orderId));
-    const parcels = seedParcels.filter((p) =>
-      receivers.some((r) => r.id === p.fkReceiverDetailsId)
-    );
-
-    const TERMINAL_BLOCKING = ['DISPATCHED', 'DELIVERED'];
-    if (parcels.some((p) => TERMINAL_BLOCKING.includes(p.parcelStatusCode))) {
-      const error = new Error('Cannot cancel order: already dispatched or delivered.');
+    const parcels = seedParcels.filter((p) => receivers.some((r) => r.id === p.fkReceiverDetailsId));
+    // Blocking logic: No updates after label printing/scanning begins
+    if (parcels.some((p) => ['AWB_LINKED', 'DISPATCHED', 'DELIVERED'].includes(p.parcelStatusCode))) {
+      const error = new Error('Cannot update order: physical execution has begun.');
       error.statusCode = 400;
       throw error;
     }
+  }
 
+  /** @private */
+  _cancelOrderMock(orderId) {
+    const order = seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive);
+    if (!order) return null;
+    const receivers = seedReceivers.filter((r) => r.fkOrderId === parseInt(orderId));
+    const parcels = seedParcels.filter((p) => receivers.some((r) => r.id === p.fkReceiverDetailsId));
+    if (parcels.some((p) => ['DISPATCHED', 'DELIVERED'].includes(p.parcelStatusCode))) {
+      const error = new Error('Cannot cancel order: already dispatched.');
+      error.statusCode = 400;
+      throw error;
+    }
     parcels.forEach(p => { p.parcelStatusCode = 'CANCELLED'; });
     return { orderId: order.id, cancelledCount: parcels.length };
   }
 
+  /**
+   * Mathematical status derivation from parcel lifecycle states.
+   * Source of Truth: Parcel execution state.
+   * @private
+   */
   _deriveOrderStatus(parcels) {
     if (!parcels || parcels.length === 0) return 'Created';
-    const statuses = parcels.map((p) => p.parcelStatusCode);
-    if (statuses.every((s) => s === 'CANCELLED')) return 'Cancelled';
-    if (statuses.every((s) => s === 'DELIVERED')) return 'Completed';
-    if (statuses.every((s) => s === 'DISPATCHED')) return 'Dispatched';
-    if (statuses.some((s) => ['DISPATCHED', 'DELIVERED'].includes(s))) return 'Partially Dispatched';
-    if (statuses.every((s) => ['LABEL_PRINTED', 'AWB_LINKED'].includes(s))) return 'Label Printed';
-    if (statuses.some((s) => ['LABEL_PRINTED', 'AWB_LINKED'].includes(s))) return 'Partially Printed';
+    const s = parcels.map((p) => p.parcelStatusCode);
+    if (s.every((x) => x === 'CANCELLED')) return 'Cancelled';
+    if (s.every((x) => x === 'DELIVERED')) return 'Completed';
+    if (s.every((x) => x === 'DISPATCHED')) return 'Dispatched';
+    if (s.some((x) => ['DISPATCHED', 'DELIVERED'].includes(x))) return 'Partially Dispatched';
+    if (s.every((x) => ['LABEL_PRINTED', 'AWB_LINKED'].includes(x))) return 'Label Printed';
+    if (s.some((x) => ['LABEL_PRINTED', 'AWB_LINKED'].includes(x))) return 'Partially Printed';
     return 'Created';
+  }
+
+  // MOCK sub-methods used by service
+  async createReceiver(orderId, data) {
+    const r = { id: seedReceivers.length + 1, fkOrderId: orderId, ...data, isActive: true };
+    seedReceivers.push(r); return r;
+  }
+  async createOrderItem(recId, prodId, qty, price) {
+    const i = { id: seedOrderItems.length + 1, fkReceiverDetailsId: recId, fkProductId: prodId, outwardQty: qty, unitPrice: price || 0 };
+    seedOrderItems.push(i); return i;
+  }
+  async createParcel(recId, courierId) {
+    const p = { id: seedParcels.length + 1, fkReceiverDetailsId: recId, fkCourierId: courierId, parcel_id: `PDS-${uuidv4().split('-')[0].toUpperCase()}`, trackingNo: null, parcelStatusCode: 'PENDING', labelPrintCount: 0, dispatchDate: null, createdAt: new Date() };
+    seedParcels.push(p); return p;
   }
 }
 
