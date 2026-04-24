@@ -12,6 +12,7 @@ collections:
   - name: Authentication
     slug: authentication
     description: Auth endpoints for login and user profile
+    guide: "To authenticate, use the Login endpoint to receive a JWT token. This token must be included in the 'Authorization' header as 'Bearer <token>' for all protected routes. Frontend devs should store this in localStorage or a secure cookie."
     endpoints:
       - name: Login
         method: POST
@@ -19,12 +20,13 @@ collections:
         auth: none
         roles: [ALL]
         description: Authenticates a user and provides a JWT token.
+        notes: "If the login is successful, you'll receive an object containing the user's profile and the token. If the account is locked (allowLogin: false), you will get a 403 error."
         headers: { Content-Type: application/json }
         body: |
           { "email": "admin@example.com", "password": "securePass123" }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "token": "eyJhbG...", "expiresIn": "8h" } }
+          { "success": true, "data": { "id": "EMP-001", "employeeCode": "EMP-001", "name": "Admin User", "email": "admin@example.com", "role": "ADMIN", "token": "eyJhbG..." } }
         assertions:
           - "res.status equals 200"
           - "res.body.success is true"
@@ -37,7 +39,7 @@ collections:
         description: Retrieves the authenticated user's profile and permissions.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "employeeCode": "EMP-001", "firstName": "Admin", "lastName": "User", "roleCode": "ADMIN" } }
+          { "success": true, "data": { "employeeCode": "EMP-001", "firstName": "Admin User", "email": "admin@example.com", "phoneNo": "9876543210", "roleCode": "ADMIN", "allowLogin": true, "createdAt": "2026-04-20T10:00:00Z" } }
         assertions:
           - "res.status equals 200"
           - "res.body.success is true"
@@ -66,6 +68,9 @@ collections:
         path: /products
         roles: [ADMIN, OPERATOR]
         description: Retrieves products filtered by categoryId or unitId.
+        parameters:
+          categoryId: { type: 'number', description: 'Filter by category primary key' }
+          unitId: { type: 'number', description: 'Filter by unit primary key' }
         responseStatus: 200
         responseBody: |
           { "success": true, "data": [{ "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryName": "Textiles" }] }
@@ -93,6 +98,8 @@ collections:
         path: /products/:id
         roles: [ADMIN, OPERATOR]
         description: Retrieves a single product by its primary key.
+        parameters:
+          id: { type: 'number', description: 'Unique identifier of the product' }
         responseStatus: 200
 
       - name: Update Product
@@ -231,7 +238,7 @@ collections:
         description: Retrieves all active sender entities.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "pkPartyId": 1, "customerName": "John Doe", "phoneNo": "9876543210" }] }
+          { "success": true, "data": [{ "id": 1, "customerName": "John Doe", "phoneNo": "9876543210", "emailId": "john.doe@example.com", "isActive": true }] }
 
       - name: Create Sender
         method: POST
@@ -306,7 +313,7 @@ collections:
         description: Address book entries for a sender (dropdown).
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "address": "123 Business Park", "city": "Noida", "state": "UP", "pincode": "201301" }] }
+          { "success": true, "data": [{ "id": 10, "partyId": 1, "partyName": "John Doe Enterprises", "phoneNo": "9876543210", "address": "123 Business Park", "city": "Noida", "state": "UP", "pincode": "201301", "isDefault": true }] }
 
       - name: Create Address
         method: POST
@@ -348,21 +355,27 @@ collections:
   - name: Order Pipeline
     slug: order-pipeline
     description: Order CRUD with Mode A/B/C support
+    guide: "Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique Parcel ID (PDS-XXX)."
     endpoints:
       - name: List Orders
         method: GET
         path: /orders?page=1&limit=20
         roles: [ADMIN, OPERATOR, COURIER]
         description: Paginated order list with derived status.
+        parameters:
+          page: { type: 'number', description: 'Current page number' }
+          limit: { type: 'number', description: 'Number of items per page' }
+          status: { type: 'string', description: 'Filter by derived status (PENDING, DISPATCHED, etc.)' }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "orderId": 1, "orderCode": "ORD-2026-001", "senderName": "Ramesh Textiles", "derivedStatus": "PENDING" }], "meta": { "page": 1, "limit": 20, "totalRows": 1, "totalPages": 1 } }
+          { "success": true, "data": [{ "id": 1, "orderCode": "ORD-2026-001", "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "totalAmount": 2100.00, "derivedStatus": "PENDING", "createdAt": "2026-04-24T10:00:00Z" }], "meta": { "page": 1, "limit": 20, "totalRows": 1, "totalPages": 1 } }
 
       - name: "Create Order — Mode B (Sender → Receivers)"
         method: POST
         path: /orders
         roles: [ADMIN, OPERATOR]
         description: Creates an order with sender and multiple receivers. Each receiver generates a parcel.
+        notes: "This is Mode B. Ensure each object in the 'receivers' array has its own 'products' array. The 'courierId' is mandatory to determine the shipping partner."
         headers: { Content-Type: application/json }
         body: |
           { "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "senderAddress": "14, Gandhi Nagar, Surat", "courierId": 1, "receivers": [{ "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "products": [{ "productId": 1, "qty": 5, "unitPrice": 420.00 }] }] }
@@ -371,6 +384,7 @@ collections:
           - "res.status equals 201"
           - "Each receiver has a nested parcel with parcelId starting with PDS-"
           - "Parcel status is PENDING"
+          - "Mode B detected: multiple receivers created"
 
       - name: "Create Order — Mode A (Sender-to-Self)"
         method: POST
@@ -388,6 +402,8 @@ collections:
         roles: [ADMIN, OPERATOR, COURIER]
         description: Full order with nested receivers, items, and parcels.
         responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": 1, "orderCode": "ORD-2026-001", "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "totalAmount": 2100.00, "derivedStatus": "PENDING", "senderAddress": "14, Gandhi Nagar, Surat", "courierId": 1, "receivers": [{ "id": 1, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "parcel": { "id": 1, "parcelId": "PDS-A1B2C3", "status": "PENDING" }, "products": [{ "productId": 1, "qty": 5, "unitPrice": 420.00 }] }] } }
 
       - name: Update Order
         method: PUT
@@ -416,6 +432,11 @@ collections:
         path: /parcels
         roles: [ADMIN, OPERATOR, COURIER]
         description: Paginated parcel list.
+        parameters:
+          page: { type: 'number', description: 'Page index' }
+          limit: { type: 'number', description: 'Items per page' }
+          orderCode: { type: 'string', description: 'Search by partial Order Code' }
+          parcelId: { type: 'string', description: 'Search by QR code/Parcel ID' }
         responseStatus: 200
 
       - name: Get Parcel by ID
@@ -423,7 +444,11 @@ collections:
         path: /parcels/:id
         roles: [ADMIN, OPERATOR, COURIER]
         description: Single parcel details.
+        parameters:
+          id: { type: 'number', description: 'Unique identifier of the parcel' }
         responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": 1, "parcelId": "PDS-A1B2C3", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
 
       - name: Get Label Data
         method: GET
@@ -431,6 +456,8 @@ collections:
         roles: [ADMIN, OPERATOR]
         description: On-demand label generation data for printing.
         responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": 1, "parcelId": "PDS-A1B2C3", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
 
       - name: Get Timeline
         method: GET
@@ -438,6 +465,8 @@ collections:
         roles: [ADMIN, OPERATOR, COURIER]
         description: Append-only event timeline for a parcel.
         responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "parcelId": "PDS-A1B2C3", "orderCode": "ORD-2026-001", "actionType": "STATUS_UPDATE", "awbNumber": null, "previousStatus": "Created", "newStatus": "PENDING", "scannedBy": "EMP-001", "timestamp": "2026-04-24T10:05:00Z" }] }
 
   # ========== 9. LABEL PRINT LOGGING ==========
   - name: Label Print Logging
@@ -463,6 +492,7 @@ collections:
         path: /parcels/scan
         roles: [ADMIN, OPERATOR, COURIER]
         description: "QR identifies parcel, AWB links shipment. OPERATOR → AWB_LINKED, COURIER → auto-DISPATCHED."
+        notes: "This is an atomic operation. You must scan the QR code first to identify the parcel. If a user with the COURIER role performs this scan, the parcel is automatically moved to the DISPATCHED state, skipping the manual dispatch step."
         headers: { Content-Type: application/json }
         body: |
           { "qrCode": "PDS-A1B2C3", "awbNumber": "AWB-DTDC-001" }
@@ -519,7 +549,7 @@ collections:
         description: Paginated event log from receiver_status_details.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [...], "meta": { "totalRows": 50 } }
+          { "success": true, "data": [{ "id": 1, "parcelId": "PDS-A1B2C3", "orderCode": "ORD-2026-001", "actionType": "AWB_LINK", "awbNumber": "AWB-DTDC-001", "previousStatus": "LABEL_PRINTED", "newStatus": "AWB_LINKED", "scannedBy": "EMP-001", "timestamp": "2026-04-24T12:00:00Z" }], "meta": { "totalRows": 50 } }
 
       - name: Export CSV
         method: GET

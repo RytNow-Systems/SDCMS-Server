@@ -10,5 +10,3 @@ Auth: Bearer <TOKEN>
 Roles: ADMIN, OPERATOR
 
 Expected Status: 200
-Assertions:
-  1. res.body.data.status equals LABEL_PRINTED

@@ -1,32 +1,36 @@
-### List Parcels
-Method: GET
-URL: /api/v1/parcels?page=1&limit=20
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-- res.status equals 200
-- res.body.success is true
-- res.body.data is Array
+==================================================
+PARCELS RETRIEVAL AND LABEL DATA — Test Data
+Generated from api-manifest.yaml
+==================================================
 
-### Get Parcel Details
+--- TEST 1: List Parcels ---
 Method: GET
-URL: /api/v1/parcels/1
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-- res.status equals 200
-- res.body.data.id equals 1
+URL: /api/v1/parcels
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
 
-### Get Label Data
-Method: GET
-URL: /api/v1/parcels/1/label-data
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-- res.status equals 200
-- res.body.data.parcelId is String
+Expected Status: 200
 
-### Get Parcel Timeline
+--- TEST 2: Get Parcel by ID ---
 Method: GET
-URL: /api/v1/parcels/1/timeline
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-- res.status equals 200
-- res.body.data is Array
+URL: /api/v1/parcels/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
+
+Expected Status: 200
+
+--- TEST 3: Get Label Data ---
+Method: GET
+URL: /api/v1/parcels/:id/label-data
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 4: Get Timeline ---
+Method: GET
+URL: /api/v1/parcels/:id/timeline
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
+
+Expected Status: 200

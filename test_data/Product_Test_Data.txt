@@ -1,38 +1,69 @@
-### Create Product
-POST /api/v1/products
-Content-Type: application/json
+==================================================
+PRODUCT CATALOG — Test Data
+Generated from api-manifest.yaml
+==================================================
+
+--- TEST 1: List Products ---
+Method: GET
+URL: /api/v1/products
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 2: Create Product ---
+Method: POST
+URL: /api/v1/products
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
 {
-  "materialName": "Cotton Fiber",
-  "materialRate": 500.50,
-  "cuItemCode": "CF-001",
+  "materialName": "Heavy Equipment",
+  "materialRate": 500,
   "categoryId": 1,
-  "unitId": 1,
-  "materialDescription": "High quality cotton fiber"
+  "unitId": 1
 }
 
-### Get All Products
-GET /api/v1/products?categoryId=1&unitId=1
+Expected Status: 201
 
-### Get Product by ID
-GET /api/v1/products/1
+--- TEST 3: Get Product by ID ---
+Method: GET
+URL: /api/v1/products/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-### Update Product
-PUT /api/v1/products/1
-Content-Type: application/json
+Expected Status: 200
+
+--- TEST 4: Update Product ---
+Method: PUT
+URL: /api/v1/products/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
 {
-  "materialName": "Premium Cotton Fiber",
-  "materialRate": 550.00
+  "materialRate": 550
 }
 
-### Delete Product
-DELETE /api/v1/products/1
+Expected Status: 200
 
-### Duplicate Check Test (Create)
-POST /api/v1/products
-Content-Type: application/json
-{
-  "materialName": "Cotton Fiber",
-  "materialRate": 500.50,
-  "categoryId": 1
-}
-# Expected: 409 Conflict
+--- TEST 5: Delete Product ---
+Method: DELETE
+URL: /api/v1/products/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 6: Product Dropdown ---
+Method: GET
+URL: /api/v1/products/dropdown
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200

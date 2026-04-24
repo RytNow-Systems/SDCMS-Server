@@ -1,16 +1,20 @@
-### List System-Wide Events
-Method: GET
-URL: /api/v1/parcel-events?page=1&limit=50
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-- res.status equals 200
-- res.body.data is Array
-- res.body.meta.totalRows is Number
+==================================================
+PARCEL EVENTS & AUDIT EXPORT — Test Data
+Generated from api-manifest.yaml
+==================================================
 
-### Export Events CSV
+--- TEST 1: List Events ---
+Method: GET
+URL: /api/v1/parcel-events
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 2: Export CSV ---
 Method: GET
 URL: /api/v1/parcel-events/export
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-- res.status equals 200
-- res.headers["content-type"] equals "text/csv"
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200

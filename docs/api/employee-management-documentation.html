@@ -3,177 +3,355 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Employee Management (ADMIN) — SDCMS Backend API</title>
+  <title>Employee Management (ADMIN) — SDCMS API</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#232736;--border:#2d3148;--text:#e2e8f0;--muted:#94a3b8;--accent:#6366f1;--accent2:#818cf8}
-    body{font-family:'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;display:flex;min-height:100vh}
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-    a{color:var(--accent2);text-decoration:none}
-
+    :root {
+      --bg: #0b0e14;
+      --sidebar-bg: #11141d;
+      --card-bg: #161a23;
+      --border: #232834;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.15);
+      --code-bg: #0d1117;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); line-height: 1.6; }
+    
+    /* Layout */
+    .container { display: flex; min-height: 100vh; }
+    
     /* Sidebar */
-    .sidebar{width:280px;background:var(--surface);border-right:1px solid var(--border);padding:24px 16px;position:fixed;top:0;left:0;bottom:0;overflow-y:auto}
-    .sidebar h1{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;font-weight:600}
-    .sidebar h2{font-size:18px;font-weight:700;margin-bottom:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .sidebar p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.4}
-    .toc-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:13px;color:var(--text);transition:background .15s}
-    .toc-item:hover{background:var(--surface2)}
+    .sidebar { 
+      width: 300px; 
+      background: var(--sidebar-bg); 
+      border-right: 1px solid var(--border); 
+      padding: 32px 16px; 
+      position: fixed; 
+      height: 100vh; 
+      overflow-y: auto; 
+    }
+    .sidebar-header { margin-bottom: 32px; padding: 0 12px; }
+    .sidebar-header h1 { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 8px; }
+    .sidebar-header h2 { font-size: 20px; font-weight: 700; color: white; }
+    
+    .toc-list { display: flex; flex-direction: column; gap: 4px; }
+    .toc-item { 
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px; 
+      border-radius: 8px; font-size: 13px; color: var(--text-muted); 
+      text-decoration: none; transition: all 0.2s; 
+    }
+    .toc-item:hover { background: var(--card-bg); color: white; }
+    .toc-item.active { background: var(--accent-glow); color: var(--accent); border-left: 2px solid var(--accent); }
 
-    /* Main */
-    .main{margin-left:280px;padding:40px 48px;flex:1;max-width:900px}
-    .main>h2{font-size:28px;font-weight:700;margin-bottom:8px}
-    .main>p{color:var(--muted);margin-bottom:32px;font-size:15px}
-    .endpoint-count{font-size:13px;color:var(--accent2);margin-bottom:32px;display:block}
+    /* Main Content */
+    .main { margin-left: 300px; padding: 64px 48px; width: 100%; max-width: 1400px; }
+    .main-header { margin-bottom: 48px; max-width: 800px; }
+    .main-header h2 { font-size: 32px; font-weight: 700; margin-bottom: 12px; color: white; }
+    .main-header p { font-size: 16px; color: var(--text-muted); margin-bottom: 24px; }
 
-    /* Cards */
-    .endpoint-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;transition:border-color .2s}
-    .endpoint-card:hover{border-color:var(--accent)}
-    .endpoint-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-    .method-badge{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid;letter-spacing:.5px}
-    .method-badge-sm{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;font-family:'JetBrains Mono',monospace}
-    .method-badge-sm.get{background:#064e3b;color:#34d399}
-    .method-badge-sm.post{background:#1e3a5f;color:#60a5fa}
-    .method-badge-sm.put{background:#78350f;color:#fbbf24}
-    .method-badge-sm.patch{background:#4c1d95;color:#a78bfa}
-    .method-badge-sm.delete{background:#7f1d1d;color:#f87171}
-    .endpoint-path{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text);background:var(--surface2);padding:4px 8px;border-radius:4px}
-    .endpoint-name{font-size:18px;font-weight:600;margin-bottom:6px}
-    .endpoint-desc{color:var(--muted);font-size:14px;margin-bottom:12px}
-    .endpoint-meta{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-    .meta-chip{font-size:11px;padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--muted)}
+    /* Guide Box */
+    .guide-box { 
+      background: var(--card-bg); border: 1px solid var(--accent); 
+      border-radius: 12px; padding: 24px; margin-bottom: 48px; 
+      max-width: 800px; position: relative; overflow: hidden;
+    }
+    .guide-box::before { 
+      content: ''; position: absolute; top: 0; left: 0; width: 4px; 
+      height: 100%; background: var(--accent); 
+    }
+    .guide-box h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 12px; }
+    .guide-box p { font-size: 14px; color: var(--text-main); margin-bottom: 0; }
 
-    /* Code */
-    .section-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:8px;margin-top:16px;display:flex;align-items:center;gap:8px}
-    .status-badge{background:var(--accent);color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
-    .code-block{background:#141720;border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
-    .json-key{color:#93c5fd}
-    .json-string{color:#86efac}
-    .json-number{color:#fbbf24}
-    .json-bool{color:#c084fc}
-    .json-null{color:#f87171}
+    /* Note Box */
+    .note-box { 
+      background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.3); 
+      border-radius: 8px; padding: 16px; margin-bottom: 24px; 
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .note-icon { font-size: 18px; }
+    .note-content { font-size: 13px; color: #fbbf24; }
+    .note-content strong { color: #fcd34d; display: block; margin-bottom: 2px; }
 
-    /* Assertions */
-    .assertion-list{list-style:none;padding:0}
-    .assertion-list li{padding:6px 0 6px 20px;position:relative;font-size:13px;color:var(--muted)}
-    .assertion-list li::before{content:'✓';position:absolute;left:0;color:#34d399;font-weight:700}
+    /* Endpoint Cards */
+    .endpoint-card { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 40px; 
+      padding: 48px 0; 
+      border-bottom: 1px solid var(--border); 
+    }
+    .endpoint-card:last-child { border-bottom: none; }
+    
+    .endpoint-info { max-width: 600px; }
+    .endpoint-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .method-badge { 
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; 
+      font-family: 'JetBrains Mono', monospace; border: 1px solid; 
+    }
+    .method-badge-sm { width: 45px; text-align: center; font-size: 9px; font-weight: 800; padding: 2px 4px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+    .method-badge-sm.get { background: #064e3b; color: #34d399; }
+    .method-badge-sm.post { background: #1e3a5f; color: #60a5fa; }
+    .method-badge-sm.put { background: #78350f; color: #fbbf24; }
+    .method-badge-sm.patch { background: #4c1d95; color: #a78bfa; }
+    .method-badge-sm.delete { background: #7f1d1d; color: #f87171; }
 
-    /* Responsive */
-    @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:20px}}
+    .endpoint-path { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 13px; }
+    .endpoint-name { font-size: 22px; font-weight: 600; margin-bottom: 8px; color: white; }
+    .endpoint-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
 
-    /* Footer */
-    .footer{text-align:center;padding:32px;color:var(--muted);font-size:12px;border-top:1px solid var(--border);margin-top:40px}
+    /* Meta Grid */
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+    .meta-item { background: var(--card-bg); padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); }
+    .meta-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px; }
+    .meta-value { font-size: 13px; font-weight: 600; color: var(--text-main); }
+
+    /* Tables */
+    .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; margin-top: 24px; }
+    .params-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .params-table th { text-align: left; padding: 12px; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    .params-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .type-tag { font-size: 10px; background: var(--border); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+
+    /* Code Blocks */
+    .endpoint-example { position: sticky; top: 64px; align-self: start; }
+    .code-block { background: var(--code-bg); border-radius: 12px; border: 1px solid var(--border); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .curl-block { color: #818cf8; }
+    .json-key { color: #93c5fd; }
+    .json-string { color: #86efac; }
+    .json-number { color: #fbbf24; }
+    .json-bool { color: #c084fc; }
+    .json-null { color: #f87171; }
+    .status-badge { background: #059669; color: white; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; margin-left: 8px; }
+
+    @media (max-width: 1100px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 32px 20px; }
+      .endpoint-card { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <nav class="sidebar">
-    <h1>SDCMS Backend API</h1>
-    <h2>Employee Management (ADMIN)</h2>
-    <p>Employee CRUD and access control (ADMIN only)</p>
-    <a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Employees</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Employee</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Employee by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Employee</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Employee Access</a>
-  </nav>
-  <main class="main">
-    <h2>Employee Management (ADMIN)</h2>
-    <p>Employee CRUD and access control (ADMIN only)</p>
-    <span class="endpoint-count">5 endpoints</span>
-    
+  <div class="container">
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h1>SDCMS Backend API</h1>
+        <h2>Employee Management (ADMIN)</h2>
+      </div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Employees</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Employee</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Employee by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Employee</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Employee Access</a></div>
+    </nav>
+    <main class="main">
+      <header class="main-header">
+        <h2>Employee Management (ADMIN)</h2>
+        <p>Employee CRUD and access control (ADMIN only)</p>
+      </header>
+
+      
+
+      
     <div class="endpoint-card" id="ep-0">
-      <div class="endpoint-header">
-        <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
-        <code class="endpoint-path">/employees</code>
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/employees</code>
+        </div>
+        <h3 class="endpoint-name">List Employees</h3>
+        <p class="endpoint-desc">Retrieves all employees.</p>
+        
+        
+          <div class="meta-item">
+            <span class="meta-label">Authentication</span>
+            <span class="meta-value">Bearer Token</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Permissions</span>
+            <span class="meta-value">ADMIN</span>
+          </div>
+        </div>
+
+        
       </div>
-      <h3 class="endpoint-name">List Employees</h3>
-      <p class="endpoint-desc">Retrieves all employees.</p>
-      <div class="endpoint-meta">
-        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
-        <span class="meta-chip" title="Roles">ADMIN</span>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/employees&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
       </div>
-      
-      
-      <div class="section-label">Expected Status <span class="status-badge">200</span></div>
-      
+      </div>
     </div>
     <div class="endpoint-card" id="ep-1">
-      <div class="endpoint-header">
-        <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
-        <code class="endpoint-path">/employees</code>
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
+          <code class="endpoint-path">/employees</code>
+        </div>
+        <h3 class="endpoint-name">Create Employee</h3>
+        <p class="endpoint-desc">Creates a new employee account.</p>
+        
+        
+          <div class="meta-item">
+            <span class="meta-label">Authentication</span>
+            <span class="meta-value">Bearer Token</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Permissions</span>
+            <span class="meta-value">ADMIN</span>
+          </div>
+        </div>
+
+        
       </div>
-      <h3 class="endpoint-name">Create Employee</h3>
-      <p class="endpoint-desc">Creates a new employee account.</p>
-      <div class="endpoint-meta">
-        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
-        <span class="meta-chip" title="Roles">ADMIN</span>
-      </div>
-      
-      <div class="section-label">Request Body</div>
-      <pre class="code-block"><code>{
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/employees&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;name&quot;:&quot;New Emp&quot;,&quot;role&quot;:&quot;OPERATOR&quot;,&quot;email&quot;:&quot;newemp@example.com&quot;,&quot;password&quot;:&quot;Test123456&quot;}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
   &quot;name&quot;: &quot;New Emp&quot;,
   &quot;role&quot;: &quot;OPERATOR&quot;,
   &quot;email&quot;: &quot;newemp@example.com&quot;,
   &quot;password&quot;: &quot;Test123456&quot;
 }</code></pre>
-      
-      <div class="section-label">Expected Status <span class="status-badge">201</span></div>
-      
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">201</span></div>
+      </div>
+      </div>
     </div>
     <div class="endpoint-card" id="ep-2">
-      <div class="endpoint-header">
-        <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
-        <code class="endpoint-path">/employees/:id</code>
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/employees/:id</code>
+        </div>
+        <h3 class="endpoint-name">Get Employee by ID</h3>
+        <p class="endpoint-desc">Retrieves a single employee by ID.</p>
+        
+        
+          <div class="meta-item">
+            <span class="meta-label">Authentication</span>
+            <span class="meta-value">Bearer Token</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Permissions</span>
+            <span class="meta-value">ADMIN</span>
+          </div>
+        </div>
+
+        
       </div>
-      <h3 class="endpoint-name">Get Employee by ID</h3>
-      <p class="endpoint-desc">Retrieves a single employee by ID.</p>
-      <div class="endpoint-meta">
-        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
-        <span class="meta-chip" title="Roles">ADMIN</span>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/employees/:id&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
       </div>
-      
-      
-      <div class="section-label">Expected Status <span class="status-badge">200</span></div>
-      
+      </div>
     </div>
     <div class="endpoint-card" id="ep-3">
-      <div class="endpoint-header">
-        <span class="method-badge" style="background:#78350f;color:#fbbf24;border-color:#92400e">PUT</span>
-        <code class="endpoint-path">/employees/:id</code>
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#78350f;color:#fbbf24;border-color:#92400e">PUT</span>
+          <code class="endpoint-path">/employees/:id</code>
+        </div>
+        <h3 class="endpoint-name">Update Employee</h3>
+        <p class="endpoint-desc">Updates employee details.</p>
+        
+        
+          <div class="meta-item">
+            <span class="meta-label">Authentication</span>
+            <span class="meta-value">Bearer Token</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Permissions</span>
+            <span class="meta-value">ADMIN</span>
+          </div>
+        </div>
+
+        
       </div>
-      <h3 class="endpoint-name">Update Employee</h3>
-      <p class="endpoint-desc">Updates employee details.</p>
-      <div class="endpoint-meta">
-        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
-        <span class="meta-chip" title="Roles">ADMIN</span>
-      </div>
-      
-      <div class="section-label">Request Body</div>
-      <pre class="code-block"><code>{
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/employees/:id&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;name&quot;:&quot;Updated Name&quot;}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
   &quot;name&quot;: &quot;Updated Name&quot;
 }</code></pre>
-      
-      <div class="section-label">Expected Status <span class="status-badge">200</span></div>
-      
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
     </div>
     <div class="endpoint-card" id="ep-4">
-      <div class="endpoint-header">
-        <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
-        <code class="endpoint-path">/employees/:id/toggle-access</code>
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
+          <code class="endpoint-path">/employees/:id/toggle-access</code>
+        </div>
+        <h3 class="endpoint-name">Toggle Employee Access</h3>
+        <p class="endpoint-desc">Enables or disables an employee's login access.</p>
+        
+        
+          <div class="meta-item">
+            <span class="meta-label">Authentication</span>
+            <span class="meta-value">Bearer Token</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Permissions</span>
+            <span class="meta-value">ADMIN</span>
+          </div>
+        </div>
+
+        
       </div>
-      <h3 class="endpoint-name">Toggle Employee Access</h3>
-      <p class="endpoint-desc">Enables or disables an employee's login access.</p>
-      <div class="endpoint-meta">
-        <span class="meta-chip" title="Authentication">Bearer {{authToken}}</span>
-        <span class="meta-chip" title="Roles">ADMIN</span>
-      </div>
-      
-      <div class="section-label">Request Body</div>
-      <pre class="code-block"><code>{
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/employees/:id/toggle-access&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;allowLogin&quot;:true}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
   &quot;allowLogin&quot;: <span class="json-bool">true</span>
 }</code></pre>
-      
-      <div class="section-label">Expected Status <span class="status-badge">200</span></div>
-      
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
     </div>
-    <div class="footer">
-      Generated from api-manifest.yaml — 2026-04-24 — SDCMS Backend API v1.0.0
-    </div>
-  </main>
+      <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
+        Generated from api-manifest.yaml — v1.0.0 — 2026-04-24
+      </footer>
+    </main>
+  </div>
 </body>
 </html>
