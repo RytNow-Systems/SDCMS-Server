@@ -15,9 +15,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - City
 - State
 - Pincode
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - CreatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 - UpdatedDate
 - IsActive
 
@@ -38,9 +38,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - Country
 - IsActive
 - IsDefault (boolean — marks default address for a party)
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - CreatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 - UpdatedDate
 
 > ✅ NEW in v2: Per-party address book. A party can have multiple shipping addresses.
@@ -53,9 +53,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - CategoryName
 - IsActive
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - UpdatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 
 ---
 
@@ -68,9 +68,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - cu_item_code
 - MaterialRate
 - MaterialDescription
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - CreatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 - UpdatedDate
 - IsActive
 
@@ -82,7 +82,7 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - UnitCode
 - ConversionFactor
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - IsActive
 
 ---
@@ -96,7 +96,7 @@ description: Primary reference for the v2 database physical schema (tables, colu
 ---
 
 ### employee_master
-- EmployeeCode (PK)
+- EmployeeCode (INT PK AUTO_INCREMENT)
 - FullName
 - ContactNumber
 - EmailAddress
@@ -106,9 +106,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - AllowLogin
 - IsActive
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - UpdatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 
 ---
 
@@ -149,9 +149,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - OrderDate
 - ExpectedDeliveryDate
 - TotalAmount
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - CreatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 - UpdatedDate
 - IsActive
 
@@ -187,7 +187,7 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - TransactionDate
 - IsActive
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 
 ---
 
@@ -201,7 +201,7 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - LabelPrintCount
 - DispatchDate
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 
 > ✅ Constraint:
 UNIQUE (FkCourierId, TrackingNo)
@@ -218,7 +218,7 @@ UNIQUE (FkCourierId, TrackingNo)
 - AWBNumber (nullable)
 - PreviousStatus (nullable)
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 
 > ⚠️ Append-only audit + scan log
 
@@ -240,7 +240,7 @@ UNIQUE (FkCourierId, TrackingNo)
 - LastNotificationTime
 - LastNotificationLevel
 - IsActive
-- RequestedBy
+- RequestedBy (INT FK → employee_master)
 - IsPaymentCheck
 
 ---
