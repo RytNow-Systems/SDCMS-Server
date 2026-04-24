@@ -30,6 +30,18 @@ const VALID_TRANSITIONS = {
   [STATUS.RETURNED]:      []
 };
 
+/**
+ * ParcelService
+ * 
+ * INJECTION SITE:
+ * This service depends on 'parcelRepository' for all data persistence and SP execution.
+ * All business logic relating to the Parcel lifecycle (v2.2) is orchestrated here.
+ * 
+ * Rules Enforced:
+ * - Order = Planning, Parcel = Execution.
+ * - Strict state machine transitions.
+ * - Atomic Scan/Link flow with role-based auto-dispatch.
+ */
 class ParcelService {
   // ============================================================================
   // INTERNAL MAPPERS
@@ -138,52 +150,39 @@ class ParcelService {
     return this._mapParcel(result);
   }
 
+  /**
+   * QR scan + AWB link atomic two-scan flow (API Contract §10).
+   * Orchestrates finding, duplicate checks, and state transitions.
+   * 
+   * Rule: COURIER role triggers automatic dispatch.
+   *
+   * @param {object} payload - { qrCode, awbNumber }
+   * @param {object} user - Authenticated user.
+   * @returns {Promise<object>} Updated parcel.
+   */
   async scanAndLinkAWB(payload, user) {
-    const { qrCode, awbNumber } = payload;
-    const employeeCode = user?.employeeCode || 'SYSTEM';
-    const role = user?.role || 'OPERATOR';
+    try {
+      const { qrCode, awbNumber } = payload;
+      const employeeCode = user?.employeeCode || 'SYSTEM';
+      const role = user?.role || 'OPERATOR';
 
-    // 1. Find Parcel by QR
-    const parcelRaw = await parcelRepository.findByQR(qrCode);
-    if (!parcelRaw) {
-      const error = new Error(`Parcel not found for QR: ${qrCode}`);
-      error.statusCode = 404;
+      // 1. Find and Validate Parcel
+      const parcel = await this._getAndValidateForLinking(qrCode);
+
+      // 2. Check for Duplicate AWB
+      await this._ensureUniqueAWB(awbNumber);
+
+      // 3. Log initial QR Scan event
+      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'QR_SCAN', null, employeeCode);
+      
+      // 4. Perform linking based on role (Auto-dispatch for Couriers)
+      const result = await this._executeLinkingFlow(parcel, awbNumber, role, employeeCode);
+
+      return this._mapParcel(result);
+    } catch (error) {
+      // Service layer error handling (AGENTS.md §3D)
       throw error;
     }
-    const parcel = this._mapParcel(parcelRaw);
-
-    // 2. Lifecycle Check
-    if (parcel.status !== STATUS.LABEL_PRINTED) {
-      const error = new Error(`Cannot link AWB: parcel is '${parcel.status}', must be '${STATUS.LABEL_PRINTED}'`);
-      error.statusCode = 400;
-      throw error;
-    }
-
-    // 3. Duplicate AWB Check
-    const existingAWB = await parcelRepository.findByAWB(awbNumber);
-    if (existingAWB) {
-      const error = new Error(`AWB '${awbNumber}' is already linked to another parcel`);
-      error.statusCode = 409;
-      throw error;
-    }
-
-    // 4. Log Scans (Atomic Flow)
-    await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'QR_SCAN', null, employeeCode);
-    
-    // 5. Update State & Link
-    let result;
-    if (role === 'COURIER') {
-      // Auto-dispatch for couriers (Trigger 3)
-      result = await parcelRepository.updateParcelState(parcel.id, 3, awbNumber, 0, employeeCode);
-      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'AWB_LINK', awbNumber, employeeCode);
-      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'STATUS_UPDATE', awbNumber, employeeCode);
-    } else {
-      // Normal linking (Trigger 2)
-      result = await parcelRepository.updateParcelState(parcel.id, 2, awbNumber, 0, employeeCode);
-      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'AWB_LINK', awbNumber, employeeCode);
-    }
-
-    return this._mapParcel(result);
   }
 
   async dispatchParcels(parcelIds, user) {
@@ -255,6 +254,58 @@ class ParcelService {
     await parcelRepository.logEvent(id, parcel.receiverDetailsId, 'STATUS_UPDATE', parcel.trackingNo, employeeCode);
     
     return this._mapParcel(result);
+  }
+
+  /**
+   * Internal helper to find and validate a parcel for the linking flow.
+   * @private
+   */
+  async _getAndValidateForLinking(qrCode) {
+    const parcelRaw = await parcelRepository.findByQR(qrCode);
+    if (!parcelRaw) {
+      const error = new Error(`Parcel not found for QR: ${qrCode}`);
+      error.statusCode = 404;
+      throw error;
+    }
+    const parcel = this._mapParcel(parcelRaw);
+    if (parcel.status !== STATUS.LABEL_PRINTED) {
+      const error = new Error(`Cannot link AWB: parcel is '${parcel.status}', must be '${STATUS.LABEL_PRINTED}'`);
+      error.statusCode = 400;
+      throw error;
+    }
+    return parcel;
+  }
+
+  /**
+   * Internal helper to ensure AWB is not already in use.
+   * @private
+   */
+  async _ensureUniqueAWB(awbNumber) {
+    const existingAWB = await parcelRepository.findByAWB(awbNumber);
+    if (existingAWB) {
+      const error = new Error(`AWB '${awbNumber}' is already linked to another parcel`);
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
+  /**
+   * Internal helper to execute the linking database updates.
+   * @private
+   */
+  async _executeLinkingFlow(parcel, awbNumber, role, employeeCode) {
+    if (role === 'COURIER') {
+      // Auto-dispatch for couriers (Trigger 3)
+      const result = await parcelRepository.updateParcelState(parcel.id, 3, awbNumber, 0, employeeCode);
+      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'AWB_LINK', awbNumber, employeeCode);
+      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'STATUS_UPDATE', awbNumber, employeeCode);
+      return result;
+    } 
+    
+    // Normal linking (Trigger 2)
+    const result = await parcelRepository.updateParcelState(parcel.id, 2, awbNumber, 0, employeeCode);
+    await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'AWB_LINK', awbNumber, employeeCode);
+    return result;
   }
 }
 

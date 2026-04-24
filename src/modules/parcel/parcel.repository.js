@@ -25,6 +25,16 @@ import {
   seedStatusLog,
 } from './parcel.seed.js';
 
+/**
+ * ParcelRepository
+ * 
+ * INJECTION SITE:
+ * This repository is the sole data access point for the Parcel module.
+ * It interacts with the database via 'db' (MySQL2) using stored procedures
+ * as defined in 'api_procedure_spec_v2.md'.
+ * 
+ * In MOCK mode, it uses local seeds from './parcel.seed.js'.
+ */
 class ParcelRepository {
   // ============================================================================
   // READ OPERATIONS
@@ -71,38 +81,14 @@ class ParcelRepository {
     }
 
     // MOCK MODE
-    let filtered = [...seedParcels];
-    if (filters.status) {
-      filtered = filtered.filter((p) => p.parcelStatusCode === filters.status);
-    }
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.parcel_id.toLowerCase().includes(q) ||
-          (p.trackingNo && p.trackingNo.toLowerCase().includes(q))
-      );
-    }
-
-    const total = filtered.length;
+    const results = this._filterMockParcels(filters);
+    const total = results.length;
+    
+    // Pagination
     const page = filters.page || 1;
     const limit = filters.limit || 20;
     const start = (page - 1) * limit;
-    const data = filtered.slice(start, start + limit).map((parcel) => {
-      const receiver = seedReceivers.find((r) => r.id === parcel.fkReceiverDetailsId);
-      const order = receiver ? seedOrders.find((o) => o.id === receiver.fkOrderId) : null;
-      return {
-        id: parcel.id,
-        parcelId: parcel.parcel_id,
-        trackingNo: parcel.trackingNo,
-        status: parcel.parcelStatusCode,
-        labelPrintCount: parcel.labelPrintCount,
-        dispatchDate: parcel.dispatchDate,
-        receiverName: receiver?.receiverName || null,
-        orderCode: order?.orderCode || null,
-        createdAt: parcel.createdAt
-      };
-    });
+    const data = results.slice(start, start + limit).map(p => this._mapMockParcel(p));
 
     return { data, total };
   }
@@ -123,29 +109,7 @@ class ParcelRepository {
     }
 
     const parcel = seedParcels.find((p) => p.id === parseInt(id));
-    if (!parcel) return null;
-
-    const receiver = seedReceivers.find((r) => r.id === parcel.fkReceiverDetailsId);
-    const order = receiver ? seedOrders.find((o) => o.id === receiver.fkOrderId) : null;
-
-    return {
-      id: parcel.id,
-      parcelId: parcel.parcel_id,
-      trackingNo: parcel.trackingNo,
-      status: parcel.parcelStatusCode,
-      labelPrintCount: parcel.labelPrintCount,
-      dispatchDate: parcel.dispatchDate,
-      fkCourierId: parcel.fkCourierId,
-      receiverName: receiver?.receiverName || null,
-      receiverPhone: receiver?.receiverPhone || null,
-      address: receiver?.address || null,
-      city: receiver?.city || null,
-      state: receiver?.state || null,
-      pincode: receiver?.pincode || null,
-      orderCode: order?.orderCode || null,
-      orderId: order?.id || null,
-      createdAt: parcel.createdAt
-    };
+    return parcel ? this._mapMockParcel(parcel) : null;
   }
 
   /**
@@ -344,6 +308,53 @@ class ParcelRepository {
     const start = (page - 1) * limit;
     const data = filtered.slice(start, start + limit);
     return { data, total };
+  }
+
+  // ============================================================================
+  // INTERNAL MOCK HELPERS
+  // ============================================================================
+
+  /**
+   * Internal mapper to enrich mock parcel data with receiver/order info.
+   * @private
+   */
+  _mapMockParcel(parcel) {
+    const receiver = seedReceivers.find((r) => r.id === parcel.fkReceiverDetailsId);
+    const order = receiver ? seedOrders.find((o) => o.id === receiver.fkOrderId) : null;
+
+    return {
+      ...parcel,
+      parcelId: parcel.parcel_id,
+      status: parcel.parcelStatusCode,
+      receiverName: receiver?.receiverName || null,
+      receiverPhone: receiver?.receiverPhone || null,
+      address: receiver?.address || null,
+      city: receiver?.city || null,
+      state: receiver?.state || null,
+      pincode: receiver?.pincode || null,
+      orderCode: order?.orderCode || null,
+      orderId: order?.id || null
+    };
+  }
+
+  /**
+   * Internal helper to filter mock parcels.
+   * @private
+   */
+  _filterMockParcels(filters) {
+    let filtered = [...seedParcels];
+    if (filters.status) {
+      filtered = filtered.filter((p) => p.parcelStatusCode === filters.status);
+    }
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          p.parcel_id.toLowerCase().includes(q) ||
+          (p.trackingNo && p.trackingNo.toLowerCase().includes(q))
+      );
+    }
+    return filtered;
   }
 }
 
