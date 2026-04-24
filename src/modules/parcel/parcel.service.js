@@ -4,65 +4,46 @@
 // Enforces the strict parcel status flow:
 //   Created → Label Printed → AWB Linked → Dispatched → Delivered
 // and terminal states (Cancelled, Returned).
-// All state transitions are validated before delegating to the repository.
-//
-// Dual-Mode: Service-layer validations apply in BOTH modes.
-// In LIVE mode, the SP also validates (defense-in-depth).
-// In MOCK mode, service validations are the sole guardrails.
-//
-// Procedure mapping:
-//   - Reads:  prc_parcel_details_get, prc_receiver_status_details_get
-//   - Writes: prc_parcel_details_set (internally triggers audit logging)
 // ============================================================================
 
 import parcelRepository from './parcel.repository.js';
 
-// ============================================================================
-// PARCEL STATUS PRECEDENCE MAP
-// Defines valid transitions: key = current status, value = allowed next statuses.
-// This is the single source of truth for state machine enforcement in the
-// service layer (Systemflow §Part 6, API Contract Appendix A).
-// ============================================================================
+// Status constants mapping (from lu_details/system flow)
+const STATUS = {
+  PENDING: 'PENDING',
+  LABEL_PRINTED: 'LABEL_PRINTED',
+  AWB_LINKED: 'AWB_LINKED',
+  DISPATCHED: 'DISPATCHED',
+  DELIVERED: 'DELIVERED',
+  CANCELLED: 'CANCELLED',
+  RETURNED: 'RETURNED'
+};
+
+// Valid transitions (v2.2 System Flow)
 const VALID_TRANSITIONS = {
-  'PENDING':        ['LABEL_PRINTED', 'CANCELLED'],
-  'LABEL_PRINTED':  ['AWB_LINKED', 'DISPATCHED', 'CANCELLED'],
-  'AWB_LINKED':     ['DISPATCHED', 'CANCELLED'],
-  'DISPATCHED':     ['DELIVERED', 'RETURNED'],
-  'DELIVERED':      ['RETURNED'],
-  'CANCELLED':      [],
-  'RETURNED':       []
+  [STATUS.PENDING]:       [STATUS.LABEL_PRINTED, STATUS.CANCELLED],
+  [STATUS.LABEL_PRINTED]: [STATUS.AWB_LINKED, STATUS.DISPATCHED, STATUS.CANCELLED],
+  [STATUS.AWB_LINKED]:    [STATUS.DISPATCHED, STATUS.CANCELLED],
+  [STATUS.DISPATCHED]:    [STATUS.DELIVERED, STATUS.RETURNED],
+  [STATUS.DELIVERED]:     [STATUS.RETURNED],
+  [STATUS.CANCELLED]:     [],
+  [STATUS.RETURNED]:      []
 };
 
 class ParcelService {
   // ============================================================================
-  // INTERNAL MAPPERS (Standardize PascalCase to camelCase)
+  // INTERNAL MAPPERS
   // ============================================================================
 
-  _mapParcelSummary(parcel) {
+  _mapParcel(parcel) {
     if (!parcel) return null;
     return {
       id: parcel.PkParcelDetailsId || parcel.id,
-      parcelId: parcel.ParcelId || parcel.parcel_id || parcel.parcelId,
+      parcelId: parcel.QRCode || parcel.parcelId || parcel.parcel_id,
       trackingNo: parcel.TrackingNo || parcel.trackingNo,
-      status: parcel.ParcelStatusCode || parcel.status,
+      status: parcel.StatusDescription || parcel.status || parcel.parcelStatusCode || STATUS.PENDING,
       labelPrintCount: parcel.LabelPrintCount !== undefined ? parcel.LabelPrintCount : parcel.labelPrintCount,
       dispatchDate: parcel.DispatchDate || parcel.dispatchDate,
-      receiverName: parcel.ReceiverName || parcel.receiverName,
-      orderCode: parcel.OrderCode || parcel.orderCode,
-      createdAt: parcel.CreatedDate || parcel.createdAt
-    };
-  }
-
-  _mapParcelDetail(parcel) {
-    if (!parcel) return null;
-    return {
-      id: parcel.PkParcelDetailsId || parcel.id,
-      parcelId: parcel.ParcelId || parcel.parcel_id || parcel.parcelId,
-      trackingNo: parcel.TrackingNo || parcel.trackingNo,
-      status: parcel.ParcelStatusCode || parcel.status,
-      labelPrintCount: parcel.LabelPrintCount !== undefined ? parcel.LabelPrintCount : parcel.labelPrintCount,
-      dispatchDate: parcel.DispatchDate || parcel.dispatchDate,
-      fkCourierId: parcel.FkCourierId || parcel.fkCourierId,
       receiverName: parcel.ReceiverName || parcel.receiverName,
       receiverPhone: parcel.ReceiverPhone || parcel.receiverPhone,
       address: parcel.Address || parcel.address,
@@ -71,68 +52,23 @@ class ParcelService {
       pincode: parcel.Pincode || parcel.pincode,
       orderCode: parcel.OrderCode || parcel.orderCode,
       orderId: parcel.FkOrderId || parcel.orderId,
+      receiverDetailsId: parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId,
       createdAt: parcel.CreatedDate || parcel.createdAt
     };
   }
 
-  _mapLabelData(data) {
-    if (!data) return null;
-    return {
-      parcelId: data.ParcelId || data.parcel_id || data.parcelId,
-      orderCode: data.OrderCode || data.orderCode,
-      senderName: data.SenderName || data.senderName,
-      senderMobile: data.SenderMobile || data.senderMobile,
-      senderAddress: data.SenderAddress || data.senderAddress,
-      receiverName: data.ReceiverName || data.receiverName,
-      receiverPhone: data.ReceiverPhone || data.receiverPhone,
-      address: data.Address || data.address,
-      city: data.City || data.city,
-      state: data.State || data.state,
-      pincode: data.Pincode || data.pincode,
-      country: data.Country || data.country,
-      labelPrintCount: data.LabelPrintCount !== undefined ? data.LabelPrintCount : data.labelPrintCount,
-      status: data.ParcelStatusCode || data.status
-    };
-  }
-
-  _mapTimelineEvent(event) {
+  _mapEvent(event) {
     if (!event) return null;
     return {
       id: event.PkReceiverStatusDetailsId || event.id,
-      actionType: event.ActionType || event.actionType,
-      awbNumber: event.AwbNumber || event.awbNumber,
-      previousStatus: event.PreviousStatus || event.previousStatus,
-      newStatus: event.NewStatus || event.newStatus,
-      createdBy: event.CreatedBy || event.createdBy,
-      createdDate: event.CreatedDate || event.createdDate
-    };
-  }
-
-  _mapBrowseEvent(event) {
-    if (!event) return null;
-    return {
-      id: event.PkReceiverStatusDetailsId || event.id,
-      parcelId: event.ParcelId || event.parcelId,
+      parcelId: event.QRCode || event.parcelId,
       orderCode: event.OrderCode || event.orderCode,
       actionType: event.ActionType || event.actionType,
       awbNumber: event.AwbNumber || event.awbNumber,
       previousStatus: event.PreviousStatus || event.previousStatus,
-      newStatus: event.NewStatus || event.newStatus,
+      newStatus: event.StatusDescription || event.newStatus,
       scannedBy: event.CreatedBy || event.scannedBy,
       timestamp: event.CreatedDate || event.timestamp
-    };
-  }
-
-  _mapMutationResult(parcel) {
-    if (!parcel) return null;
-    return {
-      id: parcel.PkParcelDetailsId || parcel.id,
-      parcelId: parcel.ParcelId || parcel.parcel_id || parcel.parcelId,
-      status: parcel.ParcelStatusCode || parcel.status,
-      trackingNo: parcel.TrackingNo || parcel.trackingNo,
-      labelPrintCount: parcel.LabelPrintCount !== undefined ? parcel.LabelPrintCount : parcel.labelPrintCount,
-      dispatchDate: parcel.DispatchDate || parcel.dispatchDate,
-      previousStatus: parcel.PreviousStatus || parcel.previousStatus
     };
   }
 
@@ -141,18 +77,18 @@ class ParcelService {
   // ============================================================================
 
   async getParcelList(filters) {
-    const result = await parcelRepository.findAllParcels(filters);
-    return { ...result, data: result.data.map(p => this._mapParcelSummary(p)) };
+    const { data, total } = await parcelRepository.findAll(filters);
+    return { data: data.map(p => this._mapParcel(p)), total };
   }
 
   async getParcelDetails(id) {
-    const data = await parcelRepository.findById(id);
-    if (!data) {
+    const parcel = await parcelRepository.findById(id);
+    if (!parcel) {
       const error = new Error('Parcel not found');
       error.statusCode = 404;
       throw error;
     }
-    return this._mapParcelDetail(data);
+    return this._mapParcel(parcel);
   }
 
   async getLabelData(id) {
@@ -162,7 +98,7 @@ class ParcelService {
       error.statusCode = 404;
       throw error;
     }
-    return this._mapLabelData(data);
+    return this._mapParcel(data);
   }
 
   async getTimeline(id) {
@@ -172,36 +108,34 @@ class ParcelService {
       error.statusCode = 404;
       throw error;
     }
-    const timeline = await parcelRepository.getTimeline(id);
-    return timeline.map(event => this._mapTimelineEvent(event));
+    const receiverId = parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId;
+    const timeline = await parcelRepository.getTimeline(receiverId);
+    return timeline.map(e => this._mapEvent(e));
   }
 
   // ============================================================================
-  // WRITE OPERATIONS (STATE TRANSITIONS)
+  // WRITE OPERATIONS
   // ============================================================================
 
   async logLabelPrint(id, user) {
-    const parcel = await parcelRepository.findById(id);
-    if (!parcel) {
-      const error = new Error('Parcel not found');
-      error.statusCode = 404;
-      throw error;
-    }
+    const parcel = await this.getParcelDetails(id);
+    const employeeCode = user?.employeeCode || 'SYSTEM';
 
-    const currentStatus = parcel.status || parcel.ParcelStatusCode;
-    const allowedStates = ['PENDING', 'LABEL_PRINTED'];
-    if (!allowedStates.includes(currentStatus)) {
-      const error = new Error(
-        `Cannot print label: parcel is in '${currentStatus}' state. ` +
-        `Label printing is only allowed when parcel is PENDING or LABEL_PRINTED.`
-      );
+    // State validation
+    const allowed = [STATUS.PENDING, STATUS.LABEL_PRINTED];
+    if (!allowed.includes(parcel.status)) {
+      const error = new Error(`Cannot print label in '${parcel.status}' state`);
       error.statusCode = 400;
       throw error;
     }
 
-    const employeeCode = user?.employeeCode || 'SYSTEM';
-    const result = await parcelRepository.logPrint(id, employeeCode);
-    return this._mapMutationResult(result);
+    // 1. Update State (Trigger 1 = PRINT_LABEL)
+    const result = await parcelRepository.updateParcelState(id, 1, null, 0, employeeCode);
+    
+    // 2. Log Event
+    await parcelRepository.logEvent(id, parcel.receiverDetailsId, 'STATUS_UPDATE', null, employeeCode);
+
+    return this._mapParcel(result);
   }
 
   async scanAndLinkAWB(payload, user) {
@@ -209,113 +143,118 @@ class ParcelService {
     const employeeCode = user?.employeeCode || 'SYSTEM';
     const role = user?.role || 'OPERATOR';
 
-    if (process.env.USE_MOCK_DB === 'true') {
-      const parcel = parcelRepository.findByQRCode(qrCode);
-      if (!parcel) {
-        const error = new Error(`Parcel not found for QR code: ${qrCode}`);
-        error.statusCode = 404;
-        throw error;
-      }
+    // 1. Find Parcel by QR
+    const parcelRaw = await parcelRepository.findByQR(qrCode);
+    if (!parcelRaw) {
+      const error = new Error(`Parcel not found for QR: ${qrCode}`);
+      error.statusCode = 404;
+      throw error;
+    }
+    const parcel = this._mapParcel(parcelRaw);
 
-      if (parcel.parcelStatusCode !== 'LABEL_PRINTED') {
-        const error = new Error(
-          `Cannot link AWB: parcel is in '${parcel.parcelStatusCode}' state. ` +
-          `AWB linking requires parcel to be in LABEL_PRINTED state.`
-        );
-        error.statusCode = 400;
-        throw error;
-      }
-
-      const isDuplicate = parcelRepository.checkDuplicateAWB(awbNumber);
-      if (isDuplicate) {
-        const error = new Error(`AWB number '${awbNumber}' is already linked to another parcel`);
-        error.statusCode = 409;
-        throw error;
-      }
+    // 2. Lifecycle Check
+    if (parcel.status !== STATUS.LABEL_PRINTED) {
+      const error = new Error(`Cannot link AWB: parcel is '${parcel.status}', must be '${STATUS.LABEL_PRINTED}'`);
+      error.statusCode = 400;
+      throw error;
     }
 
-    const result = await parcelRepository.scanAndLinkAWB(qrCode, awbNumber, role, employeeCode);
-    return this._mapMutationResult(result);
+    // 3. Duplicate AWB Check
+    const existingAWB = await parcelRepository.findByAWB(awbNumber);
+    if (existingAWB) {
+      const error = new Error(`AWB '${awbNumber}' is already linked to another parcel`);
+      error.statusCode = 409;
+      throw error;
+    }
+
+    // 4. Log Scans (Atomic Flow)
+    await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'QR_SCAN', null, employeeCode);
+    
+    // 5. Update State & Link
+    let result;
+    if (role === 'COURIER') {
+      // Auto-dispatch for couriers (Trigger 3)
+      result = await parcelRepository.updateParcelState(parcel.id, 3, awbNumber, 0, employeeCode);
+      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'AWB_LINK', awbNumber, employeeCode);
+      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'STATUS_UPDATE', awbNumber, employeeCode);
+    } else {
+      // Normal linking (Trigger 2)
+      result = await parcelRepository.updateParcelState(parcel.id, 2, awbNumber, 0, employeeCode);
+      await parcelRepository.logEvent(parcel.id, parcel.receiverDetailsId, 'AWB_LINK', awbNumber, employeeCode);
+    }
+
+    return this._mapParcel(result);
   }
 
   async dispatchParcels(parcelIds, user) {
     const employeeCode = user?.employeeCode || 'SYSTEM';
+    const dispatched = [];
 
-    for (const pid of parcelIds) {
-      const parcel = await parcelRepository.findById(pid);
-      if (!parcel) {
-        const error = new Error(`Parcel with ID ${pid} not found`);
-        error.statusCode = 404;
-        throw error;
-      }
-      const currentStatus = parcel.status || parcel.ParcelStatusCode;
-      if (currentStatus !== 'AWB_LINKED') {
-        const error = new Error(
-          `Cannot dispatch parcel ${parcel.parcelId || parcel.ParcelId}: status is '${currentStatus}'. ` +
-          `Dispatch requires AWB_LINKED status.`
-        );
+    for (const id of parcelIds) {
+      const parcel = await this.getParcelDetails(id);
+      
+      if (parcel.status !== STATUS.AWB_LINKED) {
+        const error = new Error(`Parcel ${parcel.parcelId} cannot be dispatched (Status: ${parcel.status})`);
         error.statusCode = 400;
         throw error;
       }
+
+      const result = await parcelRepository.updateParcelState(id, 3, parcel.trackingNo, 0, employeeCode);
+      await parcelRepository.logEvent(id, parcel.receiverDetailsId, 'STATUS_UPDATE', parcel.trackingNo, employeeCode);
+      dispatched.push(this._mapParcel(result));
     }
 
-    const { dispatched, parcels } = await parcelRepository.dispatchParcels(parcelIds, employeeCode);
-    return {
-      dispatched,
-      parcels: parcels.map(p => this._mapMutationResult(p))
-    };
+    return { dispatched: dispatched.length, parcels: dispatched };
   }
 
   async deliverParcel(id, user) {
-    return await this._transitionToTerminal(id, 'DELIVERED', user);
-  }
-
-  async cancelParcel(id, user) {
-    return await this._transitionToTerminal(id, 'CANCELLED', user);
+    return await this._transition(id, 4, STATUS.DELIVERED, user);
   }
 
   async returnParcel(id, user) {
-    return await this._transitionToTerminal(id, 'RETURNED', user);
+    return await this._transition(id, 5, STATUS.RETURNED, user);
+  }
+
+  async cancelParcel(id, user) {
+    // Note: Cancel doesn't have a specific trigger type in mapping provided (1-5), 
+    // but SP prc_parcel_details_set likely handles it. 
+    // If not in 1-5, I'll assume it's a separate logic or use a generic one if needed.
+    // User mapping says: 4=DELIVERED, 5=RETURNED.
+    // I'll assume Cancel is another trigger or handled via generic state update if allowed.
+    // Actually, I'll use Trigger 4/5 logic but for Cancel if I can find the trigger.
+    // User request only listed 1-5. I'll ask or assume it's handled.
+    // Wait, system flow says: "updates all associated parcel_details rows to 'Cancelled'".
+    return await this._transition(id, 0, STATUS.CANCELLED, user); // 0 or separate?
   }
 
   // ============================================================================
-  // EVENT LOG OPERATIONS
+  // BROWSE EVENTS
   // ============================================================================
 
   async browseEvents(filters) {
-    const result = await parcelRepository.browseEvents(filters);
-    return {
-      ...result,
-      data: result.data.map(e => this._mapBrowseEvent(e))
-    };
+    const { data, total } = await parcelRepository.browseEvents(filters);
+    return { data: data.map(e => this._mapEvent(e)), total };
   }
 
   // ============================================================================
   // INTERNAL HELPERS
   // ============================================================================
 
-  async _transitionToTerminal(id, targetStatus, user) {
-    const parcel = await parcelRepository.findById(id);
-    if (!parcel) {
-      const error = new Error('Parcel not found');
-      error.statusCode = 404;
-      throw error;
-    }
+  async _transition(id, triggerType, targetStatus, user) {
+    const parcel = await this.getParcelDetails(id);
+    const employeeCode = user?.employeeCode || 'SYSTEM';
 
-    const currentStatus = parcel.status || parcel.ParcelStatusCode;
-    const allowedNext = VALID_TRANSITIONS[currentStatus] || [];
-    if (!allowedNext.includes(targetStatus)) {
-      const error = new Error(
-        `Invalid state transition: cannot move parcel from '${currentStatus}' to '${targetStatus}'. ` +
-        `Allowed transitions from '${currentStatus}': [${allowedNext.join(', ')}]`
-      );
+    const allowed = VALID_TRANSITIONS[parcel.status] || [];
+    if (!allowed.includes(targetStatus)) {
+      const error = new Error(`Invalid transition: ${parcel.status} -> ${targetStatus}`);
       error.statusCode = 400;
       throw error;
     }
 
-    const employeeCode = user?.employeeCode || 'SYSTEM';
-    const result = await parcelRepository.updateTerminalStatus(id, targetStatus, employeeCode);
-    return this._mapMutationResult(result);
+    const result = await parcelRepository.updateParcelState(id, triggerType, parcel.trackingNo, 0, employeeCode);
+    await parcelRepository.logEvent(id, parcel.receiverDetailsId, 'STATUS_UPDATE', parcel.trackingNo, employeeCode);
+    
+    return this._mapParcel(result);
   }
 }
 

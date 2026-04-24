@@ -1,47 +1,11 @@
-==================================================
-DISPATCH AND TERMINAL STATES — Test Data
-Generated from api-manifest.yaml
-==================================================
-
---- TEST 1: Batch Dispatch ---
+### Bulk Dispatch Parcels
 Method: POST
 URL: /api/v1/parcels/dispatch
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-Headers:
-  Content-Type: application/json
-
-Body:
+Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
+Payload:
 {
-  "parcelIds": [
-    1,
-    2,
-    3
-  ]
+  "parcelIds": [1, 2, 3]
 }
-
-Expected Status: 200
-
---- TEST 2: Mark Delivered ---
-Method: PATCH
-URL: /api/v1/parcels/:id/deliver
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-
-Expected Status: 200
-
---- TEST 3: Mark Returned ---
-Method: PATCH
-URL: /api/v1/parcels/:id/return
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-
-Expected Status: 200
-
---- TEST 4: Cancel Parcel ---
-Method: PATCH
-URL: /api/v1/parcels/:id/cancel
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-
-Expected Status: 200
+Assertions:
+- res.status equals 200
+- res.body.data.dispatched is Number

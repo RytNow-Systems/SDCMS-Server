@@ -1,23 +1,25 @@
-==================================================
-TWO SCAN OPERATIONS — Test Data
-Generated from api-manifest.yaml
-==================================================
-
---- TEST 1: Scan and Link AWB ---
+### Scan and Link AWB (OPERATOR)
 Method: POST
 URL: /api/v1/parcels/scan
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR, COURIER
-Headers:
-  Content-Type: application/json
-
-Body:
+Headers: { "Authorization": "Bearer {{operatorToken}}", "Content-Type": "application/json" }
+Payload:
 {
   "qrCode": "PDS-A1B2C3",
-  "awbNumber": "AWB-DTDC-001"
+  "awbNumber": "AWB-OP-1001"
 }
-
-Expected Status: 200
 Assertions:
-  1. OPERATOR scan → status AWB_LINKED
-  2. COURIER scan → status DISPATCHED (auto-dispatch)
+- res.status equals 200
+- res.body.data.status equals "AWB Linked"
+
+### Scan and Link AWB (COURIER - Auto-Dispatch)
+Method: POST
+URL: /api/v1/parcels/scan
+Headers: { "Authorization": "Bearer {{courierToken}}", "Content-Type": "application/json" }
+Payload:
+{
+  "qrCode": "PDS-D4E5F6",
+  "awbNumber": "AWB-CR-2002"
+}
+Assertions:
+- res.status equals 200
+- res.body.data.status equals "Dispatched"
