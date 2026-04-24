@@ -10,3 +10,13 @@ Auth: Bearer <TOKEN>
 Roles: ADMIN
 
 Expected Status: 200
+Expected Payload:
+{
+  "success": true,
+  "data": {
+    "TotalOrders": 150,
+    "PendingOrders": 45,
+    "DispatchedOrders": 80,
+    "DeliveredOrders": 25
+  }
+}

@@ -8,33 +8,48 @@ import dashboardRepository from './dashboard.repository.js';
 
 class DashboardService {
   /**
-   * Internal mapper to standardize database PascalCase to API camelCase.
-   * Handles SP array wrapping and raw object formatting.
-   * 
-   * @param {object|Array} data - Raw data from repository
-   * @returns {object} Standardized camelCase metric object
+   * Internal mapper to standardize database result set to the API contract.
+   * Ensures the result contains TotalOrders, PendingOrders, DispatchedOrders, and DeliveredOrders.
+   *
+   * @param {object} metrics - Raw metrics from repository
+   * @returns {object} Standardized metrics object
    */
-  _mapToApi(data) {
-    if (!data) return {};
-    
-    // Unpack array row if live DB returned array
-    const metrics = Array.isArray(data) ? data[0] : data;
+  _mapToApi(metrics) {
     if (!metrics) return {};
 
+    const TotalOrders = metrics.TotalOrders !== undefined ? metrics.TotalOrders : (metrics.totalOrders || 0);
+    const PendingOrders = metrics.PendingOrders !== undefined ? metrics.PendingOrders : (metrics.pendingOrders || 0);
+    const DispatchedOrders = metrics.DispatchedOrders !== undefined ? metrics.DispatchedOrders : (metrics.dispatchedOrders || 0);
+    const DeliveredOrders = metrics.DeliveredOrders !== undefined ? metrics.DeliveredOrders : (metrics.deliveredOrders || 0);
+
     return {
-      totalOrders: metrics.TotalOrders !== undefined ? metrics.TotalOrders : metrics.totalOrders,
-      totalParcels: metrics.TotalParcels !== undefined ? metrics.TotalParcels : metrics.totalParcels,
-      totalSenders: metrics.TotalSenders !== undefined ? metrics.TotalSenders : metrics.totalSenders,
-      totalReceivers: metrics.TotalReceivers !== undefined ? metrics.TotalReceivers : metrics.totalReceivers,
-      parcelsByStatus: metrics.ParcelsByStatus || metrics.parcelsByStatus || {},
-      recentActivity: metrics.RecentActivity || metrics.recentActivity || []
+      // New PascalCase structure (as requested)
+      TotalOrders,
+      PendingOrders,
+      DispatchedOrders,
+      DeliveredOrders,
+
+      /** @deprecated Use TotalOrders instead */
+      totalOrders: TotalOrders,
+      /** @deprecated Use PendingOrders instead */
+      pendingOrders: PendingOrders,
+      /** @deprecated Use DispatchedOrders instead */
+      dispatchedOrders: DispatchedOrders,
+      /** @deprecated Use DeliveredOrders instead */
+      deliveredOrders: DeliveredOrders,
+
+      /** @deprecated Use top-level status fields instead */
+      parcelsByStatus: {
+        PENDING: PendingOrders,
+        DISPATCHED: DispatchedOrders,
+        DELIVERED: DeliveredOrders
+      }
     };
   }
 
   /**
    * Retrieves dashboard metrics.
-   * Currently a direct pass-through, but reserved for future transformations.
-   * 
+   *
    * @returns {Promise<Object>} Dashboard metrics.
    */
   async getMetrics() {

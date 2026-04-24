@@ -17,31 +17,17 @@ import db from '../../infrastructure/database/db.js';
 // Realistic dashboard metrics for frontend development without a live database.
 // ============================================================================
 const mockMetrics = {
-  totalOrders: 42,
-  totalParcels: 58,
-  totalSenders: 15,
-  totalReceivers: 53,
-  parcelsByStatus: {
-    PENDING: 8,
-    LABEL_PRINTED: 12,
-    AWB_LINKED: 5,
-    DISPATCHED: 18,
-    DELIVERED: 10,
-    CANCELLED: 3,
-    RETURNED: 2
-  },
-  recentActivity: [
-    { action: 'ORDER_CREATED', count: 5, period: 'today' },
-    { action: 'PARCEL_DISPATCHED', count: 3, period: 'today' },
-    { action: 'PARCEL_DELIVERED', count: 2, period: 'today' }
-  ]
+  TotalOrders: 150,
+  PendingOrders: 45,
+  DispatchedOrders: 80,
+  DeliveredOrders: 25
 };
 
 class DashboardRepository {
   /**
    * Fetches high-level metrics for the admin dashboard.
    * Calls prc_dashboard_metrics_get with pAction=0.
-   * 
+   *
    * @returns {Promise<Object>} The dashboard metrics data.
    */
   async getMetrics() {
@@ -52,8 +38,8 @@ class DashboardRepository {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_dashboard_metrics_get(?)', [0]);
 
-      // Procedure returns metrics which might be an array or single row depending on SP logic
-      return rows[0] || {};
+      // Procedure returns a result set containing TotalOrders, PendingOrders, etc.
+      return (Array.isArray(rows) && rows[0]) ? (Array.isArray(rows[0]) ? rows[0][0] : rows[0]) : {};
     }
 
     // ------------------------------------------------------------------

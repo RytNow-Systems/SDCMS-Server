@@ -1203,8 +1203,12 @@ describe('14. Dashboard', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toBeDefined();
+    expect(res.body.data).toHaveProperty('TotalOrders');
     expect(res.body.data).toHaveProperty('totalOrders');
     expect(res.body.data).toHaveProperty('parcelsByStatus');
+    expect(res.body.data.parcelsByStatus).toHaveProperty('PENDING');
+    expect(res.body.data.TotalOrders).toBe(150);
+    expect(res.body.data.totalOrders).toBe(150);
   });
 
   it('14.2 GET /api/v1/dashboard/metrics → 403 with OPERATOR token', async () => {

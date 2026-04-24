@@ -543,7 +543,14 @@ collections:
         description: Aggregated dashboard statistics.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "totalOrders": 45, "parcelsByStatus": { "PENDING": 5, "DISPATCHED": 20, "DELIVERED": 15 } } }
+          { 
+            "success": true, 
+            "data": { 
+              "TotalOrders": 150, "PendingOrders": 45, "DispatchedOrders": 80, "DeliveredOrders": 25,
+              "totalOrders": 150, // @deprecated
+              "parcelsByStatus": { "PENDING": 45, "DISPATCHED": 80, "DELIVERED": 25 } // @deprecated
+            } 
+          }
 
   # ========== 14. BULK UPLOAD ==========
   - name: Bulk Upload
