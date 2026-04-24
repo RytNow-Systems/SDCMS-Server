@@ -75,7 +75,49 @@ Body:
 
 Expected Status: 201
 
---- TEST 4: Get Order Aggregate ---
+--- TEST 4: Create Order — Mode C (Combo Order) ---
+Method: POST
+URL: /api/v1/orders
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "senderName": "Ramesh Textiles",
+  "senderMobile": "9876543210",
+  "senderAddress": "14, Gandhi Nagar",
+  "courierId": 1,
+  "products": [
+    {
+      "productId": 1,
+      "qty": 5,
+      "unitPrice": 500
+    }
+  ],
+  "receivers": [
+    {
+      "receiverName": "External Hub",
+      "receiverPhone": "9111122222",
+      "address": "Hub Area",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400001",
+      "products": [
+        {
+          "productId": 2,
+          "qty": 2,
+          "unitPrice": 1200
+        }
+      ]
+    }
+  ]
+}
+
+Expected Status: 201
+
+--- TEST 5: Get Order Aggregate ---
 Method: GET
 URL: /api/v1/orders/:id
 Auth: Bearer <TOKEN>
@@ -83,7 +125,7 @@ Roles: ADMIN, OPERATOR, COURIER
 
 Expected Status: 200
 
---- TEST 5: Update Order ---
+--- TEST 6: Update Order ---
 Method: PUT
 URL: /api/v1/orders/:id
 Auth: Bearer <TOKEN>
@@ -99,10 +141,11 @@ Body:
 
 Expected Status: 200
 
---- TEST 6: Cancel Order ---
+--- TEST 7: Cancel Order (Fresh) ---
 Method: PATCH
 URL: /api/v1/orders/:id/cancel
 Auth: Bearer <TOKEN>
 Roles: ADMIN, OPERATOR
 
 Expected Status: 200
+Description: Should succeed for orders where all parcels are in PENDING state.

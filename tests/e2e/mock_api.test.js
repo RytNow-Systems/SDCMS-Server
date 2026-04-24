@@ -545,7 +545,7 @@ describe('7. Orders', () => {
           {
             receiverName: 'E2E Test Receiver',
             receiverPhone: '9000000002',
-            addressLine1: '1 Test Street',
+            address: '1 Test Street',
             city: 'TestCity',
             state: 'TestState',
             pincode: '100001',
@@ -555,6 +555,82 @@ describe('7. Orders', () => {
       });
 
     expect(res.statusCode).toBe(403);
+  });
+
+  it('7.8  POST /api/v1/orders (Mode A) → 201 creates sender-to-self order', async () => {
+    const res = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        senderName: 'Mode A Sender',
+        senderMobile: '9111111111',
+        courierId: 1,
+        products: [{ productId: 1, qty: 10, unitPrice: 500 }],
+      });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.receivers).toHaveLength(1);
+    expect(res.body.data.receivers[0].receiverName).toBe('Mode A Sender');
+  });
+
+  it('7.9  POST /api/v1/orders (Mode C) → 201 creates combo order', async () => {
+    const res = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        senderName: 'Mode C Sender',
+        senderMobile: '9222222222',
+        courierId: 1,
+        products: [{ productId: 1, qty: 5, unitPrice: 500 }],
+        receivers: [
+          {
+            receiverName: 'External Receiver',
+            receiverPhone: '9333333333',
+            address: 'Ext Addr',
+            city: 'City',
+            state: 'State',
+            pincode: '123456',
+            products: [{ productId: 1, qty: 2, unitPrice: 500 }],
+          },
+        ],
+      });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.success).toBe(true);
+    // Mode C should have 2 receivers: 1 synthetic + 1 external
+    expect(res.body.data.receivers).toHaveLength(2);
+  });
+
+  it('7.10 PATCH /api/v1/orders/:id/cancel (Fresh) → 200 succeeds for pending parcels', async () => {
+    // First create a fresh order
+    const createRes = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        senderName: 'Cancel Test',
+        senderMobile: '9444444444',
+        courierId: 1,
+        products: [{ productId: 1, qty: 1 }],
+      });
+
+    const orderId = createRes.body.data.orderId || createRes.body.data.id;
+
+    const res = await request(app)
+      .patch(`/api/v1/orders/${orderId}/cancel`)
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('7.11 GET /api/v1/orders → 200 succeeds with COURIER token (read-only)', async () => {
+    const res = await request(app)
+      .get('/api/v1/orders')
+      .set('Authorization', `Bearer ${COURIER_TOKEN}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
   });
 });
 

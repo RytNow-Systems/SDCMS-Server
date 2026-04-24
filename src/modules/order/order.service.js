@@ -44,30 +44,38 @@ class OrderService {
     }
 
     // ------------------------------------------------------------------
-    // LIVE DB MODE: Single atomic SP call
-    // Normalize payload so the SP always receives a unified receivers[] array.
+    // LIVE DB MODE: Orchestrated creation via Repository
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       // Step 1: Find-or-create the sender
-      const sender = await orderRepository.findOrCreateParty({ senderName, senderMobile, createdBy });
+      const sender = await orderRepository.findOrCreateParty({ senderName, senderMobile, address: senderAddress, createdBy });
 
-      // Step 2: Build normalized receivers array for the SP
+      // Step 2: Build normalized receivers array for the SP flow
       const normalizedReceivers = this._buildReceiversList(
         hasRootProducts, hasReceivers, products, receivers,
         senderName, senderMobile, sender
       );
 
+      // Step 3: Calculate Total Amount
+      let totalAmount = 0;
+      normalizedReceivers.forEach(rec => {
+        rec.products.forEach(p => {
+          totalAmount += (p.unitPrice || 0) * (p.qty || 0);
+        });
+      });
+
       const orderPayload = {
+        senderId: sender.PkPartyId || sender.id,
         senderName,
         senderMobile,
         senderAddress,
         courierId,
-        receivers: normalizedReceivers,
-        createdBy
+        totalAmount,
+        receivers: normalizedReceivers
       };
 
-      // Step 3: Create the full order atomically via SP
-      const result = await orderRepository.createOrder(orderPayload);
+      // Step 4: Create the full order via Repository (managed transaction)
+      const result = await orderRepository.createOrder(orderPayload, createdBy);
       return result;
     }
 
@@ -75,7 +83,7 @@ class OrderService {
     // MOCK MODE: Multi-step orchestration
     // ------------------------------------------------------------------
 
-    // Step 1: Find-or-create the sender in Party_master (returns structured address)
+    // Step 1: Find-or-create the sender in Party_master
     const sender = await orderRepository.findOrCreateParty({
       senderName,
       senderMobile,
@@ -88,12 +96,10 @@ class OrderService {
       senderName,
       senderMobile,
       senderAddress,
-      courierId,
-      createdBy
-    });
+      courierId
+    }, createdBy);
 
     // Step 3: Build receiver list based on mode
-    // Fix B3: Use sender's structured Party_master fields instead of flat senderAddress
     const receiversList = this._buildReceiversList(
       hasRootProducts, hasReceivers, products, receivers,
       senderName, senderMobile, sender
@@ -116,7 +122,6 @@ class OrderService {
 
       const savedItems = [];
 
-      // Fix B1: Use prod.qty (matches Zod schema), not prod.quantity
       for (const prod of rec.products || []) {
         const item = await orderRepository.createOrderItem(
           receiverRecord.id,
@@ -130,7 +135,7 @@ class OrderService {
         totalAmount += (prod.unitPrice || 0) * (prod.qty || 0);
       }
 
-      // 1 receiver = 1 parcel (Systemflow Part 3, Step 5)
+      // 1 receiver = 1 parcel
       const parcel = await orderRepository.createParcel(receiverRecord.id, courierId);
 
       aggregatedReceivers.push({
@@ -313,8 +318,9 @@ class OrderService {
    * @returns {Promise<object>} Updated order record.
    * @throws {Error} 404 if order not found, 400 if update blocked.
    */
-  async updateOrder(orderId, payload) {
-    const result = await orderRepository.updateOrder(orderId, payload);
+  async updateOrder(orderId, payload, user) {
+    const adminId = user?.employeeCode || null;
+    const result = await orderRepository.updateOrder(orderId, payload, adminId);
     if (!result) {
       const error = new Error('Order not found');
       error.statusCode = 404;
