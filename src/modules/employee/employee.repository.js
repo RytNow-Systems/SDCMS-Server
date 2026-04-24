@@ -124,10 +124,8 @@ class EmployeeRepository {
     // LIVE DB MODE: prc_employee_master_search (EmployeeCode=0, RoleId filtering logic)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      let roleId = 0;
-      if (role === 'ADMIN') roleId = 1;
-      else if (role === 'OPERATOR') roleId = 2;
-      else if (role === 'COURIER') roleId = 3;
+      const roleMap = { 'ADMIN': 1, 'OPERATOR': 2, 'COURIER': 3 };
+      const roleId = roleMap[role] || 0;
 
       const [rows] = await db.execute('CALL prc_employee_master_search(?, ?)', [
         0, // pEmployeeCode=0 -> Get all
@@ -140,12 +138,13 @@ class EmployeeRepository {
       if (search) {
         const s = search.toLowerCase();
         results = results.filter(e => 
-          (e.FullName && e.FullName.toLowerCase().includes(s)) || 
-          (e.EmailAddress && e.EmailAddress.toLowerCase().includes(s))
+          (e.FullName?.toLowerCase().includes(s)) || 
+          (e.EmailAddress?.toLowerCase().includes(s))
         );
       }
       if (allowLogin !== undefined) {
-        results = results.filter(e => e.AllowLogin === (allowLogin === 'true' || allowLogin === true));
+        const allowLoginBool = allowLogin === 'true' || allowLogin === true;
+        results = results.filter(e => e.AllowLogin === allowLoginBool);
       }
 
       const totalRows = results.length;
@@ -226,20 +225,19 @@ class EmployeeRepository {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
         0, // pEmployeeCode=0 → Insert
-        employeeData.FullName || employeeData.name,
+        employeeData.FullName,
         employeeData.ContactNumber || null,
-        employeeData.EmailAddress || employeeData.email,
-        employeeData.UserName || employeeData.EmailAddress || employeeData.email,
-        employeeData.Password || employeeData.password,
-        employeeData.FkRoleId || employeeData.roleId || null,
+        employeeData.EmailAddress,
+        employeeData.UserName || employeeData.EmailAddress,
+        employeeData.Password,
+        employeeData.FkRoleId || null,
         employeeData.AllowLogin !== undefined ? (employeeData.AllowLogin ? 1 : 0) : 1, // pAllowLogin
         employeeData.CreatedBy || 1, // pCreatedBy
         employeeData.IsActive !== undefined ? (employeeData.IsActive ? 1 : 0) : 1 // pIsActive
       ]);
-      // Assuming SP returns the newly created record via SELECT
-      // If not, we might need to search for it, but for now we follow the existing pattern
-      if (rows[0] && rows[0][0]) return rows[0][0];
-      return employeeData;
+      
+      // Return newly created record via SELECT output
+      return rows[0]?.[0] || employeeData;
     }
 
     // ------------------------------------------------------------------
@@ -249,10 +247,10 @@ class EmployeeRepository {
 
     const newEmployee = {
       EmployeeCode: newId,
-      FullName: employeeData.FullName || employeeData.name,
-      EmailAddress: employeeData.EmailAddress || employeeData.email,
-      Password: employeeData.Password || employeeData.password,
-      RoleCode: employeeData.RoleCode || employeeData.role,
+      FullName: employeeData.FullName,
+      EmailAddress: employeeData.EmailAddress,
+      Password: employeeData.Password,
+      RoleCode: employeeData.RoleCode,
       AllowLogin: true,
       CreatedDate: new Date().toISOString()
     };
@@ -281,19 +279,18 @@ class EmployeeRepository {
 
       const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
         id, // pEmployeeCode
-        updateData.FullName || existing.FullName,
-        updateData.ContactNumber || existing.ContactNumber,
-        updateData.EmailAddress || existing.EmailAddress,
-        updateData.UserName || existing.UserName,
-        updateData.Password || existing.Password, // Hashed in service layer
-        updateData.FkRoleId || existing.FkRoleId,
+        updateData.FullName !== undefined ? updateData.FullName : existing.FullName,
+        updateData.ContactNumber !== undefined ? updateData.ContactNumber : existing.ContactNumber,
+        updateData.EmailAddress !== undefined ? updateData.EmailAddress : existing.EmailAddress,
+        updateData.UserName !== undefined ? updateData.UserName : existing.UserName,
+        updateData.Password !== undefined ? updateData.Password : existing.Password, // Hashed in service layer
+        updateData.FkRoleId !== undefined ? updateData.FkRoleId : existing.FkRoleId,
         updateData.AllowLogin !== undefined ? (updateData.AllowLogin ? 1 : 0) : existing.AllowLogin,
         1, // pCreatedBy
         updateData.IsActive !== undefined ? (updateData.IsActive ? 1 : 0) : existing.IsActive
       ]);
       
-      if (rows[0] && rows[0][0]) return rows[0][0];
-      return await this.findById(id);
+      return rows[0]?.[0] || await this.findById(id);
     }
 
     // ------------------------------------------------------------------

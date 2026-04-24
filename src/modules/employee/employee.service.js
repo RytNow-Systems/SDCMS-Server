@@ -25,11 +25,12 @@ class EmployeeService {
     if (!employee) return null;
     return {
       employeeCode: employee.EmployeeCode || employee.employeeCode,
-      employeeName: employee.FullName || employee.name,
+      name: employee.FullName || employee.name,
       email: employee.EmailAddress || employee.email,
       phoneNo: employee.ContactNumber || employee.contactNumber || null,
-      roleCode: employee.RoleCode || employee.role,
-      allowLogin: employee.AllowLogin !== undefined ? employee.AllowLogin : employee.allowLogin,
+      role: employee.RoleCode || employee.role,
+      allowLogin: employee.AllowLogin ?? employee.allowLogin,
+      isActive: employee.IsActive ?? employee.isActive,
       createdAt: employee.CreatedDate || employee.createdAt
     };
   }
@@ -43,17 +44,20 @@ class EmployeeService {
    */
   _mapToInternal(apiData) {
     const internal = {};
-    if (apiData.employeeName) internal.FullName = apiData.employeeName;
     if (apiData.name) internal.FullName = apiData.name;
     if (apiData.email) internal.EmailAddress = apiData.email;
     if (apiData.password) internal.Password = apiData.password;
-    if (apiData.roleCode) internal.RoleCode = apiData.roleCode;
     if (apiData.role) internal.RoleCode = apiData.role;
-    if (apiData.roleId) internal.FkRoleId = apiData.roleId;
-    if (apiData.contactNumber) internal.ContactNumber = apiData.contactNumber;
     if (apiData.phoneNo) internal.ContactNumber = apiData.phoneNo;
     if (apiData.allowLogin !== undefined) internal.AllowLogin = apiData.allowLogin;
     if (apiData.isActive !== undefined) internal.IsActive = apiData.isActive;
+    
+    // Map role string to DB FkRoleId
+    if (apiData.role) {
+      const roleMap = { 'ADMIN': 1, 'OPERATOR': 2, 'COURIER': 3 };
+      internal.FkRoleId = roleMap[apiData.role];
+    }
+    
     return internal;
   }
 
