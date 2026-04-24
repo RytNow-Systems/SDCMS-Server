@@ -3,12 +3,14 @@ trigger: model_decision
 description: src/interfaces/http/**/*
 ---
 
-### SDCMS — API Contract v2.0
+### SDCMS — API Contract v2.1
 
 **Project:** Smart Dispatch & Courier Management System 
-**Date:** 2026-04-13 
+**Date:** 2026-04-23 
 **Base URL:** http://localhost:5000/api/v1 
-**Total Endpoints:** 48
+**Total Endpoints:** 54
+
+> v2.1 CHANGES: Address field consolidation, Party_Details address book, sender lookup APIs, Order Mode A/B/C, product+category dropdown.
 
 ---
 
@@ -125,6 +127,11 @@ Standard CRUD patterns. Password updates are re-hashed server-side. An admin can
 |3|GET|/products/:id|Get product by ID|
 |4|PUT|/products/:id|Update product|
 |5|DELETE|/products/:id|Soft-delete product|
+|6|GET|/products/dropdown|Product+category combined dropdown (v2.1)|
+
+##### 4.3 Product+Category Dropdown (v2.1)
+
+`GET /products/dropdown?search=cotton` Returns all active products JOINed with their `product_category.CategoryName`. Useful for order creation form searchable dropdown.
 
 ##### 4.2 Create Product
 
@@ -177,24 +184,52 @@ Standard CRUD patterns. Password updates are re-hashed server-side. An admin can
 |4|PUT|/senders/:id|Update|
 |5|DELETE|/senders/:id|Soft-delete|
 |6|GET|/senders/lookup|Find sender by phone (order form auto-fill)|
+|7|GET|/senders/names|Get all distinct sender names (autocomplete) (v2.1)|
+|8|GET|/senders/phones|Get all distinct phone numbers (autocomplete) (v2.1)|
+|9|GET|/senders/lookup-by-name|Search senders by name — partial match (v2.1)|
+|10|GET|/senders/:id/addresses|Get all addresses for a party (v2.1)|
+|11|POST|/senders/:id/addresses|Create new address for a party (v2.1)|
 
 ##### 6.2 Create Sender
 
 `POST /senders` **Request Body:**
 
-|Field|Type|Required|
-|---|---|---|
-|customerName|string|✅|
-|phoneNo|string|✅|
-|addressLine1|string|✅|
-|addressLine2|string|❌|
-|city|string|✅|
-|state|string|✅|
-|pincode|string|✅|
+|Field|Type|Required|Notes|
+|---|---|---|---|
+|customerName|string|✅||
+|phoneNo|string|✅|Min 10 chars|
+|emailId|string|❌|Valid email|
+|address|string|✅|v2.1: Single field (replaces addressLine1/2)|
+|city|string|✅||
+|state|string|✅||
+|pincode|string|✅||
 
 ##### 6.3 Sender Lookup (Auto-fill)
 
 `GET /senders/lookup?phone=9876543210` Used by the order creation form. Returns 200 with null data if not found, allowing operator to type details manually.
+
+##### 6.4 Sender Autocomplete Dropdowns (v2.1)
+
+`GET /senders/names` → Returns `string[]` of distinct active sender names.
+`GET /senders/phones` → Returns `string[]` of distinct active phone numbers.
+`GET /senders/lookup-by-name?name=John` → Returns matching sender records (partial, case-insensitive).
+
+##### 6.5 Address Book (v2.1)
+
+`GET /senders/:id/addresses` → Returns all active addresses for a party from `Party_Details`.
+`POST /senders/:id/addresses` → Creates a new address entry. **Request Body:**
+
+|Field|Type|Required|
+|---|---|---|
+|address|string|✅|
+|city|string|✅|
+|state|string|✅|
+|pincode|string|✅|
+|partyName|string|❌|
+|phoneNo|string|❌|
+|emailId|string|❌|
+|country|string|❌|
+|isDefault|boolean|❌|
 
 ---
 
@@ -214,21 +249,31 @@ Standard CRUD patterns. Password updates are re-hashed server-side. An admin can
 
 ##### 7.2 Create Order (Complex)
 
-`POST /orders` This creates the full order graph in one transaction via `prc_CreateComplexOrder`. **Request Body:**
+`POST /orders` This creates the full order graph in one transaction via `prc_order_master_set`. **Request Body:**
 
 |Field|Type|Required|Notes|
 |---|---|---|---|
 |senderName|string|✅||
 |senderMobile|string|✅|Used to dynamically find or create in `Party_master`.|
+|senderAddress|string|❌|Flat address string (snapshot only).|
 |courierId|int|✅|FK → courier_partner_master|
-|receivers|array|✅|Array of receivers|
+|products|array|❌|Root-level products (Mode A/C). v2.1|
+|receivers|array|❌|Array of receivers (Mode B/C). v2.1|
 |receivers[].receiverName|string|✅||
 |receivers[].products|array|✅|Nested products|
+
+> ⚠️ v2.1: `products` and `receivers` are both optional, but at least one must be present (Zod superRefine validation).
+
+**Order Modes (v2.1):**
+- **Mode A (Sender-to-Self):** Only root `products[]`. Backend creates synthetic receiver from `Party_master` structured address.
+- **Mode B (Normal):** Only `receivers[]`. Standard multi-receiver flow.
+- **Mode C (Combo):** Both `products[]` and `receivers[]`. Synthetic sender-receiver prepended to receivers list.
 
 **Business Rules:**
 
 - 1 receiver = 1 parcel (auto-generated with unique QR code).
 - Order status is implicitly derived as CREATED. All parcel statuses are explicitly set to PENDING. No status is inserted into the order table.
+- Mode A uses sender's `Party_master` structured address (Address, City, State, Pincode), NOT the flat `senderAddress` string.
 
 ##### 7.3 List Orders
 
