@@ -38,8 +38,11 @@ class DashboardRepository {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_dashboard_metrics_get(?)', [0]);
 
-      // Procedure returns a result set containing TotalOrders, PendingOrders, etc.
-      return (Array.isArray(rows) && rows[0]) ? (Array.isArray(rows[0]) ? rows[0][0] : rows[0]) : {};
+      // Handle MySQL procedure result format: [ [row], [meta] ]
+      const result = Array.isArray(rows) ? rows[0] : null;
+      const metrics = Array.isArray(result) ? result[0] : result;
+
+      return metrics || {};
     }
 
     // ------------------------------------------------------------------

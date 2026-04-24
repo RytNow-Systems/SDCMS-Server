@@ -14,35 +14,38 @@ class DashboardService {
    * @param {object} metrics - Raw metrics from repository
    * @returns {object} Standardized metrics object
    */
-  _mapToApi(metrics) {
-    if (!metrics) return {};
+  _mapToApi(rawMetrics) {
+    if (!rawMetrics) return {};
 
-    const TotalOrders = metrics.TotalOrders !== undefined ? metrics.TotalOrders : (metrics.totalOrders || 0);
-    const PendingOrders = metrics.PendingOrders !== undefined ? metrics.PendingOrders : (metrics.pendingOrders || 0);
-    const DispatchedOrders = metrics.DispatchedOrders !== undefined ? metrics.DispatchedOrders : (metrics.dispatchedOrders || 0);
-    const DeliveredOrders = metrics.DeliveredOrders !== undefined ? metrics.DeliveredOrders : (metrics.deliveredOrders || 0);
+    // Standardize input (handle both PascalCase from DB and potential camelCase)
+    const totalCount = rawMetrics.TotalOrders ?? rawMetrics.totalOrders ?? 0;
+    const pendingCount = rawMetrics.PendingOrders ?? rawMetrics.pendingOrders ?? 0;
+    const dispatchedCount = rawMetrics.DispatchedOrders ?? rawMetrics.dispatchedOrders ?? 0;
+    const deliveredCount = rawMetrics.DeliveredOrders ?? rawMetrics.deliveredOrders ?? 0;
 
     return {
-      // New PascalCase structure (as requested)
-      TotalOrders,
-      PendingOrders,
-      DispatchedOrders,
-      DeliveredOrders,
+      // --- NEW CONTRACT (PascalCase) ---
+      TotalOrders: totalCount,
+      PendingOrders: pendingCount,
+      DispatchedOrders: dispatchedCount,
+      DeliveredOrders: deliveredCount,
 
-      /** @deprecated Use TotalOrders instead */
-      totalOrders: TotalOrders,
-      /** @deprecated Use PendingOrders instead */
-      pendingOrders: PendingOrders,
-      /** @deprecated Use DispatchedOrders instead */
-      dispatchedOrders: DispatchedOrders,
-      /** @deprecated Use DeliveredOrders instead */
-      deliveredOrders: DeliveredOrders,
+      // --- LEGACY CONTRACT (camelCase) ---
+      /** @deprecated Use TotalOrders */
+      totalOrders: totalCount,
+      /** @deprecated Use PendingOrders */
+      pendingOrders: pendingCount,
+      /** @deprecated Use DispatchedOrders */
+      dispatchedOrders: dispatchedCount,
+      /** @deprecated Use DeliveredOrders */
+      deliveredOrders: deliveredCount,
 
-      /** @deprecated Use top-level status fields instead */
+      // --- LEGACY NESTED STRUCTURE ---
+      /** @deprecated Use top-level fields */
       parcelsByStatus: {
-        PENDING: PendingOrders,
-        DISPATCHED: DispatchedOrders,
-        DELIVERED: DeliveredOrders
+        PENDING: pendingCount,
+        DISPATCHED: dispatchedCount,
+        DELIVERED: deliveredCount
       }
     };
   }
