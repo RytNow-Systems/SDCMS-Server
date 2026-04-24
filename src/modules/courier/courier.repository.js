@@ -108,22 +108,48 @@ class CourierRepository {
   }
 
   /**
+   * Checks if a courier name already exists (excluding a specific ID for updates).
+   * Procedure: CALL prc_check_duplicate_courier_partner_master(?, ?)
+   *
+   * @param {number} id - Courier ID to exclude (0 for inserts)
+   * @param {string} name - Courier name to check
+   * @returns {Promise<number>} Count of duplicates found
+   */
+  async checkDuplicate(id, name) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_check_duplicate_courier_partner_master(?, ?)', [
+        id || 0,
+        name
+      ]);
+      return rows[0]?.[0]?.DuplicateCount || 0;
+    }
+
+    // MOCK MODE
+    const duplicate = seedCouriers.find(
+      c => c.CourierName.toLowerCase() === name.toLowerCase() && c.CourierId.toString() !== id?.toString() && c.IsActive
+    );
+    return duplicate ? 1 : 0;
+  }
+
+  /**
    * Creates a new courier partner.
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?)
-   * Convention: CourierId=0 triggers insert. No pAction on _set calls.
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
+   * Convention: CourierId=0 triggers insert.
    *
    * @param {object} courierData - { courierName, trackingUrlTemplate }
+   * @param {number|string} adminId - ID of the creating admin
    * @returns {Promise<object>} The newly created courier record.
    */
-  async create(courierData) {
+  async create(courierData, adminId) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_courier_partner_master_set (CourierId=0 → Insert)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
         0, // CourierId=0 → Insert new courier
         courierData.courierName,
-        courierData.trackingUrlTemplate,
+        courierData.trackingUrlTemplate || null,
+        adminId || null,
         1  // IsActive=1
       ]);
       return rows[0]?.[0];
@@ -136,7 +162,7 @@ class CourierRepository {
     const newCourier = {
       CourierId: newId,
       CourierName: courierData.courierName,
-      TrackingUrlTemplate: courierData.trackingUrlTemplate,
+      TrackingUrlTemplate: courierData.trackingUrlTemplate || null,
       IsActive: true,
       CreatedDate: new Date().toISOString()
     };
@@ -147,22 +173,24 @@ class CourierRepository {
 
   /**
    * Updates an existing courier partner.
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?)
-   * Convention: CourierId>0 triggers update. No pAction on _set calls.
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
+   * Convention: CourierId>0 triggers update.
    *
    * @param {number|string} id - CourierId.
    * @param {object} updates - Fields to update.
+   * @param {number|string} adminId - ID of the updating admin
    * @returns {Promise<object|null>} Updated courier record or null.
    */
-  async update(id, updates) {
+  async update(id, updates, adminId) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_courier_partner_master_set (CourierId>0 → Update)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
         id, // CourierId>0 → Update existing courier
-        updates.courierName || null,
+        updates.courierName,
         updates.trackingUrlTemplate || null,
+        adminId || null,
         1   // IsActive=1 (still active)
       ]);
       return rows[0]?.[0] || null;
@@ -182,21 +210,26 @@ class CourierRepository {
 
   /**
    * Soft-deletes a courier partner (sets IsActive=0).
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?)
-   * Convention: Pass IsActive=0 for soft-delete. No pAction on _set calls.
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
+   * Convention: Pass IsActive=0 for soft-delete.
    *
    * @param {number|string} id - CourierId.
+   * @param {number|string} adminId - ID of the deleting admin
    * @returns {Promise<boolean>} True if deleted, false if not found.
    */
-  async delete(id) {
+  async delete(id, adminId) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_courier_partner_master_set (IsActive=0 → Soft Delete)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?)', [
+      const existing = await this.findById(id);
+      if (!existing) return false;
+
+      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
         id,
-        null, // CourierName — no change
-        null, // TrackingUrlTemplate — no change
+        existing.CourierName,
+        existing.TrackingUrlTemplate,
+        adminId || null,
         0     // IsActive=0 → Soft delete
       ]);
       return true;

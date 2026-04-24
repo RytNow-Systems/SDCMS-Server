@@ -433,14 +433,26 @@ describe('6. Couriers', () => {
     expect(res.statusCode).toBe(403);
   });
 
-  it('6.8  GET /api/v1/courier-partners → 200 with COURIER token (read allowed)', async () => {
+  it('6.8  GET /api/v1/courier-partners → 403 with COURIER token (read not allowed)', async () => {
     const res = await request(app)
       .get('/api/v1/courier-partners')
       .set('Authorization', `Bearer ${COURIER_TOKEN}`);
 
-    expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data).toBeInstanceOf(Array);
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('6.9  POST /api/v1/courier-partners → 409 on duplicate courier name', async () => {
+    const res = await request(app)
+      .post('/api/v1/courier-partners')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        courierName: 'Delhivery', // Exists in seed data
+        trackingUrlTemplate: 'https://track.test.com/awb/{AWB}',
+      });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Courier name already exists');
   });
 });
 

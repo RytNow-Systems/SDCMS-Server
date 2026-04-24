@@ -38,7 +38,7 @@ export const createCourierSchema = z.object({
   contactPerson: z.string().optional(),
   phoneNo: z.string().optional(),
   email: z.string().email().optional(),
-  trackingUrlTemplate: z.string().url().optional()
+  trackingUrlTemplate: z.string().optional()
 });
 
 export const updateCourierSchema = createCourierSchema.partial();

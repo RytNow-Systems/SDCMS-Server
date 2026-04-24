@@ -7,7 +7,7 @@ Generated from api-manifest.yaml
 Method: GET
 URL: /api/v1/courier-partners
 Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR, COURIER
+Roles: ADMIN
 
 Expected Status: 200
 
@@ -15,7 +15,7 @@ Expected Status: 200
 Method: POST
 URL: /api/v1/courier-partners
 Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
+Roles: ADMIN
 Headers:
   Content-Type: application/json
 
@@ -31,7 +31,7 @@ Expected Status: 201
 Method: GET
 URL: /api/v1/courier-partners/:id
 Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR, COURIER
+Roles: ADMIN
 
 Expected Status: 200
 
@@ -39,7 +39,7 @@ Expected Status: 200
 Method: PUT
 URL: /api/v1/courier-partners/:id
 Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
+Roles: ADMIN
 Headers:
   Content-Type: application/json
 
@@ -54,6 +54,6 @@ Expected Status: 200
 Method: DELETE
 URL: /api/v1/courier-partners/:id
 Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
+Roles: ADMIN
 
 Expected Status: 200
