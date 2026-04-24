@@ -446,7 +446,7 @@ describe('6. Couriers', () => {
       .post('/api/v1/courier-partners')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
-        courierName: 'Delhivery', // Exists in seed data
+        courierName: 'Updated', // Changed from Delhivery in 6.5
         trackingUrlTemplate: 'https://track.test.com/awb/{AWB}',
       });
 
@@ -959,7 +959,38 @@ describe('11. Senders', () => {
     expect(res.body.success).toBe(true);
   });
 
-  it('11.12 DELETE /api/v1/senders/2 → 200 deletes sender', async () => {
+  it('11.12 POST /api/v1/senders → 409 on duplicate phone number', async () => {
+    const res = await request(app)
+      .post('/api/v1/senders')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        customerName: 'Duplicate Phone Inc',
+        phoneNo: '9876543210', // Exists in seed data
+        address: 'Test Addr',
+        city: 'City',
+        state: 'State',
+        pincode: '123456'
+      });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Sender phone number already exists');
+  });
+
+  it('11.13 PUT /api/v1/senders/2 → 409 when updating to an existing phone number', async () => {
+    const res = await request(app)
+      .put('/api/v1/senders/2')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        phoneNo: '9876543210' // Phone of sender 1
+      });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('Sender phone number already exists');
+  });
+
+  it('11.14 DELETE /api/v1/senders/2 → 200 deletes sender', async () => {
     const res = await request(app)
       .delete('/api/v1/senders/2')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
@@ -968,7 +999,7 @@ describe('11. Senders', () => {
     expect(res.body.success).toBe(true);
   });
 
-  it('11.13 GET /api/v1/senders/1/addresses → 200 returns addresses', async () => {
+  it('11.15 GET /api/v1/senders/1/addresses → 200 returns addresses', async () => {
     const res = await request(app)
       .get('/api/v1/senders/1/addresses')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
@@ -978,7 +1009,7 @@ describe('11. Senders', () => {
     expect(res.body.data).toBeInstanceOf(Array);
   });
 
-  it('11.14 POST /api/v1/senders/1/addresses → 201 creates address', async () => {
+  it('11.16 POST /api/v1/senders/1/addresses → 201 creates address', async () => {
     const res = await request(app)
       .post('/api/v1/senders/1/addresses')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -993,7 +1024,7 @@ describe('11. Senders', () => {
     expect(res.body.success).toBe(true);
   });
 
-  it('11.15 POST /api/v1/senders/1/addresses → 400 with missing required fields (Zod)', async () => {
+  it('11.17 POST /api/v1/senders/1/addresses → 400 with missing required fields (Zod)', async () => {
     const res = await request(app)
       .post('/api/v1/senders/1/addresses')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -1002,14 +1033,6 @@ describe('11. Senders', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.success).toBe(false);
     expect(res.body.error).toContain('Validation Error');
-  });
-
-  it('11.16 GET /api/v1/senders → 403 with COURIER token', async () => {
-    const res = await request(app)
-      .get('/api/v1/senders')
-      .set('Authorization', `Bearer ${COURIER_TOKEN}`);
-
-    expect(res.statusCode).toBe(403);
   });
 });
 

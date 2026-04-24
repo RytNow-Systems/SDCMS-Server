@@ -20,7 +20,7 @@ import bcrypt from 'bcryptjs';
 // Used when USE_MOCK_DB=true for frontend development without a live database.
 // ============================================================================
 // Use a hardcoded hash for 'securePass123' to avoid async bcrypt during module initialization
-const HASHED_MOCK_PASSWORD = '$2a$10$X8O.U0H2qG6/Y0eG/P4Kze.U/M0.Z/0g/0H0Y0M0/0M0000000000'; // dummy hash
+const HASHED_MOCK_PASSWORD = '$2b$10$3a6myMEFAljTFDVh3agsAuQ0euXF0v6pUOA.Hw.oeIZEjncNsDn3W'; // hash for 'securePass123'
 
 let seedEmployees = [
   {

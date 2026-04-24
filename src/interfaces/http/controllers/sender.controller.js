@@ -56,7 +56,7 @@ export const lookupByPhone = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const createSender = asyncHandler(async (req, res) => {
-  const sender = await senderService.createSender(req.body);
+  const sender = await senderService.createSender(req.body, req.user);
   
   res.status(201).json({
     success: true,
@@ -70,7 +70,7 @@ export const createSender = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const updateSender = asyncHandler(async (req, res) => {
-  const sender = await senderService.updateSender(req.params.id, req.body);
+  const sender = await senderService.updateSender(req.params.id, req.body, req.user);
   
   res.status(200).json({
     success: true,
@@ -84,7 +84,7 @@ export const updateSender = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const deleteSender = asyncHandler(async (req, res) => {
-  await senderService.deleteSender(req.params.id);
+  await senderService.deleteSender(req.params.id, req.user);
   
   res.status(200).json({
     success: true,

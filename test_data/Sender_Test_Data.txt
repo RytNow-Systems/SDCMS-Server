@@ -122,3 +122,23 @@ Body:
 }
 
 Expected Status: 201
+
+--- TEST 12: Duplicate Phone Check (Create) ---
+Method: POST
+URL: /api/v1/senders
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "customerName": "Duplicate Inc",
+  "phoneNo": "9876543210",
+  "address": "Anywhere",
+  "city": "Anycity",
+  "state": "Anystate",
+  "pincode": "123456"
+}
+
+Expected Status: 409

@@ -27,7 +27,7 @@ class SenderService {
    * @returns {Promise<Array>}
    */
   async getSenders() {
-    const senders = await senderRepository.findAll();
+    const senders = await senderRepository.findAll(30);
     return senders.map(s => this._mapToApi(s));
   }
 
@@ -37,7 +37,7 @@ class SenderService {
    * @returns {Promise<object>}
    */
   async getSenderById(id) {
-    const sender = await senderRepository.findById(id);
+    const sender = await senderRepository.findById(id, 30);
     if (!sender) {
       const error = new Error('Sender not found');
       error.statusCode = 404;
@@ -49,11 +49,19 @@ class SenderService {
   /**
    * Creates a new sender.
    * @param {object} senderData 
+   * @param {object} user 
    * @returns {Promise<object>}
    */
-  async createSender(senderData) {
-    // Note: pPartyId = 0 for Insert
-    const result = await senderRepository.upsert(0, senderData);
+  async createSender(senderData, user) {
+    const count = await senderRepository.checkDuplicate(0, senderData.phoneNo);
+    if (count > 0) {
+      const error = new Error('Sender phone number already exists');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const adminId = user?.id || user?.employeeCode || 1;
+    const result = await senderRepository.create(senderData, adminId, 30);
     return this._mapToApi(result);
   }
 
@@ -61,29 +69,42 @@ class SenderService {
    * Updates an existing sender.
    * @param {number|string} id 
    * @param {object} senderData 
+   * @param {object} user 
    * @returns {Promise<object>}
    */
-  async updateSender(id, senderData) {
-    // Verify existence first
-    await this.getSenderById(id);
+  async updateSender(id, senderData, user) {
+    const existing = await this.getSenderById(id);
 
-    // Note: pPartyId = id for Update
-    const result = await senderRepository.upsert(id, senderData);
+    if (senderData.phoneNo && senderData.phoneNo !== existing.phoneNo) {
+      const count = await senderRepository.checkDuplicate(id, senderData.phoneNo);
+      if (count > 0) {
+        const error = new Error('Sender phone number already exists');
+        error.statusCode = 409;
+        throw error;
+      }
+    }
+
+    const adminId = user?.id || user?.employeeCode || 1;
+    // merge existing with update data
+    const payload = {
+      ...existing,
+      ...senderData
+    };
+    const result = await senderRepository.update(id, payload, adminId, 30);
     return this._mapToApi(result);
   }
 
   /**
    * Soft-deletes a sender.
    * @param {number|string} id 
+   * @param {object} user 
    * @returns {Promise<object>}
    */
-  async deleteSender(id) {
-    // Verify existence first
+  async deleteSender(id, user) {
     await this.getSenderById(id);
-
-    // Note: pIsActive = 0 for Soft-Delete
-    const result = await senderRepository.upsert(id, {}, 0);
-    return true; // usually delete returns a truthy value or success message
+    const adminId = user?.id || user?.employeeCode || 1;
+    await senderRepository.delete(id, adminId, 30);
+    return true;
   }
 
   /**
@@ -98,7 +119,8 @@ class SenderService {
       error.statusCode = 400;
       throw error;
     }
-    const sender = await senderRepository.findByPhone(phone);
+    const senders = await senderRepository.findAll(30);
+    const sender = senders.find(s => s.PhoneNo === phone);
     if (!sender) {
       const error = new Error(`No sender found for phone: ${phone}`);
       error.statusCode = 404;
@@ -118,7 +140,10 @@ class SenderService {
    * @returns {Promise<Array<string>>} List of party name strings.
    */
   async getAllSenderNames(partyTypeId = null) {
-    return await senderRepository.findAllNames(partyTypeId);
+    // For senders, partyTypeId is 30 in the DB, though the arg might be 1 from the controller.
+    // Let's use 30 if partyTypeId is 1 (or 31 if 2), or just map directly.
+    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
+    return await senderRepository.findAllNames(typeId);
   }
 
   /**
@@ -127,7 +152,8 @@ class SenderService {
    * @returns {Promise<Array<string>>} List of phone number strings.
    */
   async getAllPhoneNumbers(partyTypeId = null) {
-    return await senderRepository.findAllPhones(partyTypeId);
+    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
+    return await senderRepository.findAllPhones(typeId);
   }
 
   /**
@@ -143,7 +169,8 @@ class SenderService {
       error.statusCode = 400;
       throw error;
     }
-    const parties = await senderRepository.findByName(name, partyTypeId);
+    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
+    const parties = await senderRepository.findByName(name, typeId);
     return parties.map((s) => this._mapToApi(s));
   }
 
@@ -182,7 +209,7 @@ class SenderService {
    */
   async getAddressesByPartyId(partyId) {
     // Verify party exists first
-    const party = await senderRepository.findById(partyId);
+    const party = await senderRepository.findById(partyId, null);
     if (!party) {
       const error = new Error('Party not found');
       error.statusCode = 404;
@@ -203,7 +230,7 @@ class SenderService {
    */
   async createAddress(partyId, data, user) {
     // Verify party exists first
-    const party = await senderRepository.findById(partyId);
+    const party = await senderRepository.findById(partyId, null);
     if (!party) {
       const error = new Error('Party not found');
       error.statusCode = 404;
