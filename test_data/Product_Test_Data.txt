@@ -1,76 +1,38 @@
-==================================================
-PRODUCT CATALOG — Test Data
-Generated from api-manifest.yaml
-==================================================
-
---- TEST 1: List Products ---
-Method: GET
-URL: /api/v1/products
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-
-Expected Status: 200
-Assertions:
-  1. res.status equals 200
-  2. res.body.data is Array
-
---- TEST 2: Create Product ---
-Method: POST
-URL: /api/v1/products
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-Headers:
-  Content-Type: application/json
-
-Body:
+### Create Product
+POST /api/v1/products
+Content-Type: application/json
 {
-  "productName": "Heavy Equipment",
-  "materialRate": 500
+  "materialName": "Cotton Fiber",
+  "materialRate": 500.50,
+  "cuItemCode": "CF-001",
+  "categoryId": 1,
+  "unitId": 1,
+  "materialDescription": "High quality cotton fiber"
 }
 
-Expected Status: 201
-Assertions:
-  1. res.status equals 201
-  2. res.body.success is true
+### Get All Products
+GET /api/v1/products?categoryId=1&unitId=1
 
---- TEST 3: Get Product by ID ---
-Method: GET
-URL: /api/v1/products/:id
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
+### Get Product by ID
+GET /api/v1/products/1
 
-Expected Status: 200
-
---- TEST 4: Update Product ---
-Method: PUT
-URL: /api/v1/products/:id
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-Headers:
-  Content-Type: application/json
-
-Body:
+### Update Product
+PUT /api/v1/products/1
+Content-Type: application/json
 {
-  "materialRate": 550
+  "materialName": "Premium Cotton Fiber",
+  "materialRate": 550.00
 }
 
-Expected Status: 200
+### Delete Product
+DELETE /api/v1/products/1
 
---- TEST 5: Delete Product ---
-Method: DELETE
-URL: /api/v1/products/:id
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-
-Expected Status: 200
-
---- TEST 6: Product Dropdown ---
-Method: GET
-URL: /api/v1/products/dropdown
-Auth: Bearer <TOKEN>
-Roles: ADMIN, OPERATOR
-
-Expected Status: 200
-Assertions:
-  1. res.status equals 200
-  2. res.body.data is Array
+### Duplicate Check Test (Create)
+POST /api/v1/products
+Content-Type: application/json
+{
+  "materialName": "Cotton Fiber",
+  "materialRate": 500.50,
+  "categoryId": 1
+}
+# Expected: 409 Conflict

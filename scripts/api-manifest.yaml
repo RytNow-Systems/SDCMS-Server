@@ -65,10 +65,10 @@ collections:
         method: GET
         path: /products
         roles: [ADMIN, OPERATOR]
-        description: Retrieves all active products with pagination.
+        description: Retrieves products filtered by categoryId or unitId.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "productId": 1, "productName": "Cotton Roll", "materialRate": 500 }] }
+          { "success": true, "data": [{ "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryName": "Textiles" }] }
         assertions:
           - "res.status equals 200"
           - "res.body.data is Array"
@@ -80,10 +80,10 @@ collections:
         description: Adds a new product to the catalog.
         headers: { Content-Type: application/json }
         body: |
-          { "productName": "Heavy Equipment", "materialRate": 500 }
+          { "materialName": "Heavy Equipment", "materialRate": 500, "categoryId": 1, "unitId": 1 }
         responseStatus: 201
         responseBody: |
-          { "success": true, "data": { "productId": 2, "productName": "Heavy Equipment", "materialRate": 500 } }
+          { "success": true, "data": { "id": 2, "materialName": "Heavy Equipment", "materialRate": 500 } }
         assertions:
           - "res.status equals 201"
           - "res.body.success is true"
@@ -119,7 +119,7 @@ collections:
         description: Combined product + category dropdown list for forms.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "productId": 1, "productName": "Cotton Roll", "categoryName": "Textiles" }] }
+          { "success": true, "data": [{ "id": 1, "materialName": "Cotton Roll", "categoryName": "Textiles", "label": "Cotton Roll (Textiles)" }] }
         assertions:
           - "res.status equals 200"
           - "res.body.data is Array"

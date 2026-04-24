@@ -49,15 +49,21 @@ export const updateCourierSchema = createCourierSchema.partial();
 // PRODUCT SCHEMAS
 // ----------------------------------------------------------------------------
 export const createProductSchema = z.object({
-  productName: z.string().min(1, 'Product name is required'),
-  description: z.string().optional(),
-  materialRate: z.number().nonnegative().optional()
+  materialName: z.string().min(1, 'Material name is required'),
+  materialRate: z.number({ required_error: 'Material rate is required' }).nonnegative('Rate cannot be negative'),
+  cuItemCode: z.string().optional(),
+  categoryId: z.number().int().positive().optional(),
+  unitId: z.number().int().positive().optional(),
+  materialDescription: z.string().optional()
 });
 
 export const updateProductSchema = z.object({
-  productName: z.string().min(1, 'Product name is required').optional(),
-  description: z.string().optional(),
-  materialRate: z.number().nonnegative().optional(),
+  materialName: z.string().min(1, 'Material name is required').optional(),
+  materialRate: z.number().nonnegative('Rate cannot be negative').optional(),
+  cuItemCode: z.string().optional(),
+  categoryId: z.number().int().positive().optional(),
+  unitId: z.number().int().positive().optional(),
+  materialDescription: z.string().optional(),
   isActive: z.boolean().optional()
 });
 

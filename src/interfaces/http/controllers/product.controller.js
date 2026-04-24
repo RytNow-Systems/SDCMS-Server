@@ -12,19 +12,18 @@ import productService from '../../../modules/product/product.service.js';
 // @route   GET /api/v1/products
 // @access  Private/Admin,Operator
 export const getProducts = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 20;
-  const search = req.query.search || '';
+  const categoryId = parseInt(req.query.categoryId) || 0;
+  const unitId = parseInt(req.query.unitId) || 0;
 
-  const products = await productService.getProducts(page, limit, search);
+  const products = await productService.getProducts(categoryId, unitId);
   
   res.status(200).json({
     success: true,
     data: products.data,
     meta: {
       total: products.total,
-      page,
-      limit
+      categoryId,
+      unitId
     }
   });
 });
@@ -45,7 +44,7 @@ export const getProductById = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/products
 // @access  Private/Admin,Operator
 export const createProduct = asyncHandler(async (req, res) => {
-  const product = await productService.createProduct(req.body);
+  const product = await productService.createProduct(req.body, req.user.id);
   
   res.status(201).json({
     success: true,
@@ -57,7 +56,7 @@ export const createProduct = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/products/:id
 // @access  Private/Admin,Operator
 export const updateProduct = asyncHandler(async (req, res) => {
-  const product = await productService.updateProduct(req.params.id, req.body);
+  const product = await productService.updateProduct(req.params.id, req.body, req.user.id);
   
   res.status(200).json({
     success: true,
@@ -82,7 +81,7 @@ export const getProductDropdown = asyncHandler(async (req, res) => {
 // @route   DELETE /api/v1/products/:id
 // @access  Private/Admin,Operator
 export const deleteProduct = asyncHandler(async (req, res) => {
-  await productService.deleteProduct(req.params.id);
+  await productService.deleteProduct(req.params.id, req.user.id);
   
   res.status(200).json({
     success: true,

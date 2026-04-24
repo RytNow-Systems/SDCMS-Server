@@ -155,7 +155,7 @@ describe('3. Auth — Profile', () => {
 // ██████ 4. MASTER DATA — PRODUCTS ██████
 // ============================================================================
 describe('4. Products CRUD', () => {
-  it('4.1  GET /api/v1/products → 200 with paginated list', async () => {
+  it('4.1  GET /api/v1/products → 200 with list', async () => {
     const res = await request(app)
       .get('/api/v1/products')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
@@ -169,11 +169,12 @@ describe('4. Products CRUD', () => {
     const res = await request(app)
       .post('/api/v1/products')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ productName: 'Test Widget', materialRate: 99.99 });
+      .send({ materialName: 'Test Widget', materialRate: 99.99, categoryId: 1, unitId: 1 });
 
     expect(res.statusCode).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toBeDefined();
+    expect(res.body.data.materialName).toBe('Test Widget');
   });
 
   it('4.3  GET /api/v1/products/1 → 200 gets product by ID', async () => {
@@ -203,7 +204,7 @@ describe('4. Products CRUD', () => {
     expect(res.body.success).toBe(false);
   });
 
-  it('4.6  POST /api/v1/products → 400 with missing productName (Zod)', async () => {
+  it('4.6  POST /api/v1/products → 400 with missing materialName (Zod)', async () => {
     const res = await request(app)
       .post('/api/v1/products')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -218,10 +219,11 @@ describe('4. Products CRUD', () => {
     const res = await request(app)
       .put('/api/v1/products/1')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ productName: 'Updated' });
+      .send({ materialName: 'Updated' });
 
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(res.body.data.materialName).toBe('Updated');
   });
 
   it('4.8  DELETE /api/v1/products/3 → 200 soft-deletes product', async () => {
@@ -241,6 +243,27 @@ describe('4. Products CRUD', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toBeInstanceOf(Array);
+    if (res.body.data.length > 0) {
+      expect(res.body.data[0]).toHaveProperty('label');
+    }
+  });
+
+  it('4.10 POST /api/v1/products → 409 on duplicate product', async () => {
+    // Create a product
+    await request(app)
+      .post('/api/v1/products')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({ materialName: 'Duplicate Test', materialRate: 10, categoryId: 1 });
+
+    // Try to create it again
+    const res = await request(app)
+      .post('/api/v1/products')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({ materialName: 'Duplicate Test', materialRate: 10, categoryId: 1 });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain('already exists');
   });
 });
 
