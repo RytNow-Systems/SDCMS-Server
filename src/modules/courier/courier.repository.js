@@ -211,14 +211,19 @@ class CourierRepository {
     // LIVE DB MODE: prc_courier_partner_master_set (CourierId>0 → Update)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
+      // Fetch existing record to validate existence and preserve unchanged fields
+      const existing = await this.findById(id);
+      if (!existing) return null;
+
+      await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
         id, // CourierId>0 → Update existing courier
-        updates.courierName,
-        updates.trackingUrlTemplate || null,
+        updates.courierName ?? existing.CourierName,
+        updates.trackingUrlTemplate ?? existing.TrackingUrlTemplate ?? null,
         adminId || null,
-        1   // IsActive=1 (still active)
+        updates.isActive !== undefined ? (updates.isActive ? 1 : 0) : 1
       ]);
-      return rows[0]?.[0] || null;
+      // Re-fetch to return the updated record (SP may not SELECT after UPDATE)
+      return await this.findById(id);
     }
 
     // ------------------------------------------------------------------
