@@ -43,43 +43,68 @@ initializeSeedData();
 class CourierRepository {
   /**
    * Fetches a paginated list of courier partners with optional search.
-   * Procedure: CALL prc_courier_partner_master_get(?, ?, ?, ?)
-   * Convention: pAction=0 → paginated list.
+   * Procedure: CALL prc_courier_partner_master_get(?, ?)
+   * Convention: pAction=0 → list all, pCourierId=0 → no specific filter.
+   * Pagination and search filtering are handled in-memory (master data table).
    *
-   * @param {number} page - Page number.
-   * @param {number} limit - Results per page.
-   * @param {string} search - Optional search term.
-   * @returns {Promise<object>} { data: [...], total: number }
+   * @param {object} params - { page, limit, search }
+   * @returns {Promise<object>} { data: [...], meta: { page, limit, totalRows, totalPages } }
    */
-  async findAll(page = 1, limit = 20, search = '') {
+  async findAll({ page = 1, limit = 20, search } = {}) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_courier_partner_master_get (pAction=0)
+    // LIVE DB MODE: prc_courier_partner_master_get (pAction=0, pCourierId=0)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?, ?, ?)', [
-        0, // pAction=0 → Get all couriers (paginated)
-        page,
-        limit,
-        search || null
+      const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [
+        0, // pAction=0 → Get all couriers
+        0  // pCourierId=0 → No specific courier filter
       ]);
-      return { data: rows[0], total: rows[1]?.[0]?.total_records || 0 };
+
+      let results = rows[0] || [];
+
+      // In-memory filter for search
+      if (search) {
+        const s = search.toLowerCase();
+        results = results.filter(c =>
+          c.CourierName?.toLowerCase().includes(s)
+        );
+      }
+
+      const totalRows = results.length;
+      const startIndex = (page - 1) * limit;
+      const paginatedItems = results.slice(startIndex, startIndex + limit);
+
+      return {
+        data: paginatedItems,
+        meta: { page: parseInt(page), limit: parseInt(limit), totalRows, totalPages: Math.ceil(totalRows / limit) }
+      };
     }
 
     // ------------------------------------------------------------------
-    // MOCK MODE: In-memory filtering
+    // MOCK MODE: In-memory filtering and pagination
     // ------------------------------------------------------------------
     const activeCouriers = seedCouriers.filter(c => c.IsActive);
-    let filtered = activeCouriers;
+    let results = [...activeCouriers];
 
     if (search) {
-      filtered = filtered.filter(c =>
-        c.CourierName.toLowerCase().includes(search.toLowerCase())
+      const s = search.toLowerCase();
+      results = results.filter(c =>
+        c.CourierName.toLowerCase().includes(s)
       );
     }
 
+    const totalRows = results.length;
+    const startIndex = (page - 1) * limit;
+    const paginatedItems = results.slice(startIndex, startIndex + limit);
+
     return {
-      data: filtered,
-      total: filtered.length
+      data: paginatedItems,
+      meta: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalRows,
+        totalPages: Math.ceil(totalRows / limit)
+      }
     };
   }
 
