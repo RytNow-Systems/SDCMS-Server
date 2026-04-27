@@ -170,14 +170,23 @@ class CourierRepository {
     // LIVE DB MODE: prc_courier_partner_master_set (CourierId=0 → Insert)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
-        0, // CourierId=0 → Insert new courier
-        courierData.courierName,
-        courierData.trackingUrlTemplate || null,
-        adminId || null,
-        1  // IsActive=1
-      ]);
-      return rows[0]?.[0];
+      // Use a dedicated connection so LAST_INSERT_ID() is reliable
+      const connection = await db.getConnection();
+      try {
+        await connection.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
+          0, // CourierId=0 → Insert new courier
+          courierData.courierName,
+          courierData.trackingUrlTemplate || null,
+          adminId || null,
+          1  // IsActive=1
+        ]);
+        // SP may not SELECT after INSERT; re-fetch via LAST_INSERT_ID
+        const [[idRow]] = await connection.execute('SELECT LAST_INSERT_ID() AS NewId');
+        const newId = idRow?.NewId;
+        return newId ? await this.findById(newId) : null;
+      } finally {
+        connection.release();
+      }
     }
 
     // ------------------------------------------------------------------
