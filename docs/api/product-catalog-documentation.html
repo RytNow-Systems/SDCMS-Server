@@ -244,7 +244,12 @@
         <h3 class="endpoint-name">Create Product</h3>
         <p class="endpoint-desc">Adds a new product to the catalog.</p>
         
-        
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Abstraction Support:</strong> You can provide <code>categoryName</code> instead of <code>categoryId</code>, and <code>unitCode</code> (e.g., "PCS", "KG") instead of <code>unitId</code>. The backend will automatically resolve these to their respective internal IDs.
+        </div>
+      </div>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
@@ -271,6 +276,8 @@
         <pre class="code-block"><code>{
   &quot;materialName&quot;: &quot;Heavy Equipment&quot;,
   &quot;materialRate&quot;: <span class="json-number">500</span>,
+  &quot;categoryName&quot;: &quot;Textiles&quot;,
+  &quot;unitCode&quot;: &quot;KG&quot;,
   &quot;categoryId&quot;: <span class="json-number">1</span>,
   &quot;unitId&quot;: <span class="json-number">1</span>
 }</code></pre>
@@ -349,7 +356,12 @@
         <h3 class="endpoint-name">Update Product</h3>
         <p class="endpoint-desc">Updates specific fields of an existing product.</p>
         
-        
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Abstraction Support:</strong> Just like creation, updates also support <code>categoryName</code> and <code>unitCode</code> for easier frontend integration.
+        </div>
+      </div>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>

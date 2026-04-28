@@ -168,6 +168,8 @@
         <div class="guide-box">
           <h4>Integration Guide</h4>
           <p>Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique Parcel ID (PDS-XXX).</p>
+          <p style="margin-top: 12px; font-weight: 600; color: var(--accent);">Pricing Hierarchy (v2.3):</p>
+          <p>The <code>unitPrice</code> field is now optional. If omitted, the system resolves pricing in this order: 1. Color Matrix (match colorId + size), 2. Catalog Fallback (base MaterialRate), 3. Zero.</p>
         </div>
       
 
@@ -311,6 +313,8 @@
         {
           &quot;productId&quot;: <span class="json-number">1</span>,
           &quot;qty&quot;: <span class="json-number">5</span>,
+          &quot;colorId&quot;: <span class="json-number">1</span>,
+          &quot;size&quot;: &quot;M&quot;,
           &quot;unitPrice&quot;: <span class="json-number">420</span>
         }
       ]
@@ -366,7 +370,9 @@
     {
       &quot;productId&quot;: <span class="json-number">1</span>,
       &quot;qty&quot;: <span class="json-number">10</span>,
-      &quot;unitPrice&quot;: <span class="json-number">500</span>
+      &quot;unitPrice&quot;: <span class="json-number">500</span>,
+      &quot;colorId&quot;: <span class="json-number">2</span>,
+      &quot;size&quot;: &quot;L&quot;
     }
   ]
 }</code></pre>

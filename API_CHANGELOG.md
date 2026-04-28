@@ -4,6 +4,27 @@ This document tracks all API changes and provides a checklist for keeping Bruno 
 
 ---
 
+## 🚀 Version 2.3: Name-to-ID Abstraction & Pricing Hierarchy
+**Date:** Apr 28, 2026
+**Status:** Implementation Complete
+
+### 📦 Module-Specific Changes
+
+#### 1. Product Catalog ❌ Abstraction Update
+- **Create/Update Abstraction**: The `POST /products` and `PUT /products/:id` endpoints now support resolving human-readable names to IDs.
+- **Fields Added**: `categoryName` (resolves to `categoryId`) and `unitCode` (resolves to `unitId`).
+- **Precedence**: If both an ID and a Name/Code are provided, the ID takes precedence.
+
+#### 2. Order Pipeline ❌ Pricing Hierarchy (v2.3)
+- **Automated Pricing**: The `POST /orders` endpoint no longer strictly requires `unitPrice` for each product.
+- **Resolution Chain**:
+    1. **Explicit**: If `unitPrice` is provided in the payload, it is used.
+    2. **Color Matrix**: Match by `colorId` + `size` in the product variations.
+    3. **Catalog Fallback**: Fallback to the `MaterialRate` in the base product master.
+    4. **Zero**: If no price is found, defaults to `0`.
+
+---
+
 ## 🚀 Version 2.0: Stored Procedure & Lifecycle Integration
 **Date:** Apr 24, 2026
 **Status:** Integrated & Verified via E2E Tests
