@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: Primary reference for the v2 database physical schema (tables, columns, types, and FKs). Use for data structure context. For logic and stored procedures, refer to api_procedure_spec document.
+description: Primary reference for the v3 database physical schema (tables, columns, types, and FKs). Use for data structure context. For logic and stored procedures, refer to api_procedure_spec document.
 ---
 
 ## 🔷 MASTER TABLES
@@ -15,9 +15,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - City
 - State
 - Pincode
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 - CreatedDate
-- UpdatedBy (INT FK → employee_master)
+- UpdatedBy
 - UpdatedDate
 - IsActive
 
@@ -38,9 +38,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - Country
 - IsActive
 - IsDefault (boolean — marks default address for a party)
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 - CreatedDate
-- UpdatedBy (INT FK → employee_master)
+- UpdatedBy
 - UpdatedDate
 
 > ✅ NEW in v2: Per-party address book. A party can have multiple shipping addresses.
@@ -50,12 +50,15 @@ description: Primary reference for the v2 database physical schema (tables, colu
 
 ### product_category
 - PkProductCategoryId (PK)
-- CategoryName
+- CategoryName (DEFAULT NULL)
 - IsActive
 - CreatedDate
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 - UpdatedDate
-- UpdatedBy (INT FK → employee_master)
+- UpdatedBy
+
+> ⚠️ v3 CHANGE: `CategoryName` constraint relaxed from NOT NULL to DEFAULT NULL.
+> ⚠️ v3 FIX: `CreatedBy` / `UpdatedBy` corrected from VARCHAR(20) to INT.
 
 ---
 
@@ -68,11 +71,40 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - cu_item_code
 - MaterialRate
 - MaterialDescription
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 - CreatedDate
-- UpdatedBy (INT FK → employee_master)
+- UpdatedBy
 - UpdatedDate
 - IsActive
+
+---
+
+### lu_color_code
+- PkLuColorId (PK, AUTO_INCREMENT)
+- ColorName (varchar 50)
+- ColorCode (varchar 20)
+- CreatedBy
+- CreatedDate
+- IsActive (default 1)
+
+> ✅ NEW in v3: Master lookup table for available product colors.
+
+---
+
+### product_color_matrix
+- PkProductColorId (PK, AUTO_INCREMENT)
+- FkProductId (FK → product_master)
+- FkLuColorId (FK → lu_color_code)
+- MaterialRate (decimal 10,2 — catalogue/list price for this specific color+size combination)
+- Size (varchar 50)
+- CreatedBy
+- CreatedDate (DEFAULT CURRENT_TIMESTAMP)
+- UpdatedBy
+- UpdatedDate (ON UPDATE CURRENT_TIMESTAMP)
+- IsActive (tinyint, default 1)
+
+> ✅ NEW in v3: Maps a product to a color and size, allowing unique pricing per combination.
+> 🔑 Pricing Hierarchy: `product_color_matrix.MaterialRate` (specific) > `product_master.MaterialRate` (catalog fallback).
 
 ---
 
@@ -82,7 +114,7 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - UnitCode
 - ConversionFactor
 - CreatedDate
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 - IsActive
 
 ---
@@ -96,7 +128,7 @@ description: Primary reference for the v2 database physical schema (tables, colu
 ---
 
 ### employee_master
-- EmployeeCode (INT PK AUTO_INCREMENT)
+- EmployeeCode (PK)
 - FullName
 - ContactNumber
 - EmailAddress
@@ -106,9 +138,9 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - AllowLogin
 - IsActive
 - CreatedDate
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 - UpdatedDate
-- UpdatedBy (INT FK → employee_master)
+- UpdatedBy
 
 ---
 
@@ -144,18 +176,19 @@ description: Primary reference for the v2 database physical schema (tables, colu
 
 ### order_master
 - PkOrderId (PK)
-- OrderCode
+- OrderCode (DEFAULT NULL)
 - FkSenderId (FK → Party_master)
 - OrderDate
 - ExpectedDeliveryDate
 - TotalAmount
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 - CreatedDate
-- UpdatedBy (INT FK → employee_master)
+- UpdatedBy
 - UpdatedDate
 - IsActive
 
 > ⚠️ Order status is DERIVED (NOT stored)
+> ⚠️ v3 CHANGE: `OrderCode` constraint relaxed from NOT NULL to DEFAULT NULL.
 
 ---
 
@@ -187,7 +220,7 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - TransactionDate
 - IsActive
 - CreatedDate
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 
 ---
 
@@ -201,7 +234,7 @@ description: Primary reference for the v2 database physical schema (tables, colu
 - LabelPrintCount
 - DispatchDate
 - CreatedDate
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 
 > ✅ Constraint:
 UNIQUE (FkCourierId, TrackingNo)
@@ -218,7 +251,7 @@ UNIQUE (FkCourierId, TrackingNo)
 - AWBNumber (nullable)
 - PreviousStatus (nullable)
 - CreatedDate
-- CreatedBy (INT FK → employee_master)
+- CreatedBy
 
 > ⚠️ Append-only audit + scan log
 
@@ -240,7 +273,7 @@ UNIQUE (FkCourierId, TrackingNo)
 - LastNotificationTime
 - LastNotificationLevel
 - IsActive
-- RequestedBy (INT FK → employee_master)
+- RequestedBy
 - IsPaymentCheck
 
 ---

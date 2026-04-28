@@ -3,7 +3,7 @@ trigger: model_decision
 description: Defines API-to-MySQL stored procedure contracts (v2). Outlines backend vs DB responsibilities (validation vs transactions) and prc_LogReceiverStatus logging. Load when writing Repositories, mapping payloads, or translating MySQL errors.
 ---
 
-# SDCMS — API ↔ Stored Procedure Contract Specification v2
+# SDCMS — API ↔ Stored Procedure Contract Specification v2.1
 
 ---
 
@@ -114,8 +114,38 @@ Every state-changing operations within `prc_parcel_details_set`, `prc_order_mast
 | Get Product Info | GET /products/:id | `prc_product_master_get` (`pAction = 1`) |
 | Product+Category Dropdown | GET /products/dropdown | `prc_product_master_get` (`pAction = 2`) |
 | Soft Delete Product | DELETE /products/:id | `prc_product_master_set` (Passing `IsActive = 0`) |
+| Search Products | (internal) | `prc_product_master_search(pPkProductId, pFkProductCategoryId, pFkUnitId)` |
+| Check Duplicate | (internal) | `prc_check_duplicate_product_master(pPkProductId, pFkProductCategoryId, pFkUnitId, pMaterialName)` |
 
 > v2 ADDITION: `pAction = 2` returns products JOINed with `product_category.CategoryName` for dropdown search.
+
+### 5.1 Product Color Matrix APIs (v2.1)
+
+| API | Endpoint | Procedure |
+|---|---|---|
+| Add/Update Color Matrix | POST /products/:id/matrix | `prc_product_color_matrix_set` (0 = Insert, >0 = Update) |
+| Get Color Matrix | GET /products/:id (enrichment) | `prc_product_color_matrix_get` (`pAction = 0`, by ProductId) |
+
+**Procedure Signatures:**
+
+```sql
+CALL prc_product_color_matrix_get(pAction INT, pPkProductColorId INT)
+-- pAction=0: Get all variations for a product (pass product ID as pPkProductColorId)
+-- pAction=1: Get specific matrix entry by PkProductColorId
+
+CALL prc_product_color_matrix_set(
+  pPkProductColorId INT,  -- 0=Insert, >0=Update
+  pFkProductId INT,
+  pFkLuColorId INT,
+  pMaterialRate DECIMAL(10,2),
+  pSize VARCHAR(50),
+  pCreatedBy INT,
+  pIsActive INT
+)
+```
+
+> ✅ v2.1 ADDITION: `lu_color_code` and `product_color_matrix` tables support per-color/size pricing.
+> 🔑 Pricing Hierarchy: explicit `unitPrice` → `product_color_matrix.MaterialRate` → `product_master.MaterialRate`.
 
 ---
 

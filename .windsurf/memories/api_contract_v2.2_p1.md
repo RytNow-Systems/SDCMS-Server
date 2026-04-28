@@ -3,13 +3,14 @@ trigger: model_decision
 description: src/interfaces/http/**/*
 ---
 
-### SDCMS — API Contract v2.1
+### SDCMS — API Contract v2.2
 
 **Project:** Smart Dispatch & Courier Management System 
-**Date:** 2026-04-23 
+**Date:** 2026-04-28 
 **Base URL:** http://localhost:5000/api/v1 
-**Total Endpoints:** 54
+**Total Endpoints:** 55
 
+> v2.2 CHANGES: Product color/size matrix endpoint, color matrix pricing hierarchy.
 > v2.1 CHANGES: Address field consolidation, Party_Details address book, sender lookup APIs, Order Mode A/B/C, product+category dropdown.
 
 ---
@@ -128,6 +129,7 @@ Standard CRUD patterns. Password updates are re-hashed server-side. An admin can
 |4|PUT|/products/:id|Update product|
 |5|DELETE|/products/:id|Soft-delete product|
 |6|GET|/products/dropdown|Product+category combined dropdown (v2.1)|
+|7|POST|/products/:id/matrix|Add/update color/size matrix variation (v2.2)|
 
 ##### 4.3 Product+Category Dropdown (v2.1)
 
@@ -142,6 +144,24 @@ Standard CRUD patterns. Password updates are re-hashed server-side. An admin can
 |materialName|string|✅|Product display name|
 |materialRate|decimal|✅|Catalog price (MRP)|
 |cuItemCode|string|❌|ERP integration code|
+
+##### 4.4 Get Product by ID (v2.2 Enrichment)
+
+`GET /products/:id` now returns the product **including** an associated `variations` array from `product_color_matrix`, showing all color/size-specific pricing entries.
+
+##### 4.5 Add/Update Product Color Matrix (v2.2)
+
+`POST /products/:id/matrix` — **ADMIN, OPERATOR**
+
+Adds or updates a color/size pricing variation for a product. Maps to `prc_product_color_matrix_set`.
+
+**Request Body:**
+
+|Field|Type|Required|Notes|
+|---|---|---|---|
+|fkLuColorId|int|✅|FK → lu_color_code|
+|materialRate|decimal|✅|Price for this color+size combo|
+|size|string|✅|Size label (e.g., S, M, L, XL)|
 
 ---
 
