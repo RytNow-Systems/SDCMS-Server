@@ -61,8 +61,93 @@ collections:
   # ========== 2. PRODUCT CATALOG ==========
   - name: Product Catalog
     slug: product-catalog
-    description: Product CRUD and dropdown endpoints
+    description: Product CRUD with inline variations, lookup CRUD (categories, colors, units), and dropdown endpoints
+    guide: "The product form has two sections: (1) Product details — name, category, unit; (2) Variations table — each row has color, size, rate. Categories, colors, and units can be created on the fly from dropdowns. Create/Update Product accepts an optional 'variations' array for atomic product + variation management."
     endpoints:
+      # --- Lookup Endpoints ---
+      - name: Get Categories
+        method: GET
+        path: /products/categories
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves all active product categories for dropdown.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "categoryName": "Textiles" }, { "id": 2, "categoryName": "Accessories" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+
+      - name: Create Category
+        method: POST
+        path: /products/categories
+        roles: [ADMIN, OPERATOR]
+        description: Creates a new product category (used when user selects 'Create New' in the dropdown).
+        headers: { Content-Type: application/json }
+        body: |
+          { "categoryName": "Electronics" }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 3, "categoryName": "Electronics" } }
+        assertions:
+          - "res.status equals 201"
+          - "res.body.data.categoryName equals Electronics"
+
+      - name: Get Units
+        method: GET
+        path: /products/units
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves all active units for dropdown.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "unitTitle": "Kilogram", "unitCode": "KG" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+
+      - name: Create Unit
+        method: POST
+        path: /products/units
+        roles: [ADMIN, OPERATOR]
+        description: Creates a new unit lookup entry (used when user selects 'Create New' in the dropdown).
+        headers: { Content-Type: application/json }
+        body: |
+          { "unitTitle": "Meter", "unitCode": "MTR" }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 4, "unitTitle": "Meter", "unitCode": "MTR" } }
+        assertions:
+          - "res.status equals 201"
+          - "res.body.data.unitCode equals MTR"
+
+      - name: Get Colors
+        method: GET
+        path: /products/colors
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves all active color lookup entries for dropdown.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "colorName": "Red", "colorCode": "RED" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+
+      - name: Create Color
+        method: POST
+        path: /products/colors
+        roles: [ADMIN, OPERATOR]
+        description: Creates a new color lookup entry (used when user selects 'Create New' in the dropdown).
+        headers: { Content-Type: application/json }
+        body: |
+          { "colorName": "Crimson", "colorCode": "CRM" }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 4, "colorName": "Crimson", "colorCode": "CRM" } }
+        notes: "colorCode is optional and defaults to an empty string if not provided."
+        assertions:
+          - "res.status equals 201"
+          - "res.body.data.colorName equals Crimson"
+
+      # --- Product CRUD ---
       - name: List Products
         method: GET
         path: /products
@@ -82,35 +167,43 @@ collections:
         method: POST
         path: /products
         roles: [ADMIN, OPERATOR]
-        description: Adds a new product to the catalog.
+        description: Creates a new product with optional inline variations. categoryId and unitId are required. materialRate defaults to 0 if omitted (pricing is primarily per-variation).
         headers: { Content-Type: application/json }
         body: |
-          { "materialName": "Heavy Equipment", "materialRate": 500, "categoryId": 1, "unitId": 1 }
+          { "materialName": "Heavy Equipment", "categoryId": 1, "unitId": 1, "materialRate": 500, "variations": [{ "colorId": 1, "size": "M", "materialRate": 550 }, { "colorId": 2, "size": "L", "materialRate": 600 }] }
         responseStatus: 201
         responseBody: |
-          { "success": true, "data": { "id": 2, "materialName": "Heavy Equipment", "materialRate": 500 } }
+          { "success": true, "data": { "id": 2, "materialName": "Heavy Equipment", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "id": 1, "colorId": 1, "size": "M", "materialRate": 550 }, { "id": 2, "colorId": 2, "size": "L", "materialRate": 600 }] } }
+        notes: "categoryId and unitId are required. materialRate is optional (defaults to 0). The variations array is optional — omit it to create a product without variations."
         assertions:
           - "res.status equals 201"
           - "res.body.success is true"
+          - "res.body.data.variations is Array"
 
       - name: Get Product by ID
         method: GET
         path: /products/:id
         roles: [ADMIN, OPERATOR]
-        description: Retrieves a single product by its primary key.
+        description: Retrieves a single product by its primary key, including all active variations.
         parameters:
           id: { type: 'number', description: 'Unique identifier of the product' }
         responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "id": 1, "colorId": 1, "colorName": "Red", "size": "M", "materialRate": 550 }] } }
 
       - name: Update Product
         method: PUT
         path: /products/:id
         roles: [ADMIN, OPERATOR]
-        description: Updates specific fields of an existing product.
+        description: "Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use matrixId to distinguish: present = update, absent = insert, isActive:false = soft-delete."
         headers: { Content-Type: application/json }
         body: |
-          { "materialRate": 550 }
+          { "materialRate": 550, "variations": [{ "matrixId": 1, "colorId": 1, "size": "M", "materialRate": 560 }, { "colorId": 3, "size": "S", "materialRate": 480 }, { "matrixId": 2, "isActive": false }] }
         responseStatus: 200
+        notes: "All fields optional. Variations diff: matrixId present → update, matrixId absent → insert new, matrixId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors."
+        assertions:
+          - "res.status equals 200"
+          - "res.body.success is true"
 
       - name: Delete Product
         method: DELETE
@@ -123,26 +216,26 @@ collections:
         method: GET
         path: /products/dropdown
         roles: [ADMIN, OPERATOR]
-        description: Combined product + category dropdown list for forms.
+        description: Combined product + category flat dropdown list for order forms.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "id": 1, "materialName": "Cotton Roll", "categoryName": "Textiles", "label": "Cotton Roll (Textiles)" }] }
+          { "success": true, "data": [{ "productId": 1, "variationId": 1, "materialName": "Cotton Roll", "colorName": "Red", "size": "M", "materialRate": 550, "categoryName": "Textiles", "label": "Cotton Roll — Red / M (Textiles)" }] }
         assertions:
           - "res.status equals 200"
           - "res.body.data is Array"
 
-      - name: Add/Update Product Color Matrix
+      - name: Add/Update Product Color Matrix (Standalone)
         method: POST
         path: /products/:id/matrix
         roles: [ADMIN, OPERATOR]
-        description: Adds or updates a color/size pricing variation for a product.
+        description: Standalone endpoint to add or update a single color/size pricing variation. Kept as a fallback for individual variation edits outside the product form.
         headers: { Content-Type: application/json }
         body: |
           { "fkLuColorId": 1, "materialRate": 550, "size": "M" }
         responseStatus: 201
         responseBody: |
           { "success": true, "data": { "id": 3, "productId": 1, "colorId": 1, "materialRate": 550, "size": "M" } }
-        notes: "Pass matrixId in body for updates (returns 200). Omit matrixId for new entries (returns 201)."
+        notes: "Pass matrixId in body for updates. Omit matrixId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations."
         assertions:
           - "res.status equals 201"
           - "res.body.data.materialRate equals 550"

@@ -156,18 +156,321 @@
         <h1>SDCMS Backend API</h1>
         <h2>Product Catalog</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Products</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Product</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Product by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Product</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Product</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm get">GET</span>Product Dropdown</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm post">POST</span>Add/Update Product Color Matrix</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Categories</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Category</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Units</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm post">POST</span>Create Unit</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get Colors</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm post">POST</span>Create Color</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>List Products</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm post">POST</span>Create Product</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm get">GET</span>Get Product by ID</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Product</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Product</a><a href="#ep-11" class="toc-item"><span class="method-badge-sm get">GET</span>Product Dropdown</a><a href="#ep-12" class="toc-item"><span class="method-badge-sm post">POST</span>Add/Update Product Color Matrix (Standalone)</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
         <h2>Product Catalog</h2>
-        <p>Product CRUD and dropdown endpoints</p>
+        <p>Product CRUD with inline variations, lookup CRUD (categories, colors, units), and dropdown endpoints</p>
       </header>
 
+      
+        <div class="guide-box">
+          <h4>Integration Guide</h4>
+          <p>The product form has two sections: (1) Product details — name, category, unit; (2) Variations table — each row has color, size, rate. Categories, colors, and units can be created on the fly from dropdowns. Create/Update Product accepts an optional 'variations' array for atomic product + variation management.</p>
+        </div>
       
 
       
     <div class="endpoint-card" id="ep-0">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/products/categories</code>
+        </div>
+        <h3 class="endpoint-name">Get Categories</h3>
+        <p class="endpoint-desc">Retrieves all active product categories for dropdown.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/products/categories&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;id&quot;: <span class="json-number">1</span>,
+      &quot;categoryName&quot;: &quot;Textiles&quot;
+    },
+    {
+      &quot;id&quot;: <span class="json-number">2</span>,
+      &quot;categoryName&quot;: &quot;Accessories&quot;
+    }
+  ]
+}</code></pre>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-1">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
+          <code class="endpoint-path">/products/categories</code>
+        </div>
+        <h3 class="endpoint-name">Create Category</h3>
+        <p class="endpoint-desc">Creates a new product category (used when user selects 'Create New' in the dropdown).</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products/categories&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;categoryName&quot;:&quot;Electronics&quot;}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;categoryName&quot;: &quot;Electronics&quot;
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">201</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: {
+    &quot;id&quot;: <span class="json-number">3</span>,
+    &quot;categoryName&quot;: &quot;Electronics&quot;
+  }
+}</code></pre>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-2">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/products/units</code>
+        </div>
+        <h3 class="endpoint-name">Get Units</h3>
+        <p class="endpoint-desc">Retrieves all active units for dropdown.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/products/units&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;id&quot;: <span class="json-number">1</span>,
+      &quot;unitTitle&quot;: &quot;Kilogram&quot;,
+      &quot;unitCode&quot;: &quot;KG&quot;
+    }
+  ]
+}</code></pre>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-3">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
+          <code class="endpoint-path">/products/units</code>
+        </div>
+        <h3 class="endpoint-name">Create Unit</h3>
+        <p class="endpoint-desc">Creates a new unit lookup entry (used when user selects 'Create New' in the dropdown).</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products/units&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;unitTitle&quot;:&quot;Meter&quot;,&quot;unitCode&quot;:&quot;MTR&quot;}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;unitTitle&quot;: &quot;Meter&quot;,
+  &quot;unitCode&quot;: &quot;MTR&quot;
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">201</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: {
+    &quot;id&quot;: <span class="json-number">4</span>,
+    &quot;unitTitle&quot;: &quot;Meter&quot;,
+    &quot;unitCode&quot;: &quot;MTR&quot;
+  }
+}</code></pre>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-4">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/products/colors</code>
+        </div>
+        <h3 class="endpoint-name">Get Colors</h3>
+        <p class="endpoint-desc">Retrieves all active color lookup entries for dropdown.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/products/colors&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;id&quot;: <span class="json-number">1</span>,
+      &quot;colorName&quot;: &quot;Red&quot;,
+      &quot;colorCode&quot;: &quot;RED&quot;
+    }
+  ]
+}</code></pre>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-5">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
+          <code class="endpoint-path">/products/colors</code>
+        </div>
+        <h3 class="endpoint-name">Create Color</h3>
+        <p class="endpoint-desc">Creates a new color lookup entry (used when user selects 'Create New' in the dropdown).</p>
+        
+        
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> colorCode is optional and defaults to an empty string if not provided.
+        </div>
+      </div>
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products/colors&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;colorName&quot;:&quot;Crimson&quot;,&quot;colorCode&quot;:&quot;CRM&quot;}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;colorName&quot;: &quot;Crimson&quot;,
+  &quot;colorCode&quot;: &quot;CRM&quot;
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">201</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: {
+    &quot;id&quot;: <span class="json-number">4</span>,
+    &quot;colorName&quot;: &quot;Crimson&quot;,
+    &quot;colorCode&quot;: &quot;CRM&quot;
+  }
+}</code></pre>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-6">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
@@ -235,19 +538,20 @@
       </div>
       </div>
     </div>
-    <div class="endpoint-card" id="ep-1">
+    <div class="endpoint-card" id="ep-7">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
           <code class="endpoint-path">/products</code>
         </div>
         <h3 class="endpoint-name">Create Product</h3>
-        <p class="endpoint-desc">Adds a new product to the catalog.</p>
+        <p class="endpoint-desc">Creates a new product with optional inline variations. categoryId and unitId are required. materialRate defaults to 0 if omitted (pricing is primarily per-variation).</p>
+        
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Abstraction Support:</strong> You can provide <code>categoryName</code> instead of <code>categoryId</code>, and <code>unitCode</code> (e.g., "PCS", "KG") instead of <code>unitId</code>. The backend will automatically resolve these to their respective internal IDs.
+          <strong>Developer Note:</strong> categoryId and unitId are required. materialRate is optional (defaults to 0). The variations array is optional — omit it to create a product without variations.
         </div>
       </div>
           <div class="meta-grid">
@@ -269,17 +573,27 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;materialName&quot;:&quot;Heavy Equipment&quot;,&quot;materialRate&quot;:500,&quot;categoryId&quot;:1,&quot;unitId&quot;:1}'</code></pre>
+  -d '{&quot;materialName&quot;:&quot;Heavy Equipment&quot;,&quot;categoryId&quot;:1,&quot;unitId&quot;:1,&quot;materialRate&quot;:500,&quot;variations&quot;:[{&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:550},{&quot;colorId&quot;:2,&quot;size&quot;:&quot;L&quot;,&quot;materialRate&quot;:600}]}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
   &quot;materialName&quot;: &quot;Heavy Equipment&quot;,
-  &quot;materialRate&quot;: <span class="json-number">500</span>,
-  &quot;categoryName&quot;: &quot;Textiles&quot;,
-  &quot;unitCode&quot;: &quot;KG&quot;,
   &quot;categoryId&quot;: <span class="json-number">1</span>,
-  &quot;unitId&quot;: <span class="json-number">1</span>
+  &quot;unitId&quot;: <span class="json-number">1</span>,
+  &quot;materialRate&quot;: <span class="json-number">500</span>,
+  &quot;variations&quot;: [
+    {
+      &quot;colorId&quot;: <span class="json-number">1</span>,
+      &quot;size&quot;: &quot;M&quot;,
+      &quot;materialRate&quot;: <span class="json-number">550</span>
+    },
+    {
+      &quot;colorId&quot;: <span class="json-number">2</span>,
+      &quot;size&quot;: &quot;L&quot;,
+      &quot;materialRate&quot;: <span class="json-number">600</span>
+    }
+  ]
 }</code></pre>
       </div>
         
@@ -290,20 +604,36 @@
   &quot;data&quot;: {
     &quot;id&quot;: <span class="json-number">2</span>,
     &quot;materialName&quot;: &quot;Heavy Equipment&quot;,
-    &quot;materialRate&quot;: <span class="json-number">500</span>
+    &quot;materialRate&quot;: <span class="json-number">500</span>,
+    &quot;categoryId&quot;: <span class="json-number">1</span>,
+    &quot;unitId&quot;: <span class="json-number">1</span>,
+    &quot;variations&quot;: [
+      {
+        &quot;id&quot;: <span class="json-number">1</span>,
+        &quot;colorId&quot;: <span class="json-number">1</span>,
+        &quot;size&quot;: &quot;M&quot;,
+        &quot;materialRate&quot;: <span class="json-number">550</span>
+      },
+      {
+        &quot;id&quot;: <span class="json-number">2</span>,
+        &quot;colorId&quot;: <span class="json-number">2</span>,
+        &quot;size&quot;: &quot;L&quot;,
+        &quot;materialRate&quot;: <span class="json-number">600</span>
+      }
+    ]
   }
 }</code></pre>
       </div>
       </div>
     </div>
-    <div class="endpoint-card" id="ep-2">
+    <div class="endpoint-card" id="ep-8">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
           <code class="endpoint-path">/products/:id</code>
         </div>
         <h3 class="endpoint-name">Get Product by ID</h3>
-        <p class="endpoint-desc">Retrieves a single product by its primary key.</p>
+        <p class="endpoint-desc">Retrieves a single product by its primary key, including all active variations.</p>
         
         
           <div class="meta-grid">
@@ -343,23 +673,43 @@
         
         
       <div class="section-group">
-        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: {
+    &quot;id&quot;: <span class="json-number">1</span>,
+    &quot;materialName&quot;: &quot;Cotton Roll&quot;,
+    &quot;materialRate&quot;: <span class="json-number">500</span>,
+    &quot;categoryId&quot;: <span class="json-number">1</span>,
+    &quot;unitId&quot;: <span class="json-number">1</span>,
+    &quot;variations&quot;: [
+      {
+        &quot;id&quot;: <span class="json-number">1</span>,
+        &quot;colorId&quot;: <span class="json-number">1</span>,
+        &quot;colorName&quot;: &quot;Red&quot;,
+        &quot;size&quot;: &quot;M&quot;,
+        &quot;materialRate&quot;: <span class="json-number">550</span>
+      }
+    ]
+  }
+}</code></pre>
       </div>
       </div>
     </div>
-    <div class="endpoint-card" id="ep-3">
+    <div class="endpoint-card" id="ep-9">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#78350f;color:#fbbf24;border-color:#92400e">PUT</span>
           <code class="endpoint-path">/products/:id</code>
         </div>
         <h3 class="endpoint-name">Update Product</h3>
-        <p class="endpoint-desc">Updates specific fields of an existing product.</p>
+        <p class="endpoint-desc">Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use matrixId to distinguish: present = update, absent = insert, isActive:false = soft-delete.</p>
+        
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Abstraction Support:</strong> Just like creation, updates also support <code>categoryName</code> and <code>unitCode</code> for easier frontend integration.
+          <strong>Developer Note:</strong> All fields optional. Variations diff: matrixId present → update, matrixId absent → insert new, matrixId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors.
         </div>
       </div>
           <div class="meta-grid">
@@ -381,12 +731,29 @@
         <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/products/:id&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;materialRate&quot;:550}'</code></pre>
+  -d '{&quot;materialRate&quot;:550,&quot;variations&quot;:[{&quot;matrixId&quot;:1,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:560},{&quot;colorId&quot;:3,&quot;size&quot;:&quot;S&quot;,&quot;materialRate&quot;:480},{&quot;matrixId&quot;:2,&quot;isActive&quot;:false}]}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;materialRate&quot;: <span class="json-number">550</span>
+  &quot;materialRate&quot;: <span class="json-number">550</span>,
+  &quot;variations&quot;: [
+    {
+      &quot;matrixId&quot;: <span class="json-number">1</span>,
+      &quot;colorId&quot;: <span class="json-number">1</span>,
+      &quot;size&quot;: &quot;M&quot;,
+      &quot;materialRate&quot;: <span class="json-number">560</span>
+    },
+    {
+      &quot;colorId&quot;: <span class="json-number">3</span>,
+      &quot;size&quot;: &quot;S&quot;,
+      &quot;materialRate&quot;: <span class="json-number">480</span>
+    },
+    {
+      &quot;matrixId&quot;: <span class="json-number">2</span>,
+      &quot;isActive&quot;: <span class="json-bool">false</span>
+    }
+  ]
 }</code></pre>
       </div>
         
@@ -395,7 +762,7 @@
       </div>
       </div>
     </div>
-    <div class="endpoint-card" id="ep-4">
+    <div class="endpoint-card" id="ep-10">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#7f1d1d;color:#f87171;border-color:#991b1b">DELETE</span>
@@ -430,14 +797,14 @@
       </div>
       </div>
     </div>
-    <div class="endpoint-card" id="ep-5">
+    <div class="endpoint-card" id="ep-11">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
           <code class="endpoint-path">/products/dropdown</code>
         </div>
         <h3 class="endpoint-name">Product Dropdown</h3>
-        <p class="endpoint-desc">Combined product + category dropdown list for forms.</p>
+        <p class="endpoint-desc">Combined product + category flat dropdown list for order forms.</p>
         
         
           <div class="meta-grid">
@@ -466,30 +833,34 @@
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: [
     {
-      &quot;id&quot;: <span class="json-number">1</span>,
+      &quot;productId&quot;: <span class="json-number">1</span>,
+      &quot;variationId&quot;: <span class="json-number">1</span>,
       &quot;materialName&quot;: &quot;Cotton Roll&quot;,
+      &quot;colorName&quot;: &quot;Red&quot;,
+      &quot;size&quot;: &quot;M&quot;,
+      &quot;materialRate&quot;: <span class="json-number">550</span>,
       &quot;categoryName&quot;: &quot;Textiles&quot;,
-      &quot;label&quot;: &quot;Cotton Roll (Textiles)&quot;
+      &quot;label&quot;: &quot;Cotton Roll — Red / M (Textiles)&quot;
     }
   ]
 }</code></pre>
       </div>
       </div>
     </div>
-    <div class="endpoint-card" id="ep-6">
+    <div class="endpoint-card" id="ep-12">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
           <code class="endpoint-path">/products/:id/matrix</code>
         </div>
-        <h3 class="endpoint-name">Add/Update Product Color Matrix</h3>
-        <p class="endpoint-desc">Adds or updates a color/size pricing variation for a product.</p>
+        <h3 class="endpoint-name">Add/Update Product Color Matrix (Standalone)</h3>
+        <p class="endpoint-desc">Standalone endpoint to add or update a single color/size pricing variation. Kept as a fallback for individual variation edits outside the product form.</p>
         
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> Pass matrixId in body for updates (returns 200). Omit matrixId for new entries (returns 201).
+          <strong>Developer Note:</strong> Pass matrixId in body for updates. Omit matrixId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations.
         </div>
       </div>
           <div class="meta-grid">

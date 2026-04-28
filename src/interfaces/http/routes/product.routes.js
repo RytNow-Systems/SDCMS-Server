@@ -13,11 +13,22 @@ import {
   getProductDropdown,
   addProductMatrix,
   getProductCategories,
-  getProductUnits
+  createProductCategory,
+  getProductUnits,
+  createProductUnit,
+  getProductColors,
+  createProductColor
 } from '../controllers/product.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 import { validate } from '../../../shared/middleware/validate.middleware.js';
-import { createProductSchema, updateProductSchema, productMatrixSchema } from '../validations/validation.schemas.js';
+import {
+  createProductSchema,
+  updateProductSchema,
+  productMatrixSchema,
+  createCategorySchema,
+  createColorSchema,
+  createUnitSchema
+} from '../validations/validation.schemas.js';
 
 const router = express.Router();
 
@@ -28,8 +39,17 @@ router.use(protect);
 router.use(authorizeRoles('ADMIN', 'OPERATOR'));
 
 // Product metadata endpoints
-router.get('/categories', getProductCategories);
-router.get('/units', getProductUnits);
+router.route('/categories')
+  .get(getProductCategories)
+  .post(validate(createCategorySchema), createProductCategory);
+
+router.route('/units')
+  .get(getProductUnits)
+  .post(validate(createUnitSchema), createProductUnit);
+
+router.route('/colors')
+  .get(getProductColors)
+  .post(validate(createColorSchema), createProductColor);
 
 router.route('/')
   .get(getProducts)

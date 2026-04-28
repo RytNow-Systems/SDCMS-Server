@@ -48,15 +48,31 @@ export const updateCourierSchema = createCourierSchema.partial();
 // ----------------------------------------------------------------------------
 // PRODUCT SCHEMAS
 // ----------------------------------------------------------------------------
+
+// Variation item shape for creating new variations (all fields required)
+const createVariationItemSchema = z.object({
+  colorId: z.number({ required_error: 'Color ID is required' }).int().positive('Valid color ID is required'),
+  size: z.string({ required_error: 'Size is required' }).min(1, 'Size is required'),
+  materialRate: z.number({ required_error: 'Material rate is required' }).nonnegative('Rate cannot be negative')
+});
+
+// Variation item shape for updates (diff strategy: matrixId present = update, absent = insert, isActive:false = delete)
+const updateVariationItemSchema = z.object({
+  matrixId: z.number().int().nonnegative().optional(),
+  colorId: z.number().int().positive('Valid color ID is required').optional(),
+  size: z.string().min(1, 'Size is required').optional(),
+  materialRate: z.number().nonnegative('Rate cannot be negative').optional(),
+  isActive: z.boolean().optional()
+});
+
 export const createProductSchema = z.object({
   materialName: z.string().min(1, 'Material name is required'),
-  materialRate: z.number({ required_error: 'Material rate is required' }).nonnegative('Rate cannot be negative'),
+  materialRate: z.number().nonnegative('Rate cannot be negative').optional().default(0),
   cuItemCode: z.string().optional(),
-  categoryId: z.number().int().positive().optional(),
-  categoryName: z.string().optional(),
-  unitId: z.number().int().positive().optional(),
-  unitCode: z.string().optional(),
-  materialDescription: z.string().optional()
+  categoryId: z.number({ required_error: 'Category ID is required' }).int().positive('Valid category ID is required'),
+  unitId: z.number({ required_error: 'Unit ID is required' }).int().positive('Valid unit ID is required'),
+  materialDescription: z.string().optional(),
+  variations: z.array(createVariationItemSchema).optional()
 });
 
 export const updateProductSchema = z.object({
@@ -64,11 +80,10 @@ export const updateProductSchema = z.object({
   materialRate: z.number().nonnegative('Rate cannot be negative').optional(),
   cuItemCode: z.string().optional(),
   categoryId: z.number().int().positive().optional(),
-  categoryName: z.string().optional(),
   unitId: z.number().int().positive().optional(),
-  unitCode: z.string().optional(),
   materialDescription: z.string().optional(),
-  isActive: z.boolean().optional()
+  isActive: z.boolean().optional(),
+  variations: z.array(updateVariationItemSchema).optional()
 });
 
 export const productMatrixSchema = z.object({
@@ -76,6 +91,23 @@ export const productMatrixSchema = z.object({
   materialRate: z.number({ required_error: 'Material rate is required' }).nonnegative('Rate cannot be negative'),
   size: z.string({ required_error: 'Size is required' }).min(1, 'Size is required'),
   matrixId: z.number().int().nonnegative().optional()
+});
+
+// ----------------------------------------------------------------------------
+// PRODUCT LOOKUP SCHEMAS (Category, Color, Unit creation)
+// ----------------------------------------------------------------------------
+export const createCategorySchema = z.object({
+  categoryName: z.string({ required_error: 'Category name is required' }).min(1, 'Category name is required')
+});
+
+export const createColorSchema = z.object({
+  colorName: z.string({ required_error: 'Color name is required' }).min(1, 'Color name is required'),
+  colorCode: z.string().optional().default('')
+});
+
+export const createUnitSchema = z.object({
+  unitTitle: z.string({ required_error: 'Unit title is required' }).min(1, 'Unit title is required'),
+  unitCode: z.string({ required_error: 'Unit code is required' }).min(1, 'Unit code is required')
 });
 
 // ----------------------------------------------------------------------------

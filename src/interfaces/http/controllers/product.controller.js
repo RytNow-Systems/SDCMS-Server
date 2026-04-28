@@ -127,3 +127,49 @@ export const getProductUnits = asyncHandler(async (req, res) => {
     data: units
   });
 });
+
+// @desc    Create a new product category
+// @route   POST /api/v1/products/categories
+// @access  Private/Admin,Operator
+export const createProductCategory = asyncHandler(async (req, res) => {
+  const category = await productService.createCategory(req.body.categoryName, req.user.id);
+  res.status(201).json({
+    success: true,
+    data: category
+  });
+});
+
+// @desc    Get all product colors
+// @route   GET /api/v1/products/colors
+// @access  Private/Admin,Operator
+export const getProductColors = asyncHandler(async (req, res) => {
+  const colors = await productService.getColors();
+  res.status(200).json({
+    success: true,
+    data: colors
+  });
+});
+
+// @desc    Create a new product color
+// @route   POST /api/v1/products/colors
+// @access  Private/Admin,Operator
+export const createProductColor = asyncHandler(async (req, res) => {
+  const color = await productService.createColor(
+    req.body.colorName, req.body.colorCode || '', req.user.id
+  );
+  res.status(201).json({
+    success: true,
+    data: color
+  });
+});
+
+// @desc    Create a new unit
+// @route   POST /api/v1/products/units
+// @access  Private/Admin,Operator
+export const createProductUnit = asyncHandler(async (req, res) => {
+  const unit = await productService.createUnit(req.body.unitTitle, req.body.unitCode);
+  res.status(201).json({
+    success: true,
+    data: unit
+  });
+});

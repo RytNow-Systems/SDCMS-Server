@@ -9,7 +9,11 @@
 //   - prc_product_color_matrix_get: Color/size matrix retrieval
 //   - prc_product_color_matrix_set: Color/size matrix upsert
 //   - prc_product_category_get: Category lookup (pAction=0: all active)
+//   - prc_product_category_set: Category upsert (ID=0: insert, ID>0: update)
 //   - prc_lu_unit_get: Unit lookup (pAction=0: all active)
+//   - prc_lu_unit_set: Unit upsert (ID=0: insert, ID>0: update)
+//   - prc_lu_color_code_get: Color lookup (pAction=0: all active)
+//   - prc_lu_color_code_set: Color upsert (ID=0: insert, ID>0: update)
 // ============================================================================
 
 import db from '../../infrastructure/database/db.js';
@@ -26,6 +30,12 @@ let seedUnits = [
   { PkUnitId: 1, UnitTitle: 'Kilogram', UnitCode: 'KG', IsActive: 1 },
   { PkUnitId: 2, UnitTitle: 'Pieces', UnitCode: 'PCS', IsActive: 1 },
   { PkUnitId: 3, UnitTitle: 'Litre', UnitCode: 'LTR', IsActive: 1 }
+];
+
+let seedColors = [
+  { PkLuColorId: 1, ColorName: 'Red', ColorCode: 'RED', IsActive: 1 },
+  { PkLuColorId: 2, ColorName: 'Blue', ColorCode: 'BLU', IsActive: 1 },
+  { PkLuColorId: 3, ColorName: 'Green', ColorCode: 'GRN', IsActive: 1 }
 ];
 
 let seedColorMatrix = [
@@ -120,7 +130,7 @@ class ProductRepository {
   }
 
   // --------------------------------------------------------------------------
-  // 2. LOOKUP PROCEDURES (Categories & Units)
+  // 2. LOOKUP PROCEDURES (Categories, Units & Colors)
   // --------------------------------------------------------------------------
 
   /**
@@ -171,6 +181,102 @@ class ProductRepository {
     const units = await this.getUnits();
     const lower = code.toLowerCase();
     return units.find(u => (u.UnitCode || '').toLowerCase() === lower) || null;
+  }
+
+  /**
+   * Fetches all active colors.
+   * CALL prc_lu_color_code_get(pAction=0)
+   * @returns {Promise<Array>} List of color records.
+   */
+  async getColors() {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_lu_color_code_get(?)', [0]);
+      return rows[0] || [];
+    }
+    return seedColors.filter(c => c.IsActive);
+  }
+
+  /**
+   * Creates a new product category.
+   * CALL prc_product_category_set(0, pCategoryName, pIsActive)
+   * @param {string} categoryName - Name of the category.
+   * @param {number} adminId - User ID of creator.
+   * @returns {Promise<object|null>} Created category or null.
+   */
+  async createCategory(categoryName, adminId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_category_set(?, ?, ?, ?, ?)', [
+        0,
+        categoryName,
+        1,
+        adminId,
+        adminId
+      ]);
+      return rows[0]?.[0] || null;
+    }
+    const newCat = {
+      PkProductCategoryId: seedCategories.length + 1,
+      CategoryName: categoryName,
+      IsActive: true
+    };
+    seedCategories.push(newCat);
+    return newCat;
+  }
+
+  /**
+   * Creates a new color lookup entry.
+   * CALL prc_lu_color_code_set(0, pColorName, pColorCode, pCreatedBy, pIsActive)
+   * @param {string} colorName - Display name of the color.
+   * @param {string} colorCode - Short code (e.g., 'RED').
+   * @param {number} adminId - User ID of creator.
+   * @returns {Promise<object|null>} Created color or null.
+   */
+  async createColor(colorName, colorCode, adminId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_lu_color_code_set(?, ?, ?, ?, ?)', [
+        0,
+        colorName,
+        colorCode || '',
+        adminId,
+        1
+      ]);
+      return rows[0]?.[0] || null;
+    }
+    const newColor = {
+      PkLuColorId: seedColors.length + 1,
+      ColorName: colorName,
+      ColorCode: colorCode || '',
+      IsActive: 1
+    };
+    seedColors.push(newColor);
+    return newColor;
+  }
+
+  /**
+   * Creates a new unit lookup entry.
+   * CALL prc_lu_unit_set(0, pUnitTitle, pUnitCode, pIsActive)
+   * @param {string} unitTitle - Display name (e.g., 'Kilogram').
+   * @param {string} unitCode - Short code (e.g., 'KG').
+   * @returns {Promise<object|null>} Created unit or null.
+   */
+  async createUnit(unitTitle, unitCode) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_lu_unit_set(?, ?, ?, ?)', [
+        0,
+        unitTitle,
+        unitCode,
+        1
+      ]);
+      return rows[0]?.[0] || null;
+    }
+    const newUnit = {
+      PkUnitId: seedUnits.length + 1,
+      UnitTitle: unitTitle,
+      UnitCode: unitCode,
+      IsActive: 1
+    };
+    seedUnits.push(newUnit);
+    return newUnit;
   }
 
   /**
@@ -419,7 +525,7 @@ class ProductRepository {
    * @param {number} adminId - User ID of creator.
    * @returns {Promise<object>} The upserted matrix record.
    */
-  async setColorMatrix(matrixId, productId, data, adminId) {
+  async setColorMatrix(matrixId, productId, data, adminId, isActive = 1) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_product_color_matrix_set(?, ?, ?, ?, ?, ?, ?)', [
         matrixId || 0,
@@ -428,7 +534,7 @@ class ProductRepository {
         data.MaterialRate,
         data.Size,
         adminId,
-        1
+        isActive
       ]);
       return rows[0]?.[0] || null;
     }
@@ -437,7 +543,7 @@ class ProductRepository {
     if (matrixId && matrixId > 0) {
       const idx = seedColorMatrix.findIndex(m => m.PkProductColorId === matrixId);
       if (idx !== -1) {
-        seedColorMatrix[idx] = { ...seedColorMatrix[idx], ...data, FkProductId: productId };
+        seedColorMatrix[idx] = { ...seedColorMatrix[idx], ...data, FkProductId: productId, IsActive: isActive };
         return seedColorMatrix[idx];
       }
       return null;
@@ -446,7 +552,7 @@ class ProductRepository {
       PkProductColorId: seedColorMatrix.length + 1,
       FkProductId: productId,
       ...data,
-      IsActive: 1,
+      IsActive: isActive,
       CreatedDate: new Date().toISOString()
     };
     seedColorMatrix.push(newEntry);

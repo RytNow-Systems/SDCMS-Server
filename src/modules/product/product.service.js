@@ -113,6 +113,20 @@ class ProductService {
     };
   }
 
+  /**
+   * Translates a raw lu_color_code DB record to API-friendly camelCase.
+   * @param {object} color - Raw color record.
+   * @returns {object} API object { id, colorName, colorCode }.
+   */
+  _mapColorToApi(color) {
+    if (!color) return null;
+    return {
+      id: color.PkLuColorId || color.id,
+      colorName: color.ColorName || color.colorName,
+      colorCode: color.ColorCode || color.colorCode || null
+    };
+  }
+
   // --------------------------------------------------------------------------
   // 2. RETRIEVAL METHODS
   // --------------------------------------------------------------------------
@@ -191,37 +205,81 @@ class ProductService {
     return raw.map(u => this._mapUnitToApi(u));
   }
 
+  /**
+   * Retrieves all active colors mapped to camelCase.
+   * @returns {Promise<Array>} List of { id, colorName, colorCode } objects.
+   */
+  async getColors() {
+    const raw = await productRepository.getColors();
+    return raw.map(c => this._mapColorToApi(c));
+  }
+
+  /**
+   * Creates a new product category.
+   * @param {string} categoryName - Name of the category.
+   * @param {number} adminId - User ID of creator.
+   * @returns {Promise<object>} API-friendly category object.
+   */
+  async createCategory(categoryName, adminId) {
+    const result = await productRepository.createCategory(categoryName, adminId);
+    if (!result) {
+      // Re-fetch by name as fallback (SP may not return the inserted row)
+      const all = await productRepository.getCategories();
+      const created = all.find(c => (c.CategoryName || '').toLowerCase() === categoryName.toLowerCase());
+      return this._mapCategoryToApi(created);
+    }
+    return this._mapCategoryToApi(result);
+  }
+
+  /**
+   * Creates a new color lookup entry.
+   * @param {string} colorName - Display name of the color.
+   * @param {string} colorCode - Short code (e.g., 'RED').
+   * @param {number} adminId - User ID of creator.
+   * @returns {Promise<object>} API-friendly color object.
+   */
+  async createColor(colorName, colorCode, adminId) {
+    const result = await productRepository.createColor(colorName, colorCode, adminId);
+    if (!result) {
+      // Re-fetch by name as fallback (SP may not return the inserted row)
+      const all = await productRepository.getColors();
+      const created = all.find(c => (c.ColorName || '').toLowerCase() === colorName.toLowerCase());
+      return this._mapColorToApi(created);
+    }
+    return this._mapColorToApi(result);
+  }
+
+  /**
+   * Creates a new unit lookup entry.
+   * @param {string} unitTitle - Display name (e.g., 'Kilogram').
+   * @param {string} unitCode - Short code (e.g., 'KG').
+   * @returns {Promise<object>} API-friendly unit object.
+   */
+  async createUnit(unitTitle, unitCode) {
+    const result = await productRepository.createUnit(unitTitle, unitCode);
+    if (!result) {
+      // Re-fetch by code as fallback (SP may not return the inserted row)
+      const all = await productRepository.getUnits();
+      const created = all.find(u => (u.UnitCode || '').toLowerCase() === unitCode.toLowerCase());
+      return this._mapUnitToApi(created);
+    }
+    return this._mapUnitToApi(result);
+  }
+
   // --------------------------------------------------------------------------
   // 3. MUTATION METHODS
   // --------------------------------------------------------------------------
 
   /**
-   * Creates a new product with uniqueness validation.
+   * Creates a new product with uniqueness validation and optional inline variations.
+   * @param {object} productData - API payload { materialName, categoryId, unitId, materialRate?, variations?[] }.
+   * @param {number} adminId - User ID of creator.
+   * @returns {Promise<object>} API-friendly product with variations.
    */
   async createProduct(productData, adminId) {
     const internalData = this._mapToInternal(productData);
 
-    // Bug 1a: Name to ID resolution
-    if (productData.categoryName && !internalData.FkProductCategoryId) {
-      const cat = await productRepository.getCategoryByName(productData.categoryName);
-      if (!cat) {
-        const error = new Error(`Category '${productData.categoryName}' not found.`);
-        error.statusCode = 400;
-        throw error;
-      }
-      internalData.FkProductCategoryId = cat.PkProductCategoryId || cat.id;
-    }
-    if (productData.unitCode && !internalData.FkUnitId) {
-      const unit = await productRepository.getUnitByCode(productData.unitCode);
-      if (!unit) {
-        const error = new Error(`Unit code '${productData.unitCode}' not found.`);
-        error.statusCode = 400;
-        throw error;
-      }
-      internalData.FkUnitId = unit.PkUnitId || unit.id;
-    }
-
-    // Bug 1b: MaterialCode and cu_item_code auto-gen
+    // Auto-generate MaterialCode / cu_item_code
     if (!internalData.cu_item_code) {
       const nextCode = await productRepository.getNextItemCode();
       internalData.cu_item_code = nextCode.padStart(4, '0');
@@ -232,9 +290,9 @@ class ProductService {
 
     // Business Rule: Prevent duplicate products in the same category/unit
     const duplicateCount = await productRepository.checkDuplicate(
-      0, 
-      internalData.FkProductCategoryId, 
-      internalData.FkUnitId, 
+      0,
+      internalData.FkProductCategoryId,
+      internalData.FkUnitId,
       internalData.MaterialName
     );
 
@@ -245,67 +303,141 @@ class ProductService {
     }
 
     let newProduct = await productRepository.create(internalData, adminId);
-    
-    // Bug 1c: Re-fetch fallback if SP returned null or incomplete data
+
+    // Re-fetch fallback if SP returned null or incomplete data
     const insertedId = newProduct?.InsertedId || newProduct?.PkProductId || newProduct?.id;
     if (insertedId) {
-       newProduct = await productRepository.findById(insertedId) || newProduct;
+      newProduct = await productRepository.findById(insertedId) || newProduct;
     } else if (!newProduct || (!newProduct.PkProductId && !newProduct.id)) {
-      // Find by cu_item_code if ID is completely missing
       const searchRes = await productRepository.findAll(0, 0);
       newProduct = searchRes.find(p => p.cu_item_code === internalData.cu_item_code) || newProduct;
     }
 
-    return this._mapToApi(newProduct);
+    const productId = newProduct?.PkProductId || newProduct?.id;
+
+    // Process inline variations if provided
+    const variations = await this._processCreateVariations(
+      productData.variations || [], productId, adminId
+    );
+
+    const mapped = this._mapToApi(newProduct);
+    mapped.variations = variations;
+    return mapped;
   }
 
   /**
-   * Updates product details with uniqueness validation.
+   * Updates product details with uniqueness validation and optional variation diff.
+   * Merges partial updates with existing DB record to prevent undefined SP params.
+   * @param {number|string} id - PkProductId.
+   * @param {object} updates - API payload (all fields optional).
+   * @param {number} adminId - User ID.
+   * @returns {Promise<object>} API-friendly product with variations.
    */
   async updateProduct(id, updates, adminId) {
     const existing = await this.getProductById(id);
     const internalUpdates = this._mapToInternal(updates);
 
-    // Bug 1a: Name to ID resolution
-    if (updates.categoryName && !internalUpdates.FkProductCategoryId) {
-      const cat = await productRepository.getCategoryByName(updates.categoryName);
-      if (!cat) {
-        const error = new Error(`Category '${updates.categoryName}' not found.`);
-        error.statusCode = 400;
-        throw error;
-      }
-      internalUpdates.FkProductCategoryId = cat.PkProductCategoryId || cat.id;
-    }
-    if (updates.unitCode && !internalUpdates.FkUnitId) {
-      const unit = await productRepository.getUnitByCode(updates.unitCode);
-      if (!unit) {
-        const error = new Error(`Unit code '${updates.unitCode}' not found.`);
-        error.statusCode = 400;
-        throw error;
-      }
-      internalUpdates.FkUnitId = unit.PkUnitId || unit.id;
-    }
+    // Merge partial updates with existing record to prevent undefined SP params
+    const merged = {
+      MaterialName: internalUpdates.MaterialName ?? existing.materialName,
+      MaterialRate: internalUpdates.MaterialRate ?? existing.materialRate,
+      FkProductCategoryId: internalUpdates.FkProductCategoryId ?? existing.categoryId,
+      FkUnitId: internalUpdates.FkUnitId ?? existing.unitId,
+      MaterialCode: internalUpdates.MaterialCode ?? existing.cuItemCode,
+      cu_item_code: internalUpdates.cu_item_code ?? existing.cuItemCode,
+      MaterialDescription: internalUpdates.MaterialDescription ?? existing.materialDescription
+    };
 
     // Business Rule: Check for name collision upon update
-    const name = internalUpdates.MaterialName || existing.materialName;
-    const catId = internalUpdates.FkProductCategoryId || existing.categoryId;
-    const unitId = internalUpdates.FkUnitId || existing.unitId;
-
-    const duplicateCount = await productRepository.checkDuplicate(id, catId, unitId, name);
+    const duplicateCount = await productRepository.checkDuplicate(
+      id, merged.FkProductCategoryId, merged.FkUnitId, merged.MaterialName
+    );
     if (duplicateCount > 0) {
       const error = new Error('Another product already uses this name in the selected category/unit.');
       error.statusCode = 409;
       throw error;
     }
 
-    let updatedProduct = await productRepository.update(id, internalUpdates, adminId);
-    
-    // Bug 1c: Re-fetch fallback
+    let updatedProduct = await productRepository.update(id, merged, adminId);
+
+    // Re-fetch fallback
     if (!updatedProduct || (!updatedProduct.PkProductId && !updatedProduct.id)) {
       updatedProduct = await productRepository.findById(id) || updatedProduct;
     }
 
-    return this._mapToApi(updatedProduct);
+    // Process inline variation diff if provided
+    if (Array.isArray(updates.variations)) {
+      await this._processUpdateVariations(updates.variations, id, adminId);
+    }
+
+    // Re-fetch full product with variations for response
+    const full = await this.getProductById(id);
+    return full;
+  }
+
+  /**
+   * Processes inline variations for product creation (all inserts).
+   * @param {Array} variations - Array of { colorId, size, materialRate }.
+   * @param {number} productId - Newly created product PK.
+   * @param {number} adminId - User ID.
+   * @returns {Promise<Array>} API-friendly variation records.
+   */
+  async _processCreateVariations(variations, productId, adminId) {
+    const results = [];
+    for (const v of variations) {
+      const internalData = {
+        FkLuColorId: v.colorId,
+        MaterialRate: v.materialRate,
+        Size: v.size
+      };
+      const result = await productRepository.setColorMatrix(
+        0, productId, internalData, adminId, 1
+      );
+      results.push(this._mapMatrixToApi(result));
+    }
+    return results;
+  }
+
+  /**
+   * Processes inline variation diff for product updates.
+   * Diff strategy:
+   *   - matrixId present + isActive:false → soft-delete
+   *   - matrixId present → update existing
+   *   - matrixId absent/0 → insert new
+   * @param {Array} variations - Array of variation diff items.
+   * @param {number} productId - Product PK.
+   * @param {number} adminId - User ID.
+   */
+  async _processUpdateVariations(variations, productId, adminId) {
+    for (const v of variations) {
+      const matrixId = v.matrixId || 0;
+      const isActive = v.isActive === false ? 0 : 1;
+
+      if (matrixId > 0 && isActive === 0) {
+        // Soft-delete: fetch existing to fill required SP params
+        const existingVariations = await productRepository.getColorMatrix(productId);
+        const existing = existingVariations.find(
+          row => row.PkProductColorId === matrixId
+        );
+        if (existing) {
+          await productRepository.setColorMatrix(matrixId, productId, {
+            FkLuColorId: existing.FkLuColorId,
+            MaterialRate: existing.MaterialRate,
+            Size: existing.Size
+          }, adminId, 0);
+        }
+      } else {
+        // Insert or update
+        const internalData = {
+          FkLuColorId: v.colorId,
+          MaterialRate: v.materialRate,
+          Size: v.size
+        };
+        await productRepository.setColorMatrix(
+          matrixId, productId, internalData, adminId, isActive
+        );
+      }
+    }
   }
 
   /**
