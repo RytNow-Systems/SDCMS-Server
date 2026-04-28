@@ -10,11 +10,12 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-  getProductDropdown
+  getProductDropdown,
+  addProductMatrix
 } from '../controllers/product.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 import { validate } from '../../../shared/middleware/validate.middleware.js';
-import { createProductSchema, updateProductSchema } from '../validations/validation.schemas.js';
+import { createProductSchema, updateProductSchema, productMatrixSchema } from '../validations/validation.schemas.js';
 
 const router = express.Router();
 
@@ -35,5 +36,8 @@ router.route('/:id')
   .get(getProductById)
   .put(validate(updateProductSchema), updateProduct)
   .delete(deleteProduct);
+
+// Color/Size matrix variation for a specific product
+router.post('/:id/matrix', validate(productMatrixSchema), addProductMatrix);
 
 export default router;

@@ -88,3 +88,20 @@ export const deleteProduct = asyncHandler(async (req, res) => {
     message: 'Product successfully removed'
   });
 });
+
+// @desc    Add or update a product color/size matrix variation
+// @route   POST /api/v1/products/:id/matrix
+// @access  Private/Admin,Operator
+export const addProductMatrix = asyncHandler(async (req, res) => {
+  const variation = await productService.addOrUpdateColorMatrix(
+    parseInt(req.params.id),
+    req.body,
+    req.user.id
+  );
+
+  const status = req.body.matrixId ? 200 : 201;
+  res.status(status).json({
+    success: true,
+    data: variation
+  });
+});

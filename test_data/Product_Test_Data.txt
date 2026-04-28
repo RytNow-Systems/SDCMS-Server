@@ -67,3 +67,20 @@ Auth: Bearer <TOKEN>
 Roles: ADMIN, OPERATOR
 
 Expected Status: 200
+
+--- TEST 7: Add/Update Product Color Matrix ---
+Method: POST
+URL: /api/v1/products/:id/matrix
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "fkLuColorId": 1,
+  "materialRate": 550,
+  "size": "M"
+}
+
+Expected Status: 201

@@ -54,6 +54,38 @@ class ProductService {
     return internal;
   }
 
+  /**
+   * Translates a color matrix DB record to API-friendly camelCase.
+   * @param {object} row - Raw color matrix record.
+   * @returns {object} API-friendly matrix entry.
+   */
+  _mapMatrixToApi(row) {
+    if (!row) return null;
+    return {
+      id: row.PkProductColorId || row.id,
+      productId: row.FkProductId || row.productId,
+      colorId: row.FkLuColorId || row.colorId,
+      colorName: row.ColorName || row.colorName || null,
+      materialRate: row.MaterialRate || row.materialRate,
+      size: row.Size || row.size,
+      isActive: row.IsActive !== undefined ? row.IsActive : row.isActive,
+      createdAt: row.CreatedDate || row.createdAt
+    };
+  }
+
+  /**
+   * Translates color matrix API payload to DB-native PascalCase.
+   * @param {object} apiData - { fkLuColorId, materialRate, size }.
+   * @returns {object} DB-friendly object.
+   */
+  _mapMatrixToInternal(apiData) {
+    const internal = {};
+    if (apiData.fkLuColorId !== undefined) internal.FkLuColorId = apiData.fkLuColorId;
+    if (apiData.materialRate !== undefined) internal.MaterialRate = apiData.materialRate;
+    if (apiData.size !== undefined) internal.Size = apiData.size;
+    return internal;
+  }
+
   // --------------------------------------------------------------------------
   // 2. RETRIEVAL METHODS
   // --------------------------------------------------------------------------
@@ -79,7 +111,9 @@ class ProductService {
       error.statusCode = 404;
       throw error;
     }
-    return this._mapToApi(product);
+    const mapped = this._mapToApi(product);
+    mapped.variations = (product.variations || []).map(v => this._mapMatrixToApi(v));
+    return mapped;
   }
 
   /**
@@ -142,6 +176,25 @@ class ProductService {
 
     const updatedProduct = await productRepository.update(id, internalUpdates, adminId);
     return this._mapToApi(updatedProduct);
+  }
+
+  /**
+   * Adds or updates a color/size matrix entry for a product.
+   * @param {number} productId - Product PK.
+   * @param {object} matrixData - { fkLuColorId, materialRate, size, matrixId? }.
+   * @param {number} adminId - User ID.
+   * @returns {Promise<object>} API-friendly matrix record.
+   */
+  async addOrUpdateColorMatrix(productId, matrixData, adminId) {
+    // Verify the product exists first
+    await this.getProductById(productId);
+
+    const internalData = this._mapMatrixToInternal(matrixData);
+    const matrixId = matrixData.matrixId || 0;
+    const result = await productRepository.setColorMatrix(
+      matrixId, productId, internalData, adminId
+    );
+    return this._mapMatrixToApi(result);
   }
 
   /**

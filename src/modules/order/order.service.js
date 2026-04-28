@@ -6,6 +6,7 @@
 // ============================================================================
 
 import orderRepository from './order.repository.js';
+import productRepository from '../product/product.repository.js';
 
 class OrderService {
   /**
@@ -52,7 +53,10 @@ class OrderService {
       ctx.senderName, ctx.senderMobile, sender
     );
 
-    // Step 3: Build the aggregate graph for the repository
+    // Step 3: Resolve pricing for items missing unitPrice (v2.3 fallback chain)
+    await this._resolvePricing(normalizedReceivers);
+
+    // Step 4: Build the aggregate graph for the repository
     const orderPayload = {
       senderId: sender.PkPartyId || sender.id, // Handle dual naming convention
       senderName: ctx.senderName,
@@ -94,7 +98,10 @@ class OrderService {
       ctx.senderName, ctx.senderMobile, sender
     );
 
-    // Step 4: Iteratively build the mock graph (receivers -> items -> parcels)
+    // Step 4: Resolve pricing for items missing unitPrice (v2.3 fallback chain)
+    await this._resolvePricing(receiversList);
+
+    // Step 5: Iteratively build the mock graph (receivers -> items -> parcels)
     const aggregatedReceivers = await this._processMockReceivers(order.id, receiversList, ctx.courierId);
 
     return {
@@ -122,6 +129,39 @@ class OrderService {
       aggregated.push({ ...recRecord, items, parcel });
     }
     return aggregated;
+  }
+
+  /**
+   * Pricing Hierarchy (v2.3):
+   *   1. Explicit unitPrice from payload
+   *   2. product_color_matrix.MaterialRate (if colorId + size specified)
+   *   3. product_master.MaterialRate (catalog fallback)
+   * Mutates the products array in-place to fill in resolved unitPrice.
+   * @private
+   */
+  async _resolvePricing(receivers) {
+    for (const rec of receivers) {
+      for (const prod of (rec.products || [])) {
+        if (prod.unitPrice != null && prod.unitPrice > 0) continue;
+
+        // Try color matrix pricing if colorId + size provided
+        if (prod.colorId && prod.size) {
+          const matrix = await productRepository.getColorMatrix(prod.productId);
+          const match = matrix.find(
+            m => (m.FkLuColorId === prod.colorId || m.colorId === prod.colorId) &&
+                 (m.Size === prod.size || m.size === prod.size)
+          );
+          if (match) {
+            prod.unitPrice = match.MaterialRate || match.materialRate;
+            continue;
+          }
+        }
+
+        // Catalog fallback from product_master
+        const product = await productRepository.findById(prod.productId);
+        prod.unitPrice = product?.MaterialRate || product?.materialRate || 0;
+      }
+    }
   }
 
   /**

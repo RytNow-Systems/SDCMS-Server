@@ -131,6 +131,22 @@ collections:
           - "res.status equals 200"
           - "res.body.data is Array"
 
+      - name: Add/Update Product Color Matrix
+        method: POST
+        path: /products/:id/matrix
+        roles: [ADMIN, OPERATOR]
+        description: Adds or updates a color/size pricing variation for a product.
+        headers: { Content-Type: application/json }
+        body: |
+          { "fkLuColorId": 1, "materialRate": 550, "size": "M" }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 3, "productId": 1, "colorId": 1, "materialRate": 550, "size": "M" } }
+        notes: "Pass matrixId in body for updates (returns 200). Omit matrixId for new entries (returns 201)."
+        assertions:
+          - "res.status equals 201"
+          - "res.body.data.materialRate equals 550"
+
   # ========== 3. EMPLOYEE MANAGEMENT ==========
   - name: Employee Management (ADMIN)
     slug: employee-management

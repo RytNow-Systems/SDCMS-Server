@@ -2,10 +2,12 @@
 // File: src/modules/product/product.repository.js
 // Description: Data access layer for Products Master.
 //
-// Stored Procedures (api_procedure_spec_v2.md):
+// Stored Procedures (api_procedure_spec_v2.1.md):
 //   - prc_product_master_search: Retrieval & ID lookup
 //   - prc_product_master_set: Insert (ID=0), Update (ID>0), Delete (IsActive=0)
 //   - prc_check_duplicate_product_master: Uniqueness validation
+//   - prc_product_color_matrix_get: Color/size matrix retrieval
+//   - prc_product_color_matrix_set: Color/size matrix upsert
 // ============================================================================
 
 import db from '../../infrastructure/database/db.js';
@@ -16,6 +18,29 @@ import db from '../../infrastructure/database/db.js';
 let seedCategories = [
   { PkProductCategoryId: 1, CategoryName: 'Textiles', IsActive: true },
   { PkProductCategoryId: 2, CategoryName: 'Accessories', IsActive: true }
+];
+
+let seedColorMatrix = [
+  {
+    PkProductColorId: 1,
+    FkProductId: 1,
+    FkLuColorId: 1,
+    ColorName: 'Red',
+    MaterialRate: 550.00,
+    Size: 'M',
+    IsActive: 1,
+    CreatedDate: new Date().toISOString()
+  },
+  {
+    PkProductColorId: 2,
+    FkProductId: 1,
+    FkLuColorId: 2,
+    ColorName: 'Blue',
+    MaterialRate: 520.00,
+    Size: 'L',
+    IsActive: 1,
+    CreatedDate: new Date().toISOString()
+  }
 ];
 
 let seedProducts = [
@@ -110,17 +135,27 @@ class ProductRepository {
   }
 
   /**
-   * Fetches a single product by its primary key.
+   * Fetches a single product by its primary key, enriched with color matrix variations.
    * @param {number|string} id - PkProductId.
-   * @returns {Promise<object|null>} Product record or null.
+   * @returns {Promise<object|null>} Product record (with variations) or null.
    */
   async findById(id) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [id, 0, 0]);
-      return rows[0]?.[0] || null;
+      const product = rows[0]?.[0] || null;
+      if (product) {
+        product.variations = await this.getColorMatrix(id);
+      }
+      return product;
     }
 
-    return seedProducts.find(p => p.PkProductId.toString() === id.toString() && p.IsActive) || null;
+    const product = seedProducts.find(p => p.PkProductId.toString() === id.toString() && p.IsActive) || null;
+    if (product) {
+      product.variations = seedColorMatrix.filter(
+        m => m.FkProductId.toString() === id.toString() && m.IsActive
+      );
+    }
+    return product;
   }
 
   /**
@@ -215,6 +250,72 @@ class ProductRepository {
     seedProducts[idx] = { ...seedProducts[idx], ...data };
     return seedProducts[idx];
   }
+
+  // --------------------------------------------------------------------------
+  // 4. COLOR MATRIX PROCEDURES
+  // --------------------------------------------------------------------------
+
+  /**
+   * Retrieves all color/size matrix variations for a given product.
+   * @param {number|string} productId - FkProductId.
+   * @returns {Promise<Array>} List of color matrix records.
+   */
+  async getColorMatrix(productId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_color_matrix_get(?, ?)', [0, productId]);
+      return rows[0] || [];
+    }
+
+    return seedColorMatrix.filter(
+      m => m.FkProductId.toString() === productId.toString() && m.IsActive
+    );
+  }
+
+  /**
+   * Creates or updates a color/size matrix entry for a product.
+   * @param {number} matrixId - PkProductColorId (0 = insert, >0 = update).
+   * @param {number} productId - FkProductId.
+   * @param {object} data - { FkLuColorId, MaterialRate, Size }.
+   * @param {number} adminId - User ID of creator.
+   * @returns {Promise<object>} The upserted matrix record.
+   */
+  async setColorMatrix(matrixId, productId, data, adminId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_color_matrix_set(?, ?, ?, ?, ?, ?, ?)', [
+        matrixId || 0,
+        productId,
+        data.FkLuColorId,
+        data.MaterialRate,
+        data.Size,
+        adminId,
+        1
+      ]);
+      return rows[0]?.[0] || null;
+    }
+
+    // --- MOCK IN-MEMORY LOGIC ---
+    if (matrixId && matrixId > 0) {
+      const idx = seedColorMatrix.findIndex(m => m.PkProductColorId === matrixId);
+      if (idx !== -1) {
+        seedColorMatrix[idx] = { ...seedColorMatrix[idx], ...data, FkProductId: productId };
+        return seedColorMatrix[idx];
+      }
+      return null;
+    }
+    const newEntry = {
+      PkProductColorId: seedColorMatrix.length + 1,
+      FkProductId: productId,
+      ...data,
+      IsActive: 1,
+      CreatedDate: new Date().toISOString()
+    };
+    seedColorMatrix.push(newEntry);
+    return newEntry;
+  }
+
+  // --------------------------------------------------------------------------
+  // 5. SOFT DELETE
+  // --------------------------------------------------------------------------
 
   /**
    * Soft-deletes a product by setting IsActive to 0.

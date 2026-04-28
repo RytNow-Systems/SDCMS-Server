@@ -265,6 +265,61 @@ describe('4. Products CRUD', () => {
     expect(res.body.success).toBe(false);
     expect(res.body.error).toContain('already exists');
   });
+
+  it('4.11 POST /api/v1/products/1/matrix → 201 creates a color variation', async () => {
+    const res = await request(app)
+      .post('/api/v1/products/1/matrix')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({ fkLuColorId: 3, materialRate: 600, size: 'XL' });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toBeDefined();
+    expect(res.body.data.size).toBe('XL');
+    expect(res.body.data.materialRate).toBe(600);
+  });
+
+  it('4.12 GET /api/v1/products/1 → 200 includes variations array', async () => {
+    const res = await request(app)
+      .get('/api/v1/products/1')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.variations).toBeInstanceOf(Array);
+    expect(res.body.data.variations.length).toBeGreaterThan(0);
+  });
+
+  it('4.13 POST /api/v1/products/1/matrix → 200 updates existing variation', async () => {
+    const res = await request(app)
+      .post('/api/v1/products/1/matrix')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({ fkLuColorId: 1, materialRate: 575, size: 'M', matrixId: 1 });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.materialRate).toBe(575);
+  });
+
+  it('4.14 POST /api/v1/products/1/matrix → 400 with missing fields (Zod)', async () => {
+    const res = await request(app)
+      .post('/api/v1/products/1/matrix')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({});
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('4.15 POST /api/v1/products/99999/matrix → 404 on non-existent product', async () => {
+    const res = await request(app)
+      .post('/api/v1/products/99999/matrix')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({ fkLuColorId: 1, materialRate: 100, size: 'S' });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
 });
 
 // ============================================================================

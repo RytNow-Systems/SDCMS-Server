@@ -67,6 +67,13 @@ export const updateProductSchema = z.object({
   isActive: z.boolean().optional()
 });
 
+export const productMatrixSchema = z.object({
+  fkLuColorId: z.number({ required_error: 'Color ID is required' }).int().positive('Valid color ID is required'),
+  materialRate: z.number({ required_error: 'Material rate is required' }).nonnegative('Rate cannot be negative'),
+  size: z.string({ required_error: 'Size is required' }).min(1, 'Size is required'),
+  matrixId: z.number().int().nonnegative().optional()
+});
+
 // ----------------------------------------------------------------------------
 // ORDER SCHEMAS
 // ----------------------------------------------------------------------------
@@ -74,7 +81,9 @@ export const updateProductSchema = z.object({
 const productItemSchema = z.object({
   productId: z.number().int().positive('Valid product ID is required'),
   qty: z.number().int().positive('Quantity must be positive'),
-  unitPrice: z.number().nonnegative().nullable().optional()
+  unitPrice: z.number().nonnegative().nullable().optional(),
+  colorId: z.number().int().positive().optional(),
+  size: z.string().min(1).optional()
 });
 
 const baseOrderSchema = z.object({
