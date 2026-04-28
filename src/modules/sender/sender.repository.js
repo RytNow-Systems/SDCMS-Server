@@ -112,15 +112,41 @@ class SenderRepository {
    */
   async create(data, adminId, partyTypeId) {
     if (process.env.USE_MOCK_DB !== 'true') {
+      // Step 1: Create the party in Party_master (11 params)
       const [rows] = await db.execute(
-        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [0, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, null, data.city, data.state, data.pincode, adminId, 1]
+        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [0, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, data.city, data.state, data.pincode, adminId, 1]
       );
-      return rows[0][0];
+      const party = rows[0][0];
+
+      // Step 2: Seed the default address record in party_details
+      if (party && party.IsNewParty === 1) {
+        await db.execute(
+          'CALL prc_party_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            0,                          // pPkPartyDetailsId=0 for insert
+            party.PkPartyId,            // pFkPartyId
+            data.emailId || null,       // pEmailId
+            data.address || null,       // pAddress
+            data.city || null,          // pCity
+            data.state || null,         // pState
+            data.pincode || null,       // pPincode
+            'India',                    // pCountry
+            1,                          // pIsDefault: 1 (primary address)
+            adminId,                    // pCreatedBy
+            1                           // pIsActive
+          ]
+        );
+      }
+
+      return party;
     }
     const newId = mockParties.length > 0 ? Math.max(...mockParties.map(s => s.PkPartyId)) + 1 : 1;
     const newSender = { PkPartyId: newId, PartyTypeId: partyTypeId, CustomerName: data.customerName, PhoneNo: data.phoneNo, EmailId: data.emailId || null, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, IsActive: 1, CreatedDate: new Date().toISOString() };
     mockParties.push(newSender);
+    // Also seed the default address in mockPartyDetails
+    const newDetailId = mockPartyDetails.length > 0 ? Math.max(...mockPartyDetails.map(d => d.PkPartyDetailsId)) + 1 : 1;
+    mockPartyDetails.push({ PkPartyDetailsId: newDetailId, FkPartyId: newId, PartyName: data.customerName, PhoneNo: data.phoneNo, EmailId: data.emailId || null, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, Country: 'India', IsActive: 1, IsDefault: 1, CreatedDate: new Date().toISOString() });
     return newSender;
   }
 
@@ -135,8 +161,8 @@ class SenderRepository {
   async update(id, data, adminId, partyTypeId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, null, data.city, data.state, data.pincode, adminId, 1]
+        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, data.city, data.state, data.pincode, adminId, 1]
       );
       return rows[0][0];
     }
@@ -158,8 +184,8 @@ class SenderRepository {
     if (!existing) return null;
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, partyTypeId, existing.CustomerName, existing.PhoneNo, existing.EmailId, existing.Address, null, existing.City, existing.State, existing.Pincode, adminId, 0]
+        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, partyTypeId, existing.CustomerName, existing.PhoneNo, existing.EmailId, existing.Address, existing.City, existing.State, existing.Pincode, adminId, 0]
       );
       return rows[0][0];
     }

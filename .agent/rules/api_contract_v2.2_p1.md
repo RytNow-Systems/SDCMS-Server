@@ -273,9 +273,13 @@ Adds or updates a color/size pricing variation for a product. Maps to `prc_produ
 
 |Field|Type|Required|Notes|
 |---|---|---|---|
-|senderName|string|✅||
-|senderMobile|string|✅|Used to dynamically find or create in `Party_master`.|
+|senderId|int|✅|FK → Party_master. Selected from sender dropdown. v2.3|
+|senderName|string|✅|Snapshot for order_master (label display).|
+|senderMobile|string|✅|Snapshot for order_master (label display).|
 |senderAddress|string|❌|Flat address string (snapshot only).|
+|senderCity|string|❌|Structured city for Mode A synthetic receiver. v2.3|
+|senderState|string|❌|Structured state for Mode A synthetic receiver. v2.3|
+|senderPincode|string|❌|Structured pincode for Mode A synthetic receiver. v2.3|
 |courierId|int|✅|FK → courier_partner_master|
 |products|array|❌|Root-level products (Mode A/C). v2.1|
 |receivers|array|❌|Array of receivers (Mode B/C). v2.1|
@@ -285,7 +289,7 @@ Adds or updates a color/size pricing variation for a product. Maps to `prc_produ
 > ⚠️ v2.1: `products` and `receivers` are both optional, but at least one must be present (Zod superRefine validation).
 
 **Order Modes (v2.1):**
-- **Mode A (Sender-to-Self):** Only root `products[]`. Backend creates synthetic receiver from `Party_master` structured address.
+- **Mode A (Sender-to-Self):** Only root `products[]`. Backend creates synthetic receiver from `senderAddress`, `senderCity`, `senderState`, `senderPincode` fields passed in payload.
 - **Mode B (Normal):** Only `receivers[]`. Standard multi-receiver flow.
 - **Mode C (Combo):** Both `products[]` and `receivers[]`. Synthetic sender-receiver prepended to receivers list.
 
@@ -293,7 +297,7 @@ Adds or updates a color/size pricing variation for a product. Maps to `prc_produ
 
 - 1 receiver = 1 parcel (auto-generated with unique QR code).
 - Order status is implicitly derived as CREATED. All parcel statuses are explicitly set to PENDING. No status is inserted into the order table.
-- Mode A uses sender's `Party_master` structured address (Address, City, State, Pincode), NOT the flat `senderAddress` string.
+- Mode A uses sender address fields from the payload (`senderCity`, `senderState`, `senderPincode`) for the synthetic receiver. Frontend should populate these from the selected sender's address book.
 
 ##### 7.3 List Orders
 

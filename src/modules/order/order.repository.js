@@ -15,7 +15,6 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '../../infrastructure/database/db.js';
 
 import {
-  seedParties,
   seedOrderItems,
   seedOrders,
   seedParcels,
@@ -23,40 +22,6 @@ import {
 } from './order.seed.js';
 
 class OrderRepository {
-  // ============================================================================
-  // PARTY (SENDER) OPERATIONS
-  // ============================================================================
-
-  /**
-   * Find-or-create a party (sender) by phone number.
-   * Procedure: prc_Party_master_set (Action=0 for find/upsert)
-   * 
-   * @param {object} data - { senderName, senderMobile, address?, city?, state?, pincode?, createdBy }
-   * @returns {Promise<object>} The found or newly created party record.
-   */
-  async findOrCreateParty(data) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      // Execute the party master procedure with Action=0 (Upsert/Find by Phone)
-      const [rows] = await db.execute('CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        0, // pPkPartyId=0 triggers find-by-phone or new insertion
-        1, // pPartyTypeId: 1 = Sender (API Contract §11)
-        data.senderName,
-        data.senderMobile,
-        null, // pEmailId
-        data.address || null,
-        data.city || null,
-        data.state || null,
-        data.pincode || null,
-        data.createdBy || null,
-        1  // pIsActive: 1
-      ]);
-      // SP returns the party record with PkPartyId.
-      return rows[0][0];
-    }
-
-    return this._mockFindOrCreateParty(data);
-  }
-
   // ============================================================================
   // ORDER OPERATIONS
   // ============================================================================
@@ -314,16 +279,6 @@ class OrderRepository {
   // ============================================================================
   // MOCK IMPLEMENTATIONS (Clean Code separation)
   // ============================================================================
-
-  /** @private */
-  _mockFindOrCreateParty(data) {
-    let party = seedParties.find((p) => p.phoneNo === data.senderMobile);
-    if (!party) {
-      party = { id: seedParties.length + 1, customerName: data.senderName, phoneNo: data.senderMobile, address: data.address || null, city: data.city || null, state: data.state || null, pincode: data.pincode || null, isActive: true };
-      seedParties.push(party);
-    }
-    return party;
-  }
 
   /** @private */
   _createOrderMock(data, adminId) {

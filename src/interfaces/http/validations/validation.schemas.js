@@ -53,7 +53,9 @@ export const createProductSchema = z.object({
   materialRate: z.number({ required_error: 'Material rate is required' }).nonnegative('Rate cannot be negative'),
   cuItemCode: z.string().optional(),
   categoryId: z.number().int().positive().optional(),
+  categoryName: z.string().optional(),
   unitId: z.number().int().positive().optional(),
+  unitCode: z.string().optional(),
   materialDescription: z.string().optional()
 });
 
@@ -62,7 +64,9 @@ export const updateProductSchema = z.object({
   materialRate: z.number().nonnegative('Rate cannot be negative').optional(),
   cuItemCode: z.string().optional(),
   categoryId: z.number().int().positive().optional(),
+  categoryName: z.string().optional(),
   unitId: z.number().int().positive().optional(),
+  unitCode: z.string().optional(),
   materialDescription: z.string().optional(),
   isActive: z.boolean().optional()
 });
@@ -87,9 +91,13 @@ const productItemSchema = z.object({
 });
 
 const baseOrderSchema = z.object({
+  senderId: z.number().int().positive('Valid sender ID is required'),
   senderName: z.string().min(1, 'Sender name is required'),
   senderMobile: z.string().min(1, 'Sender mobile is required'),
   senderAddress: z.string().optional(),
+  senderCity: z.string().optional(),
+  senderState: z.string().optional(),
+  senderPincode: z.string().optional(),
   courierId: z.number().int().positive('Valid courier ID is required'),
   // Root-level products: used in Mode A (sender-to-self) and Mode C (combo)
   products: z.array(productItemSchema).optional(),

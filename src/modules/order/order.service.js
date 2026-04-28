@@ -17,7 +17,7 @@ class OrderService {
    * @returns {Promise<object>} Created order aggregate or receiver array.
    */
   async createOrder(payload, user) {
-    const { senderName, senderMobile, senderAddress, courierId, products, receivers } = payload;
+    const { senderId, senderName, senderMobile, senderAddress, senderCity, senderState, senderPincode, courierId, products, receivers } = payload;
     const createdBy = user?.employeeCode || null;
 
     // Detect Modes:
@@ -27,30 +27,33 @@ class OrderService {
     const hasRootProducts = Array.isArray(products) && products.length > 0;
     const hasReceivers = Array.isArray(receivers) && receivers.length > 0;
 
+    const ctx = { senderId, senderName, senderMobile, senderAddress, senderCity, senderState, senderPincode, courierId, products, receivers, hasRootProducts, hasReceivers, createdBy };
+
     if (process.env.USE_MOCK_DB !== 'true') {
-      return this._createOrderLive({ senderName, senderMobile, senderAddress, courierId, products, receivers, hasRootProducts, hasReceivers, createdBy });
+      return this._createOrderLive(ctx);
     }
 
-    return this._createOrderMock({ senderName, senderMobile, senderAddress, courierId, products, receivers, hasRootProducts, hasReceivers, createdBy });
+    return this._createOrderMock(ctx);
   }
 
   /**
    * Orchestration for LIVE database via managed repository transaction.
+   * senderId is passed directly from the frontend dropdown (no find-or-create).
    * @private
    */
   async _createOrderLive(ctx) {
-    // Step 1: Ensure the sender exists in Party_master
-    const sender = await orderRepository.findOrCreateParty({
-      senderName: ctx.senderName,
-      senderMobile: ctx.senderMobile,
-      address: ctx.senderAddress,
-      createdBy: ctx.createdBy
-    });
+    // Step 1: Build sender context from payload (frontend already selected sender)
+    const senderCtx = {
+      address: ctx.senderAddress || null,
+      city: ctx.senderCity || null,
+      state: ctx.senderState || null,
+      pincode: ctx.senderPincode || null
+    };
 
     // Step 2: Unify root products and external receivers into a single array
     const normalizedReceivers = this._buildReceiversList(
       ctx.hasRootProducts, ctx.hasReceivers, ctx.products, ctx.receivers,
-      ctx.senderName, ctx.senderMobile, sender
+      ctx.senderName, ctx.senderMobile, senderCtx
     );
 
     // Step 3: Resolve pricing for items missing unitPrice (v2.3 fallback chain)
@@ -58,7 +61,7 @@ class OrderService {
 
     // Step 4: Build the aggregate graph for the repository
     const orderPayload = {
-      senderId: sender.PkPartyId || sender.id, // Handle dual naming convention
+      senderId: ctx.senderId,
       senderName: ctx.senderName,
       senderMobile: ctx.senderMobile,
       senderAddress: ctx.senderAddress,
@@ -73,29 +76,31 @@ class OrderService {
 
   /**
    * Orchestration for MOCK mode via individual repository calls.
+   * senderId is passed directly from the frontend dropdown (no find-or-create).
    * @private
    */
   async _createOrderMock(ctx) {
-    // Step 1: Find-or-create sender
-    const sender = await orderRepository.findOrCreateParty({
-      senderName: ctx.senderName,
-      senderMobile: ctx.senderMobile,
-      createdBy: ctx.createdBy
-    });
-
-    // Step 2: Create Order Header
+    // Step 1: Create Order Header (senderId already known from dropdown)
     const order = await orderRepository.createOrder({
-      senderId: sender.id,
+      senderId: ctx.senderId,
       senderName: ctx.senderName,
       senderMobile: ctx.senderMobile,
       senderAddress: ctx.senderAddress,
       courierId: ctx.courierId
     }, ctx.createdBy);
 
+    // Step 2: Build sender context from payload for Mode A synthetic receiver
+    const senderCtx = {
+      address: ctx.senderAddress || null,
+      city: ctx.senderCity || null,
+      state: ctx.senderState || null,
+      pincode: ctx.senderPincode || null
+    };
+
     // Step 3: Normalize receivers based on Mode A/B/C
     const receiversList = this._buildReceiversList(
       ctx.hasRootProducts, ctx.hasReceivers, ctx.products, ctx.receivers,
-      ctx.senderName, ctx.senderMobile, sender
+      ctx.senderName, ctx.senderMobile, senderCtx
     );
 
     // Step 4: Resolve pricing for items missing unitPrice (v2.3 fallback chain)
@@ -181,17 +186,17 @@ class OrderService {
    * Mode C: both → synthetic receiver + external receivers
    * @private
    */
-  _buildReceiversList(hasRoot, hasRecs, rootProds, recs, sName, sPhone, sParty) {
+  _buildReceiversList(hasRoot, hasRecs, rootProds, recs, sName, sPhone, senderCtx) {
     const list = [];
     // If root products exist, the sender is also a receiver (Mode A/C)
     if (hasRoot) {
       list.push({
         receiverName: sName,
         receiverPhone: sPhone,
-        address: sParty.address || sParty.Address || null,
-        city: sParty.city || sParty.City || null,
-        state: sParty.state || sParty.State || null,
-        pincode: sParty.pincode || sParty.Pincode || null,
+        address: senderCtx.address || null,
+        city: senderCtx.city || null,
+        state: senderCtx.state || null,
+        pincode: senderCtx.pincode || null,
         products: rootProds
       });
     }

@@ -553,6 +553,7 @@ describe('7. Orders', () => {
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
+        senderId: 1,
         senderName: 'E2E Test Sender',
         senderMobile: '9000000001',
         courierId: 1,
@@ -616,6 +617,7 @@ describe('7. Orders', () => {
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${COURIER_TOKEN}`)
       .send({
+        senderId: 1,
         senderName: 'E2E Test Sender',
         senderMobile: '9000000001',
         courierId: 1,
@@ -640,8 +642,13 @@ describe('7. Orders', () => {
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
+        senderId: 1,
         senderName: 'Mode A Sender',
         senderMobile: '9111111111',
+        senderAddress: '14, Gandhi Nagar, Near Railway Station',
+        senderCity: 'Surat',
+        senderState: 'Gujarat',
+        senderPincode: '395002',
         courierId: 1,
         products: [{ productId: 1, qty: 10, unitPrice: 500 }],
       });
@@ -657,8 +664,13 @@ describe('7. Orders', () => {
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
+        senderId: 1,
         senderName: 'Mode C Sender',
         senderMobile: '9222222222',
+        senderAddress: '14, Gandhi Nagar, Near Railway Station',
+        senderCity: 'Surat',
+        senderState: 'Gujarat',
+        senderPincode: '395002',
         courierId: 1,
         products: [{ productId: 1, qty: 5, unitPrice: 500 }],
         receivers: [
@@ -686,6 +698,7 @@ describe('7. Orders', () => {
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
+        senderId: 1,
         senderName: 'Cancel Test',
         senderMobile: '9444444444',
         courierId: 1,
@@ -1316,6 +1329,7 @@ describe('15. Bulk Upload', () => {
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
         rows: [{
+          senderId: 1,
           senderName: 'Bulk Sender',
           senderMobile: '9000000099',
           courierId: 1,
