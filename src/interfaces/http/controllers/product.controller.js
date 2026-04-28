@@ -105,3 +105,25 @@ export const addProductMatrix = asyncHandler(async (req, res) => {
     data: variation
   });
 });
+
+// @desc    Get all product categories
+// @route   GET /api/v1/products/categories
+// @access  Private/Admin,Operator
+export const getProductCategories = asyncHandler(async (req, res) => {
+  const categories = await productService.getCategories();
+  res.status(200).json({
+    success: true,
+    data: categories
+  });
+});
+
+// @desc    Get all product units
+// @route   GET /api/v1/products/units
+// @access  Private/Admin,Operator
+export const getProductUnits = asyncHandler(async (req, res) => {
+  const units = await productService.getUnits();
+  res.status(200).json({
+    success: true,
+    data: units
+  });
+});

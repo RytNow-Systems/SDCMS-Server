@@ -86,6 +86,33 @@ class ProductService {
     return internal;
   }
 
+  /**
+   * Translates a raw product_category DB record to API-friendly camelCase.
+   * @param {object} cat - Raw category record.
+   * @returns {object} API object { id, categoryName }.
+   */
+  _mapCategoryToApi(cat) {
+    if (!cat) return null;
+    return {
+      id: cat.PkProductCategoryId || cat.id,
+      categoryName: cat.CategoryName || cat.categoryName
+    };
+  }
+
+  /**
+   * Translates a raw lu_unit DB record to API-friendly camelCase.
+   * @param {object} unit - Raw unit record.
+   * @returns {object} API object { id, unitTitle, unitCode }.
+   */
+  _mapUnitToApi(unit) {
+    if (!unit) return null;
+    return {
+      id: unit.PkUnitId || unit.id,
+      unitTitle: unit.UnitTitle || unit.unitTitle,
+      unitCode: unit.UnitCode || unit.unitCode
+    };
+  }
+
   // --------------------------------------------------------------------------
   // 2. RETRIEVAL METHODS
   // --------------------------------------------------------------------------
@@ -120,11 +147,48 @@ class ProductService {
    * Fetches search-friendly dropdown items.
    */
   async getProductDropdown(search = '') {
-    const products = await productRepository.getDropdown(search);
-    return products.map(p => ({
-      ...this._mapToApi(p),
-      label: `${p.MaterialName || p.materialName} (${p.CategoryName || p.categoryName || 'No Category'})`
-    }));
+    const items = await productRepository.getDropdown(search);
+    return items.map(item => {
+      const labelParts = [item.MaterialName];
+      if (item.ColorName || item.Size) {
+        const specs = [item.ColorName, item.Size].filter(Boolean).join(' / ');
+        labelParts.push(`— ${specs}`);
+      }
+      if (item.CategoryName) {
+        labelParts.push(`(${item.CategoryName})`);
+      }
+      
+      return {
+        productId: item.PkProductId,
+        variationId: item.PkProductColorId || null,
+        materialName: item.MaterialName,
+        colorName: item.ColorName,
+        size: item.Size,
+        materialRate: item.MaterialRate,
+        cuItemCode: item.cu_item_code,
+        categoryName: item.CategoryName,
+        unitTitle: item.UnitTitle,
+        label: labelParts.join(' ')
+      };
+    });
+  }
+
+  /**
+   * Retrieves all product categories mapped to camelCase.
+   * @returns {Promise<Array>} List of { id, categoryName } objects.
+   */
+  async getCategories() {
+    const raw = await productRepository.getCategories();
+    return raw.map(c => this._mapCategoryToApi(c));
+  }
+
+  /**
+   * Retrieves all product units mapped to camelCase.
+   * @returns {Promise<Array>} List of { id, unitTitle, unitCode } objects.
+   */
+  async getUnits() {
+    const raw = await productRepository.getUnits();
+    return raw.map(u => this._mapUnitToApi(u));
   }
 
   // --------------------------------------------------------------------------
@@ -136,6 +200,35 @@ class ProductService {
    */
   async createProduct(productData, adminId) {
     const internalData = this._mapToInternal(productData);
+
+    // Bug 1a: Name to ID resolution
+    if (productData.categoryName && !internalData.FkProductCategoryId) {
+      const cat = await productRepository.getCategoryByName(productData.categoryName);
+      if (!cat) {
+        const error = new Error(`Category '${productData.categoryName}' not found.`);
+        error.statusCode = 400;
+        throw error;
+      }
+      internalData.FkProductCategoryId = cat.PkProductCategoryId || cat.id;
+    }
+    if (productData.unitCode && !internalData.FkUnitId) {
+      const unit = await productRepository.getUnitByCode(productData.unitCode);
+      if (!unit) {
+        const error = new Error(`Unit code '${productData.unitCode}' not found.`);
+        error.statusCode = 400;
+        throw error;
+      }
+      internalData.FkUnitId = unit.PkUnitId || unit.id;
+    }
+
+    // Bug 1b: MaterialCode and cu_item_code auto-gen
+    if (!internalData.cu_item_code) {
+      const nextCode = await productRepository.getNextItemCode();
+      internalData.cu_item_code = nextCode.padStart(4, '0');
+      internalData.MaterialCode = internalData.cu_item_code;
+    } else {
+      internalData.MaterialCode = internalData.cu_item_code;
+    }
 
     // Business Rule: Prevent duplicate products in the same category/unit
     const duplicateCount = await productRepository.checkDuplicate(
@@ -151,7 +244,18 @@ class ProductService {
       throw error;
     }
 
-    const newProduct = await productRepository.create(internalData, adminId);
+    let newProduct = await productRepository.create(internalData, adminId);
+    
+    // Bug 1c: Re-fetch fallback if SP returned null or incomplete data
+    const insertedId = newProduct?.InsertedId || newProduct?.PkProductId || newProduct?.id;
+    if (insertedId) {
+       newProduct = await productRepository.findById(insertedId) || newProduct;
+    } else if (!newProduct || (!newProduct.PkProductId && !newProduct.id)) {
+      // Find by cu_item_code if ID is completely missing
+      const searchRes = await productRepository.findAll(0, 0);
+      newProduct = searchRes.find(p => p.cu_item_code === internalData.cu_item_code) || newProduct;
+    }
+
     return this._mapToApi(newProduct);
   }
 
@@ -161,6 +265,26 @@ class ProductService {
   async updateProduct(id, updates, adminId) {
     const existing = await this.getProductById(id);
     const internalUpdates = this._mapToInternal(updates);
+
+    // Bug 1a: Name to ID resolution
+    if (updates.categoryName && !internalUpdates.FkProductCategoryId) {
+      const cat = await productRepository.getCategoryByName(updates.categoryName);
+      if (!cat) {
+        const error = new Error(`Category '${updates.categoryName}' not found.`);
+        error.statusCode = 400;
+        throw error;
+      }
+      internalUpdates.FkProductCategoryId = cat.PkProductCategoryId || cat.id;
+    }
+    if (updates.unitCode && !internalUpdates.FkUnitId) {
+      const unit = await productRepository.getUnitByCode(updates.unitCode);
+      if (!unit) {
+        const error = new Error(`Unit code '${updates.unitCode}' not found.`);
+        error.statusCode = 400;
+        throw error;
+      }
+      internalUpdates.FkUnitId = unit.PkUnitId || unit.id;
+    }
 
     // Business Rule: Check for name collision upon update
     const name = internalUpdates.MaterialName || existing.materialName;
@@ -174,7 +298,13 @@ class ProductService {
       throw error;
     }
 
-    const updatedProduct = await productRepository.update(id, internalUpdates, adminId);
+    let updatedProduct = await productRepository.update(id, internalUpdates, adminId);
+    
+    // Bug 1c: Re-fetch fallback
+    if (!updatedProduct || (!updatedProduct.PkProductId && !updatedProduct.id)) {
+      updatedProduct = await productRepository.findById(id) || updatedProduct;
+    }
+
     return this._mapToApi(updatedProduct);
   }
 

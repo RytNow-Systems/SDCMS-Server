@@ -8,6 +8,8 @@
 //   - prc_check_duplicate_product_master: Uniqueness validation
 //   - prc_product_color_matrix_get: Color/size matrix retrieval
 //   - prc_product_color_matrix_set: Color/size matrix upsert
+//   - prc_product_category_get: Category lookup (pAction=0: all active)
+//   - prc_lu_unit_get: Unit lookup (pAction=0: all active)
 // ============================================================================
 
 import db from '../../infrastructure/database/db.js';
@@ -18,6 +20,12 @@ import db from '../../infrastructure/database/db.js';
 let seedCategories = [
   { PkProductCategoryId: 1, CategoryName: 'Textiles', IsActive: true },
   { PkProductCategoryId: 2, CategoryName: 'Accessories', IsActive: true }
+];
+
+let seedUnits = [
+  { PkUnitId: 1, UnitTitle: 'Kilogram', UnitCode: 'KG', IsActive: 1 },
+  { PkUnitId: 2, UnitTitle: 'Pieces', UnitCode: 'PCS', IsActive: 1 },
+  { PkUnitId: 3, UnitTitle: 'Litre', UnitCode: 'LTR', IsActive: 1 }
 ];
 
 let seedColorMatrix = [
@@ -112,7 +120,85 @@ class ProductRepository {
   }
 
   // --------------------------------------------------------------------------
-  // 2. RETRIEVAL PROCEDURES
+  // 2. LOOKUP PROCEDURES (Categories & Units)
+  // --------------------------------------------------------------------------
+
+  /**
+   * Fetches all active product categories.
+   * CALL prc_product_category_get(pAction=0)
+   * @returns {Promise<Array>} List of category records.
+   */
+  async getCategories() {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_category_get(?)', [0]);
+      return rows[0] || [];
+    }
+    return seedCategories.filter(c => c.IsActive);
+  }
+
+  /**
+   * Fetches a single category by its name (case-insensitive).
+   * CALL prc_product_category_get(pAction=0) — filtered in JS.
+   * @param {string} name - CategoryName to search.
+   * @returns {Promise<object|null>} Matching category or null.
+   */
+  async getCategoryByName(name) {
+    const categories = await this.getCategories();
+    const lower = name.toLowerCase();
+    return categories.find(c => (c.CategoryName || '').toLowerCase() === lower) || null;
+  }
+
+  /**
+   * Fetches all active units.
+   * CALL prc_lu_unit_get(pAction=0)
+   * @returns {Promise<Array>} List of unit records.
+   */
+  async getUnits() {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_lu_unit_get(?)', [0]);
+      return rows[0] || [];
+    }
+    return seedUnits.filter(u => u.IsActive);
+  }
+
+  /**
+   * Fetches a single unit by its code (case-insensitive).
+   * CALL prc_lu_unit_get(pAction=0) — filtered in JS.
+   * @param {string} code - UnitCode to search (e.g., 'PCS', 'KG').
+   * @returns {Promise<object|null>} Matching unit or null.
+   */
+  async getUnitByCode(code) {
+    const units = await this.getUnits();
+    const lower = code.toLowerCase();
+    return units.find(u => (u.UnitCode || '').toLowerCase() === lower) || null;
+  }
+
+  /**
+   * Determines the next sequential cu_item_code / MaterialCode.
+   * Queries MAX(cu_item_code) from product_master and increments.
+   * CALL prc_product_master_search(0, 0, 0) — reads all products to find max code.
+   * @returns {Promise<string>} Next available code (e.g., '1002').
+   */
+  async getNextItemCode() {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [0, 0, 0]);
+      const products = rows[0] || [];
+      const maxCode = products.reduce((max, p) => {
+        const num = parseInt(p.cu_item_code, 10);
+        return (!isNaN(num) && num > max) ? num : max;
+      }, 1000);
+      return String(maxCode + 1);
+    }
+
+    const maxCode = seedProducts.reduce((max, p) => {
+      const num = parseInt(p.cu_item_code, 10);
+      return (!isNaN(num) && num > max) ? num : max;
+    }, 1000);
+    return String(maxCode + 1);
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. RETRIEVAL PROCEDURES
   // --------------------------------------------------------------------------
 
   /**
@@ -163,34 +249,69 @@ class ProductRepository {
    * @param {string} search - Partial match for name or category.
    */
   async getDropdown(search = '') {
+    let products = [];
+    let matrices = [];
+
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [0, 0, 0]);
-      let products = rows[0];
-      
-      if (search) {
-        const q = search.toLowerCase();
-        products = products.filter(p => 
-          p.MaterialName.toLowerCase().includes(q) || 
-          (p.CategoryName && p.CategoryName.toLowerCase().includes(q))
-        );
-      }
-      return products;
+      const [pRows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [0, 0, 0]);
+      products = pRows[0] || [];
+      matrices = await this.getAllColorMatrix();
+    } else {
+      products = seedProducts.filter(p => p.IsActive).map(p => {
+        const cat = seedCategories.find(c => c.PkProductCategoryId === p.FkProductCategoryId);
+        const unit = seedUnits.find(u => u.PkUnitId === p.FkUnitId);
+        return { ...p, CategoryName: cat?.CategoryName || 'N/A', UnitTitle: unit?.UnitTitle || 'N/A' };
+      });
+      matrices = seedColorMatrix.filter(m => m.IsActive);
     }
 
-    let results = seedProducts.filter(p => p.IsActive).map(p => {
-      const cat = seedCategories.find(c => c.PkProductCategoryId === p.FkProductCategoryId);
-      return { ...p, CategoryName: cat?.CategoryName || 'N/A' };
-    });
+    let flatList = [];
+    for (const p of products) {
+      const pVariations = matrices.filter(m => String(m.FkProductId) === String(p.PkProductId));
+      
+      if (pVariations.length > 0) {
+        for (const v of pVariations) {
+          flatList.push({
+            PkProductId: p.PkProductId,
+            PkProductColorId: v.PkProductColorId,
+            MaterialName: p.MaterialName,
+            ColorName: v.ColorName || null,
+            Size: v.Size || null,
+            MaterialRate: v.MaterialRate || p.MaterialRate, // Override with variation rate
+            cu_item_code: p.cu_item_code,
+            CategoryName: p.CategoryName || null,
+            UnitTitle: p.UnitTitle || null
+          });
+        }
+      } else {
+        flatList.push({
+          PkProductId: p.PkProductId,
+          PkProductColorId: null,
+          MaterialName: p.MaterialName,
+          ColorName: null,
+          Size: null,
+          MaterialRate: p.MaterialRate,
+          cu_item_code: p.cu_item_code,
+          CategoryName: p.CategoryName || null,
+          UnitTitle: p.UnitTitle || null
+        });
+      }
+    }
 
     if (search) {
       const q = search.toLowerCase();
-      results = results.filter(p => p.MaterialName.toLowerCase().includes(q) || p.CategoryName.toLowerCase().includes(q));
+      flatList = flatList.filter(item => 
+        (item.MaterialName && item.MaterialName.toLowerCase().includes(q)) || 
+        (item.CategoryName && item.CategoryName.toLowerCase().includes(q)) ||
+        (item.ColorName && item.ColorName.toLowerCase().includes(q))
+      );
     }
-    return results;
+
+    return flatList;
   }
 
   // --------------------------------------------------------------------------
-  // 3. MUTATION PROCEDURES (Upsert & Soft Delete)
+  // 4. MUTATION PROCEDURES (Upsert & Soft Delete)
   // --------------------------------------------------------------------------
 
   /**
@@ -252,7 +373,7 @@ class ProductRepository {
   }
 
   // --------------------------------------------------------------------------
-  // 4. COLOR MATRIX PROCEDURES
+  // 5. COLOR MATRIX PROCEDURES
   // --------------------------------------------------------------------------
 
   /**
@@ -263,12 +384,31 @@ class ProductRepository {
   async getColorMatrix(productId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_product_color_matrix_get(?, ?)', [0, productId]);
-      return rows[0] || [];
+      const allRows = rows[0] || [];
+      // Defensive JS-side filter: SP pAction=0 may return all rows if
+      // the WHERE clause for FkProductId is missing (known SP bug).
+      return allRows.filter(
+        r => String(r.FkProductId) === String(productId)
+      );
     }
 
     return seedColorMatrix.filter(
       m => m.FkProductId.toString() === productId.toString() && m.IsActive
     );
+  }
+
+  /**
+   * Retrieves ALL color/size matrix variations across all products.
+   * Used by the flat-variation dropdown (Bug 4).
+   * CALL prc_product_color_matrix_get(pAction=0, 0)
+   * @returns {Promise<Array>} All color matrix records.
+   */
+  async getAllColorMatrix() {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_color_matrix_get(?, ?)', [0, 0]);
+      return rows[0] || [];
+    }
+    return seedColorMatrix.filter(m => m.IsActive);
   }
 
   /**
@@ -314,7 +454,7 @@ class ProductRepository {
   }
 
   // --------------------------------------------------------------------------
-  // 5. SOFT DELETE
+  // 6. SOFT DELETE
   // --------------------------------------------------------------------------
 
   /**

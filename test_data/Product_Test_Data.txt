@@ -3,6 +3,22 @@ PRODUCT CATALOG — Test Data
 Generated from api-manifest.yaml
 ==================================================
 
+--- TEST 0.1: Get Product Categories ---
+Method: GET
+URL: /api/v1/products/categories
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 0.2: Get Product Units ---
+Method: GET
+URL: /api/v1/products/units
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
 --- TEST 1: List Products ---
 Method: GET
 URL: /api/v1/products
@@ -23,8 +39,8 @@ Body:
 {
   "materialName": "Heavy Equipment",
   "materialRate": 500,
-  "categoryId": 1,
-  "unitId": 1
+  "categoryName": "Textiles",
+  "unitCode": "KG"
 }
 
 Expected Status: 201

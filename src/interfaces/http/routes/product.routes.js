@@ -11,7 +11,9 @@ import {
   updateProduct,
   deleteProduct,
   getProductDropdown,
-  addProductMatrix
+  addProductMatrix,
+  getProductCategories,
+  getProductUnits
 } from '../controllers/product.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 import { validate } from '../../../shared/middleware/validate.middleware.js';
@@ -24,6 +26,10 @@ router.use(protect);
 
 // Products are accessible by ADMIN and OPERATOR
 router.use(authorizeRoles('ADMIN', 'OPERATOR'));
+
+// Product metadata endpoints
+router.get('/categories', getProductCategories);
+router.get('/units', getProductUnits);
 
 router.route('/')
   .get(getProducts)
