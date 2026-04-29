@@ -34,14 +34,19 @@ class AuthService {
       }
 
       const empCode = employee.EmployeeCode || employee.employeeCode;
+      
+      // Fetch full profile to ensure all fields (like EmailAddress) are included.
+      // prc_authenticate_employee may return a limited set of fields.
+      const fullEmployee = await employeeRepository.findById(empCode);
+      const profile = fullEmployee || employee;
 
       return {
         id: empCode,
         employeeCode: empCode,
-        name: employee.FullName || employee.name,
-        // prc_authenticate_employee returns 'UserName' as the email identifier.
-        email: employee.UserName || employee.EmailAddress || employee.email,
-        role: employee.RoleCode || employee.role,
+        name: profile.FullName || profile.name,
+        username: profile.UserName || profile.userName || '',
+        email: profile.EmailAddress || profile.email || '',
+        role: profile.RoleCode || profile.role,
         token: generateToken(empCode), // Using employeeCode as identifier in JWT
       };
     } else {
@@ -59,7 +64,8 @@ class AuthService {
     if (!profile) return null;
     return {
       employeeCode: profile.EmployeeCode || profile.employeeCode,
-      firstName: profile.FullName || profile.name || profile.firstName,
+      name: profile.FullName || profile.name || profile.firstName,
+      username: profile.UserName || profile.userName || '',
       email: profile.EmailAddress || profile.email,
       phoneNo: profile.ContactNumber || profile.contactNumber || null,
       roleCode: profile.RoleCode || profile.role,

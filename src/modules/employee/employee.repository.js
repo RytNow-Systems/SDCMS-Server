@@ -26,6 +26,7 @@ let seedEmployees = [
   {
     EmployeeCode: 1,
     FullName: 'Admin User',
+    UserName: 'admin',
     EmailAddress: 'admin@example.com',
     Password: HASHED_MOCK_PASSWORD,
     RoleCode: 'ADMIN',
@@ -35,6 +36,7 @@ let seedEmployees = [
   {
     EmployeeCode: 2,
     FullName: 'Test Operator',
+    UserName: 'operator',
     EmailAddress: 'operator@example.com',
     Password: HASHED_MOCK_PASSWORD,
     RoleCode: 'OPERATOR',
@@ -44,6 +46,7 @@ let seedEmployees = [
   {
     EmployeeCode: 3,
     FullName: 'Test Courier',
+    UserName: 'courier',
     EmailAddress: 'courier@example.com',
     Password: HASHED_MOCK_PASSWORD,
     RoleCode: 'COURIER',
