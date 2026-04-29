@@ -1,12 +1,19 @@
 ---
 trigger: model_decision
+description: Trigger when the user commands "Implement Sprint [X] Feature [Y]". Provides the exact backend API roadmap, enforcing zero direct DB access (use SPs), plain-text Bruno testing, and heavy commentary for the Antigravity project.
 ---
 
-# Backend API Implementation Plan — v3
+# Backend API Implementation Plan — v5
 
 ## Goal Description
 
-Cross-review of **`api_contract_v2.0_p1.md`**, **`api_contract_v2.0_p2.md`**, **`system_flow_v2.1.md`**, and **`api_procedure_spec_v1.md`**. Supersedes v2.
+Cross-review of **`api_contract_v2.2_p1.md`**, **`api_contract_v2.2_p2.md`**, **`system_flow_v2.3.md`**, **`api_procedure_spec_v2.1.md`**, and **`db_schema_v3.md`**. Supersedes v4.
+
+**What changed since v4?**
+8. **Color Matrix Tables:** `lu_color_code` and `product_color_matrix` added (db_schema_v3). Per-color/size pricing.
+9. **New Procedures:** `prc_product_color_matrix_get` / `prc_product_color_matrix_set` (api_procedure_spec_v2.1).
+10. **New Endpoint:** `POST /products/:id/matrix` for managing product color/size variations.
+11. **Pricing Hierarchy:** Order pricing fallback chain updated: explicit `unitPrice` → `product_color_matrix.MaterialRate` → `product_master.MaterialRate`.
 
 **What changed since v2?**
 1. **`_set` / `_get` Procedure Standard:** All old semantic names (`prc_CreateProduct`, `prc_ScanAndLinkAWB`, etc.) are replaced by standardized `prc_[tablename]_set` and `prc_[tablename]_get` procedures per `api_procedure_spec_v1.md`.
@@ -45,9 +52,10 @@ Each Sprint is divided into standalone "Features." Command a single Feature (e.g
   - Repository: `prc_courier_partner_master_set` (upsert/delete) / `prc_courier_partner_master_get` (pAction 0,1).
   - ⚠️ Current mock uses old `prc_Create...` names — retrofit in Sprint 7.
 
-- [x] **Feature B: Products** — 5 endpoints on `/products`. `ADMIN`, `OPERATOR`.
-  - Repository: `prc_product_master_set` (upsert/delete) / `prc_product_master_get` (pAction 0,1).
+- [x] **Feature B: Products** — 5+1 endpoints on `/products`. `ADMIN`, `OPERATOR`.
+  - Repository: `prc_product_master_set` (upsert/delete) / `prc_product_master_get` (pAction 0,1) / `prc_product_master_search`.
   - ⚠️ Current mock uses old `prc_Create...` names — retrofit in Sprint 7.
+  - ✅ v5: Extended with color matrix endpoint (`POST /products/:id/matrix`). See Sprint 2.5.
 
 - [ ] **Feature C: Senders (Party_master)**
   - New module: `src/modules/sender/` + routes + controller. Register as `/api/v1/senders`.
@@ -69,6 +77,31 @@ Each Sprint is divided into standalone "Features." Command a single Feature (e.g
   - **Update** (`PUT /orders/:id`) → `prc_order_master_set` (ID>0). ❗ Fails if any parcel ≥ AWB_LINKED.
   - **Cancel** (`PATCH /orders/:id/cancel`) → `prc_order_master_set` (pCancelRequested=1). ❌ Blocked if dispatched/delivered. Cascades + logs to `receiver_status_details`.
   - Ship `Order_Test_Data.txt`.
+
+---
+
+### Sprint 2.5: Product Color Matrix & Order Pricing (v5)
+
+- [ ] **Feature A: Product Color Matrix CRUD**
+  - Extend `src/modules/product/` with two new repository methods:
+    - `getColorMatrix(productId)` → `CALL prc_product_color_matrix_get(0, ?)`
+    - `setColorMatrix(matrixId, productId, data, adminId)` → `CALL prc_product_color_matrix_set(?, ?, ?, ?, ?, ?, 1)`
+  - New route: `POST /products/:id/matrix` → `validate(productMatrixSchema)` → controller → service.
+  - Service: `addOrUpdateColorMatrix()` method, `_mapMatrixToApi()` / `_mapMatrixToInternal()` helpers.
+  - Enrich `GET /products/:id` to return `variations[]` array from color matrix.
+  - Zod schema: `productMatrixSchema` (`fkLuColorId`, `materialRate`, `size`).
+  - Mock seed: `seedColorMatrix` array in repository.
+  - Ship updated `Product_Test_Data.txt`.
+
+- [ ] **Feature B: Order Pricing Fallback Chain**
+  - Update `productItemSchema` in `validation.schemas.js` to accept optional `colorId` and `size`.
+  - Update `order.service.js` pricing resolution: explicit `unitPrice` → `product_color_matrix.MaterialRate` (if colorId+size) → `product_master.MaterialRate`.
+  - No SP signature change needed in order repo — resolution happens in service layer.
+  - Ship updated `Order_Test_Data.txt`.
+
+- [ ] **Feature C: Update E2E Tests**
+  - Add `4.11`–`4.13` tests for matrix CRUD in `tests/e2e/mock_api.test.js`.
+  - Add `POST /products/:id/matrix` to `scripts/api-manifest.yaml`.
 
 ---
 

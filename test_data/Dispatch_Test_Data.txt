@@ -1,0 +1,39 @@
+==================================================
+DISPATCH AND TERMINAL STATES — Test Data
+Generated from api-manifest.yaml
+==================================================
+
+--- TEST 1: Batch Dispatch ---
+Method: POST
+URL: /api/v1/parcels/dispatch
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "parcelIds": [
+    1,
+    2,
+    3
+  ]
+}
+
+Expected Status: 200
+
+--- TEST 2: Mark Delivered ---
+Method: PATCH
+URL: /api/v1/parcels/:id/deliver
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 3: Mark Returned ---
+Method: PATCH
+URL: /api/v1/parcels/:id/return
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200

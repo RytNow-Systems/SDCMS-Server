@@ -20,16 +20,16 @@ const router = express.Router();
 // All routes require authentication
 router.use(protect);
 
-// GET routes are accessible by ADMIN, OPERATOR, AND COURIER
+// GET routes are accessible by ADMIN only
 router.route('/')
-  .get(authorizeRoles('ADMIN', 'OPERATOR', 'COURIER'), getCouriers)
-  // POST requires ADMIN or OPERATOR
-  .post(authorizeRoles('ADMIN', 'OPERATOR'), validate(createCourierSchema), createCourier);
+  .get(authorizeRoles('ADMIN'), getCouriers)
+  // POST requires ADMIN
+  .post(authorizeRoles('ADMIN'), validate(createCourierSchema), createCourier);
 
 router.route('/:id')
-  .get(authorizeRoles('ADMIN', 'OPERATOR', 'COURIER'), getCourierById)
-  // PUT and DELETE require ADMIN or OPERATOR
-  .put(authorizeRoles('ADMIN', 'OPERATOR'), validate(updateCourierSchema), updateCourier)
-  .delete(authorizeRoles('ADMIN', 'OPERATOR'), deleteCourier);
+  .get(authorizeRoles('ADMIN'), getCourierById)
+  // PUT and DELETE require ADMIN
+  .put(authorizeRoles('ADMIN'), validate(updateCourierSchema), updateCourier)
+  .delete(authorizeRoles('ADMIN'), deleteCourier);
 
 export default router;

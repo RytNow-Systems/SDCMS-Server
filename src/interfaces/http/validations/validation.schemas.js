@@ -18,12 +18,11 @@ export const loginSchema = z.object({
 // EMPLOYEE SCHEMAS
 // ----------------------------------------------------------------------------
 export const createEmployeeSchema = z.object({
-  employeeCode: z.string().optional(),
-  employeeName: z.string().min(1, 'Employee name is required'),
-  email: z.string().email().optional(),
+  name: z.string().min(1, 'Employee name is required'),
+  email: z.string().email('Invalid email format'),
   phoneNo: z.string().optional(),
-  roleCode: z.enum(['ADMIN', 'OPERATOR', 'COURIER']),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.enum(['ADMIN', 'OPERATOR', 'COURIER']),
   isActive: z.boolean().optional()
 });
 
@@ -41,7 +40,7 @@ export const createCourierSchema = z.object({
   contactPerson: z.string().optional(),
   phoneNo: z.string().optional(),
   email: z.string().email().optional(),
-  trackingUrlTemplate: z.string().url().optional()
+  trackingUrlTemplate: z.string().optional()
 });
 
 export const updateCourierSchema = createCourierSchema.partial();
@@ -49,45 +48,147 @@ export const updateCourierSchema = createCourierSchema.partial();
 // ----------------------------------------------------------------------------
 // PRODUCT SCHEMAS
 // ----------------------------------------------------------------------------
+
+// Variation item shape for creating new variations (all fields required)
+const createVariationItemSchema = z.object({
+  colorId: z.number({ required_error: 'Color ID is required' }).int().positive('Valid color ID is required'),
+  size: z.string({ required_error: 'Size is required' }).min(1, 'Size is required'),
+  materialRate: z.number({ required_error: 'Material rate is required' }).nonnegative('Rate cannot be negative')
+});
+
+// Variation item shape for updates (diff strategy: matrixId present = update, absent = insert, isActive:false = delete)
+const updateVariationItemSchema = z.object({
+  matrixId: z.number().int().nonnegative().optional(),
+  colorId: z.number().int().positive('Valid color ID is required').optional(),
+  size: z.string().min(1, 'Size is required').optional(),
+  materialRate: z.number().nonnegative('Rate cannot be negative').optional(),
+  isActive: z.boolean().optional()
+});
+
 export const createProductSchema = z.object({
-  productName: z.string().min(1, 'Product name is required'),
-  description: z.string().optional(),
-  materialRate: z.number().nonnegative().optional()
+  materialName: z.string().min(1, 'Material name is required'),
+  materialRate: z.number().nonnegative('Rate cannot be negative').optional().default(0),
+  cuItemCode: z.string().optional(),
+  categoryId: z.number({ required_error: 'Category ID is required' }).int().positive('Valid category ID is required'),
+  unitId: z.number({ required_error: 'Unit ID is required' }).int().positive('Valid unit ID is required'),
+  materialDescription: z.string().optional(),
+  variations: z.array(createVariationItemSchema).optional()
 });
 
 export const updateProductSchema = z.object({
-  productName: z.string().min(1, 'Product name is required').optional(),
-  description: z.string().optional(),
-  materialRate: z.number().nonnegative().optional(),
-  isActive: z.boolean().optional()
+  materialName: z.string().min(1, 'Material name is required').optional(),
+  materialRate: z.number().nonnegative('Rate cannot be negative').optional(),
+  cuItemCode: z.string().optional(),
+  categoryId: z.number().int().positive().optional(),
+  unitId: z.number().int().positive().optional(),
+  materialDescription: z.string().optional(),
+  isActive: z.boolean().optional(),
+  variations: z.array(updateVariationItemSchema).optional()
+});
+
+export const productMatrixSchema = z.object({
+  fkLuColorId: z.number({ required_error: 'Color ID is required' }).int().positive('Valid color ID is required'),
+  materialRate: z.number({ required_error: 'Material rate is required' }).nonnegative('Rate cannot be negative'),
+  size: z.string({ required_error: 'Size is required' }).min(1, 'Size is required'),
+  matrixId: z.number().int().nonnegative().optional()
+});
+
+// ----------------------------------------------------------------------------
+// PRODUCT LOOKUP SCHEMAS (Category, Color, Unit creation)
+// ----------------------------------------------------------------------------
+export const createCategorySchema = z.object({
+  categoryName: z.string({ required_error: 'Category name is required' }).min(1, 'Category name is required')
+});
+
+export const createColorSchema = z.object({
+  colorName: z.string({ required_error: 'Color name is required' }).min(1, 'Color name is required'),
+  colorCode: z.string().optional().default('')
+});
+
+export const createUnitSchema = z.object({
+  unitTitle: z.string({ required_error: 'Unit title is required' }).min(1, 'Unit title is required'),
+  unitCode: z.string({ required_error: 'Unit code is required' }).min(1, 'Unit code is required')
 });
 
 // ----------------------------------------------------------------------------
 // ORDER SCHEMAS
 // ----------------------------------------------------------------------------
-export const createOrderSchema = z.object({
+// Product item shape (shared between root-level and receiver-level products)
+const productItemSchema = z.object({
+  productId: z.number().int().positive('Valid product ID is required'),
+  qty: z.number().int().positive('Quantity must be positive'),
+  unitPrice: z.number().nonnegative().nullable().optional(),
+  colorId: z.number().int().positive().optional(),
+  size: z.string().min(1).optional()
+});
+
+const baseOrderSchema = z.object({
+  senderId: z.number().int().positive('Valid sender ID is required'),
   senderName: z.string().min(1, 'Sender name is required'),
   senderMobile: z.string().min(1, 'Sender mobile is required'),
   senderAddress: z.string().optional(),
+  senderCity: z.string().optional(),
+  senderState: z.string().optional(),
+  senderPincode: z.string().optional(),
   courierId: z.number().int().positive('Valid courier ID is required'),
+  // Root-level products: used in Mode A (sender-to-self) and Mode C (combo)
+  products: z.array(productItemSchema).optional(),
+  // Receivers array: used in Mode B (normal) and Mode C (combo)
   receivers: z.array(
     z.object({
       receiverName: z.string().min(1, 'Receiver name is required'),
       receiverPhone: z.string().optional(),
-      addressLine1: z.string().optional(),
-      addressLine2: z.string().optional(),
+      address: z.string().optional(),
       city: z.string().optional(),
       state: z.string().optional(),
       pincode: z.string().optional(),
-      products: z.array(
-        z.object({
-          productId: z.number().int().positive('Valid product ID is required'),
-          qty: z.number().int().positive('Quantity must be positive'),
-          unitPrice: z.number().nonnegative().nullable().optional()
-        })
-      ).min(1, 'At least one product is required for each receiver')
+      products: z.array(productItemSchema)
+        .min(1, 'At least one product is required for each receiver')
     })
-  ).min(1, 'At least one receiver is required')
+  ).optional()
 });
 
-export const updateOrderSchema = createOrderSchema.partial();
+export const createOrderSchema = baseOrderSchema.superRefine((data, ctx) => {
+  const hasRootProducts = Array.isArray(data.products) && data.products.length > 0;
+  const hasReceivers = Array.isArray(data.receivers) && data.receivers.length > 0;
+
+  if (!hasRootProducts && !hasReceivers) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Order must have at least one of: root-level products (Mode A) or receivers (Mode B/C)',
+      path: ['products']
+    });
+  }
+});
+
+export const updateOrderSchema = baseOrderSchema.partial();
+
+// ----------------------------------------------------------------------------
+// SENDER (PARTY) SCHEMAS
+// ----------------------------------------------------------------------------
+export const createSenderSchema = z.object({
+  customerName: z.string().min(1, 'Customer name is required'),
+  phoneNo: z.string().min(10, 'Valid phone number is required'),
+  emailId: z.string().email('Invalid email format').optional().nullable(),
+  address: z.string().min(1, 'Address is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(1, 'State is required'),
+  pincode: z.string().min(1, 'Pincode is required')
+});
+
+export const updateSenderSchema = createSenderSchema.partial();
+
+// ----------------------------------------------------------------------------
+// ADDRESS (PARTY_DETAILS) SCHEMAS
+// ----------------------------------------------------------------------------
+export const createAddressSchema = z.object({
+  partyName: z.string().optional(),
+  phoneNo: z.string().optional(),
+  emailId: z.string().email('Invalid email format').optional().nullable(),
+  address: z.string().min(1, 'Address is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(1, 'State is required'),
+  pincode: z.string().min(1, 'Pincode is required'),
+  country: z.string().optional(),
+  isDefault: z.boolean().optional()
+});

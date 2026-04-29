@@ -1,0 +1,124 @@
+==================================================
+SENDERS — Test Data
+Generated from api-manifest.yaml
+==================================================
+
+--- TEST 1: List Senders ---
+Method: GET
+URL: /api/v1/senders
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 2: Create Sender ---
+Method: POST
+URL: /api/v1/senders
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "customerName": "John Doe Enterprises",
+  "phoneNo": "9876543210",
+  "emailId": "john.doe@example.com",
+  "address": "123 Business Park, Sector 62",
+  "city": "Noida",
+  "state": "Uttar Pradesh",
+  "pincode": "201301"
+}
+
+Expected Status: 201
+
+--- TEST 3: Get Sender by ID ---
+Method: GET
+URL: /api/v1/senders/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 4: Lookup by Phone ---
+Method: GET
+URL: /api/v1/senders/lookup?phone=9876543210
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 5: Get All Sender Names ---
+Method: GET
+URL: /api/v1/senders/names
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 6: Get All Sender Phones ---
+Method: GET
+URL: /api/v1/senders/phones
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 7: Lookup by Name ---
+Method: GET
+URL: /api/v1/senders/lookup-by-name?name=John
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 8: Update Sender ---
+Method: PUT
+URL: /api/v1/senders/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "customerName": "John Doe Enterprises Updated",
+  "city": "Gurugram",
+  "state": "Haryana"
+}
+
+Expected Status: 200
+
+--- TEST 9: Delete Sender ---
+Method: DELETE
+URL: /api/v1/senders/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 10: Get Addresses ---
+Method: GET
+URL: /api/v1/senders/:id/addresses
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 11: Create Address ---
+Method: POST
+URL: /api/v1/senders/:id/addresses
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "address": "456 New Location",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "pincode": "400001"
+}
+
+Expected Status: 201

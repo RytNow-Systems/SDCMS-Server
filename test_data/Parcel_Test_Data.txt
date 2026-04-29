@@ -1,0 +1,36 @@
+==================================================
+PARCELS RETRIEVAL AND LABEL DATA — Test Data
+Generated from api-manifest.yaml
+==================================================
+
+--- TEST 1: List Parcels ---
+Method: GET
+URL: /api/v1/parcels
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
+
+Expected Status: 200
+
+--- TEST 2: Get Parcel by ID ---
+Method: GET
+URL: /api/v1/parcels/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
+
+Expected Status: 200
+
+--- TEST 3: Get Label Data ---
+Method: GET
+URL: /api/v1/parcels/:id/label-data
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 4: Get Timeline ---
+Method: GET
+URL: /api/v1/parcels/:id/timeline
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR, COURIER
+
+Expected Status: 200

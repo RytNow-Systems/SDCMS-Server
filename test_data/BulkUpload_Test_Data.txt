@@ -1,0 +1,54 @@
+==================================================
+BULK UPLOAD — Test Data
+Generated from api-manifest.yaml
+==================================================
+
+--- TEST 1: Create Bulk Session ---
+Method: POST
+URL: /api/v1/bulk-uploads
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "rows": [
+    {
+      "senderName": "Bulk Sender",
+      "senderMobile": "9000000099",
+      "courierId": 1,
+      "receivers": [
+        {
+          "receiverName": "Bulk Receiver",
+          "receiverPhone": "9000000098",
+          "products": [
+            {
+              "productId": 1,
+              "qty": 1,
+              "unitPrice": 100
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+Expected Status: 201
+
+--- TEST 2: List Sessions ---
+Method: GET
+URL: /api/v1/bulk-uploads
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 3: Get Session by ID ---
+Method: GET
+URL: /api/v1/bulk-uploads/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200

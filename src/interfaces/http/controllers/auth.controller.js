@@ -18,21 +18,18 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 
-// Example of a Protected Route Controller
 // @desc    Get user profile
-// @route   GET /api/users/profile
+// @route   GET /api/v1/auth/profile
 // @access  Private
 export const getUserProfile = asyncHandler(async (req, res) => {
-  // req.user is set by your auth.middleware.js!
-  // Simply return it.
+  // req.user is set by auth.middleware.js. 
+  // We extract the identifier (EmployeeCode) which was stored in the token.
+  const employeeCode = req.user.EmployeeCode || req.user.employeeCode || req.user.id;
+
+  const profile = await authService.getProfile(employeeCode);
+
   res.json({
     success: true,
-    data: {
-      id: req.user.id,
-      employeeCode: req.user.employeeCode || `EMP00${req.user.id}`, // Mock or from DB
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-    }
+    data: profile
   });
 });

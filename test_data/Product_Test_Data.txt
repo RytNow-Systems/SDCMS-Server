@@ -1,38 +1,186 @@
-# Product Test Data
+==================================================
+PRODUCT CATALOG — Test Data
+Generated from api-manifest.yaml
+==================================================
 
-## GET /api/v1/products
+--- TEST 1: Get Categories ---
+Method: GET
+URL: /api/v1/products/categories
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 2: Create Category ---
+Method: POST
+URL: /api/v1/products/categories
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "categoryName": "Electronics"
+}
+
+Expected Status: 201
+
+--- TEST 3: Get Units ---
+Method: GET
+URL: /api/v1/products/units
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 4: Create Unit ---
+Method: POST
+URL: /api/v1/products/units
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "unitTitle": "Meter",
+  "unitCode": "MTR"
+}
+
+Expected Status: 201
+
+--- TEST 5: Get Colors ---
+Method: GET
+URL: /api/v1/products/colors
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 6: Create Color ---
+Method: POST
+URL: /api/v1/products/colors
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "colorName": "Crimson",
+  "colorCode": "CRM"
+}
+
+Expected Status: 201
+
+--- TEST 7: List Products ---
 Method: GET
 URL: /api/v1/products
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-1. Status code is 200
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
 
-## POST /api/v1/products
+Expected Status: 200
+
+--- TEST 8: Create Product ---
 Method: POST
 URL: /api/v1/products
-Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
-Payload:
-{
-  "productName": "Heavy Equipment",
-  "materialRate": 500
-}
-Assertions:
-1. Status code is 200
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
 
-## PUT /api/v1/products/:id
+Body:
+{
+  "materialName": "Heavy Equipment",
+  "categoryId": 1,
+  "unitId": 1,
+  "materialRate": 500,
+  "variations": [
+    {
+      "colorId": 1,
+      "size": "M",
+      "materialRate": 550
+    },
+    {
+      "colorId": 2,
+      "size": "L",
+      "materialRate": 600
+    }
+  ]
+}
+
+Expected Status: 201
+
+--- TEST 9: Get Product by ID ---
+Method: GET
+URL: /api/v1/products/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 10: Update Product ---
 Method: PUT
-URL: /api/v1/products/1
-Headers: { "Authorization": "Bearer {{authToken}}", "Content-Type": "application/json" }
-Payload:
-{
-  "materialRate": 550
-}
-Assertions:
-1. Status code is 200
+URL: /api/v1/products/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
 
-## DELETE /api/v1/products/:id
+Body:
+{
+  "materialRate": 550,
+  "variations": [
+    {
+      "matrixId": 1,
+      "colorId": 1,
+      "size": "M",
+      "materialRate": 560
+    },
+    {
+      "colorId": 3,
+      "size": "S",
+      "materialRate": 480
+    },
+    {
+      "matrixId": 2,
+      "isActive": false
+    }
+  ]
+}
+
+Expected Status: 200
+
+--- TEST 11: Delete Product ---
 Method: DELETE
-URL: /api/v1/products/1
-Headers: { "Authorization": "Bearer {{authToken}}" }
-Assertions:
-1. Status code is 200
+URL: /api/v1/products/:id
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 12: Product Dropdown ---
+Method: GET
+URL: /api/v1/products/dropdown
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+
+Expected Status: 200
+
+--- TEST 13: Add/Update Product Color Matrix (Standalone) ---
+Method: POST
+URL: /api/v1/products/:id/matrix
+Auth: Bearer <TOKEN>
+Roles: ADMIN, OPERATOR
+Headers:
+  Content-Type: application/json
+
+Body:
+{
+  "fkLuColorId": 1,
+  "materialRate": 550,
+  "size": "M"
+}
+
+Expected Status: 201

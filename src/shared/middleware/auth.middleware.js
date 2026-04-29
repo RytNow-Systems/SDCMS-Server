@@ -22,8 +22,18 @@ export const protect = async (req, res, next) => {
         throw new Error('Not authorized, user not found');
       }
 
-      // 5. Attach user to the request object
-      req.user = user;
+      // 5. Attach normalized user to the request object.
+      //    Raw repository data may use PascalCase (mock) or camelCase (live DB).
+      //    We normalize to a canonical shape so downstream middleware (authorizeRoles)
+      //    and controllers always see consistent field names.
+      req.user = {
+        id: user.EmployeeCode || user.employeeCode || user.id,
+        employeeCode: user.EmployeeCode || user.employeeCode,
+        name: user.FullName || user.name,
+        email: user.EmailAddress || user.email,
+        role: user.RoleCode || user.role,
+        allowLogin: user.AllowLogin ?? user.allowLogin,
+      };
       next();
     } catch (error) {
       console.error(error);

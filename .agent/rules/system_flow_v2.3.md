@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: Defines the strict Parcel and Order state transitions (e.g., Created -> Label Printed -> Dispatched). Load this when building or validating status flows and state changes
+description: Defines the strict Parcel and Order state transitions (v2.3). Load this when building or validating status flows and state changes. v2.3 adds product color/size matrix and pricing hierarchy. v2.2 adds address consolidation and Order Mode A/B/C.
 ---
 
 **Document Type:** Schema Walkthrough & Design Decisions **Project:** Smart Dispatch & Courier Management System **Context:** This document captures the complete logical walkthrough of how every table in the SDCMS schema is used, organized in sequence to understand the application flow. It heavily enforces the new core principle: **“Order = planning, Parcel = execution”** and the unified event-logging paradigm.
@@ -35,14 +35,28 @@ Before you can create an order, you need to know who is involved, what is being 
 
 - `CustomerName`, `PhoneNo` → identifies the party.
 - `FkPartyTypeId` → distinguishes if this is a Sender or Receiver.
-- Contains full structured address fields (`AddressLine1`, `City`, `State`, `Pincode`).
+- Contains full structured address fields (`Address`, `City`, `State`, `Pincode`).
+  > v2.2: `AddressLine1`/`AddressLine2` consolidated into single `Address` field.
+
+**Table:** **`Party_Details`** *(NEW in v2.2)* Per-party address book. A single party can have multiple shipping/billing addresses stored here, with an `IsDefault` flag to mark the primary one. Used by the frontend address book dropdown.
 
 ##### Products (What's Being Shipped)
 
 **Table:** **`product_master`** The catalog of items that can go into an order.
 
 - `MaterialName` → product display name.
-- `MaterialRate` → catalog list price, which acts as a fallback during order creation.
+- `MaterialRate` → catalog list price, which acts as the **base fallback** during order creation.
+
+**Table:** **`lu_color_code`** *(NEW in v2.3)* Master lookup for available product colors (`ColorName`, `ColorCode`).
+
+**Table:** **`product_color_matrix`** *(NEW in v2.3)* Maps a specific product to a color and size, with its own `MaterialRate`. This allows unique catalogue pricing per color+size combination.
+
+- `FkProductId` → links to `product_master`.
+- `FkLuColorId` → links to `lu_color_code`.
+- `Size` → size label (e.g., S, M, L, XL).
+- `MaterialRate` → price for this specific color+size combo.
+
+> 🔑 **Pricing Hierarchy (v2.3):** explicit `unitPrice` → `product_color_matrix.MaterialRate` (by colorId+size) → `product_master.MaterialRate` (catalog fallback).
 
 ##### Courier Partners (Who Delivers)
 
@@ -75,14 +89,18 @@ This is the heart of the system. An Operator creates a complex order in a single
 
 **Table hit:** **`receiver_details`** One order can have multiple receivers. A row is created for each delivery destination.
 
-- **Mixed Orders (Sender as Receiver):** If the sender also receives items (e.g., returning stock), or if no explicit receivers are provided, the system creates an additional receiver row by copying the sender's structured address from `Party_master` into `receiver_details`.
+- **Order Modes (v2.2):**
+  - **Mode A (Sender-to-Self):** Root `products[]` only, no receivers. Backend creates a synthetic receiver by copying the sender's structured `Party_master` address (`Address`, `City`, `State`, `Pincode`) into `receiver_details`.
+  - **Mode B (Normal):** `receivers[]` only. Standard multi-receiver flow.
+  - **Mode C (Combo):** Both root `products[]` and `receivers[]`. Backend prepends a synthetic sender-receiver to the receivers list, then processes external receivers normally.
+  > v2.2: The old flat `senderAddress` string is only stored as a snapshot in `order_master`. Receiver addresses always come from structured fields.
 
 ##### Step 4: Add Products to Each Receiver
 
 **Table hit:** **`order_items`** Each receiver gets their own list of products.
 
 - Items are strictly linked to the receiver, NOT the order, to prevent mismatches.
-- **Pricing Fallback:** The backend captures the `UnitPrice`. If a custom price is not provided, the system automatically falls back to the `MaterialRate` defined in the product catalog.
+- **Pricing Fallback (v2.3):** The backend captures the `UnitPrice`. Resolution chain: (1) explicit `unitPrice` from payload, (2) `product_color_matrix.MaterialRate` if `colorId`+`size` are specified, (3) `product_master.MaterialRate` as the catalog default.
 - The `TotalAmount` is calculated (`SUM(UnitPrice × OutwardQty)`) and updates the `order_master`.
 
 ##### Step 5: Generate Parcels (The Execution Layer Begins)

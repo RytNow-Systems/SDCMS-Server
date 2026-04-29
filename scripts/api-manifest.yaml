@@ -1,0 +1,754 @@
+# ============================================================================
+# SDCMS Backend — API Manifest (Source of Truth for Doc Generation)
+# Run: node scripts/generate-api-docs.js
+# ============================================================================
+info:
+  title: SDCMS Backend API
+  version: "1.0.0"
+  baseUrl: "{{base_url}}"
+
+collections:
+  # ========== 1. AUTHENTICATION ==========
+  - name: Authentication
+    slug: authentication
+    description: Auth endpoints for login and user profile
+    guide: "To authenticate, use the Login endpoint to receive a JWT token. This token must be included in the 'Authorization' header as 'Bearer <token>' for all protected routes. Frontend devs should store this in localStorage or a secure cookie."
+    endpoints:
+      - name: Login
+        method: POST
+        path: /auth/login
+        auth: none
+        roles: [ALL]
+        description: Authenticates a user and provides a JWT token.
+        notes: "If the login is successful, you'll receive an object containing the user's profile and the token. If the account is locked (allowLogin: false), you will get a 403 error."
+        headers: { Content-Type: application/json }
+        body: |
+          { "email": "admin@example.com", "password": "securePass123" }
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": "EMP-001", "employeeCode": "EMP-001", "name": "Admin User", "email": "admin@example.com", "role": "ADMIN", "token": "eyJhbG..." } }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.success is true"
+          - "Store res.body.data.token as {{authToken}}"
+
+      - name: Get Profile
+        method: GET
+        path: /auth/profile
+        roles: [ALL]
+        description: Retrieves the authenticated user's profile and permissions.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "employeeCode": "EMP-001", "firstName": "Admin User", "email": "admin@example.com", "phoneNo": "9876543210", "roleCode": "ADMIN", "allowLogin": true, "createdAt": "2026-04-20T10:00:00Z" } }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.success is true"
+          - "res.body.data contains employeeCode, roleCode"
+
+      - name: System Health
+        method: GET
+        path: /system/health
+        auth: none
+        roles: [ALL]
+        description: Checks database connectivity and system status.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "status": "UP", "dbConnected": true } }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data.status equals UP"
+
+  # ========== 2. PRODUCT CATALOG ==========
+  - name: Product Catalog
+    slug: product-catalog
+    description: Product CRUD with inline variations, lookup CRUD (categories, colors, units), and dropdown endpoints
+    guide: "The product form has two sections: (1) Product details — name, category, unit; (2) Variations table — each row has color, size, rate. Categories, colors, and units can be created on the fly from dropdowns. Create/Update Product accepts an optional 'variations' array for atomic product + variation management."
+    endpoints:
+      # --- Lookup Endpoints ---
+      - name: Get Categories
+        method: GET
+        path: /products/categories
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves all active product categories for dropdown.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "categoryName": "Textiles" }, { "id": 2, "categoryName": "Accessories" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+
+      - name: Create Category
+        method: POST
+        path: /products/categories
+        roles: [ADMIN, OPERATOR]
+        description: Creates a new product category (used when user selects 'Create New' in the dropdown).
+        headers: { Content-Type: application/json }
+        body: |
+          { "categoryName": "Electronics" }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 3, "categoryName": "Electronics" } }
+        assertions:
+          - "res.status equals 201"
+          - "res.body.data.categoryName equals Electronics"
+
+      - name: Get Units
+        method: GET
+        path: /products/units
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves all active units for dropdown.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "unitTitle": "Kilogram", "unitCode": "KG" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+
+      - name: Create Unit
+        method: POST
+        path: /products/units
+        roles: [ADMIN, OPERATOR]
+        description: Creates a new unit lookup entry (used when user selects 'Create New' in the dropdown).
+        headers: { Content-Type: application/json }
+        body: |
+          { "unitTitle": "Meter", "unitCode": "MTR" }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 4, "unitTitle": "Meter", "unitCode": "MTR" } }
+        assertions:
+          - "res.status equals 201"
+          - "res.body.data.unitCode equals MTR"
+
+      - name: Get Colors
+        method: GET
+        path: /products/colors
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves all active color lookup entries for dropdown.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "colorName": "Red", "colorCode": "RED" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+
+      - name: Create Color
+        method: POST
+        path: /products/colors
+        roles: [ADMIN, OPERATOR]
+        description: Creates a new color lookup entry (used when user selects 'Create New' in the dropdown).
+        headers: { Content-Type: application/json }
+        body: |
+          { "colorName": "Crimson", "colorCode": "CRM" }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 4, "colorName": "Crimson", "colorCode": "CRM" } }
+        notes: "colorCode is optional and defaults to an empty string if not provided."
+        assertions:
+          - "res.status equals 201"
+          - "res.body.data.colorName equals Crimson"
+
+      # --- Product CRUD ---
+      - name: List Products
+        method: GET
+        path: /products
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves products filtered by categoryId or unitId.
+        parameters:
+          categoryId: { type: 'number', description: 'Filter by category primary key' }
+          unitId: { type: 'number', description: 'Filter by unit primary key' }
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryName": "Textiles" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+
+      - name: Create Product
+        method: POST
+        path: /products
+        roles: [ADMIN, OPERATOR]
+        description: Creates a new product with optional inline variations. categoryId and unitId are required. materialRate defaults to 0 if omitted (pricing is primarily per-variation).
+        headers: { Content-Type: application/json }
+        body: |
+          { "materialName": "Heavy Equipment", "categoryId": 1, "unitId": 1, "materialRate": 500, "variations": [{ "colorId": 1, "size": "M", "materialRate": 550 }, { "colorId": 2, "size": "L", "materialRate": 600 }] }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 2, "materialName": "Heavy Equipment", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "id": 1, "colorId": 1, "size": "M", "materialRate": 550 }, { "id": 2, "colorId": 2, "size": "L", "materialRate": 600 }] } }
+        notes: "categoryId and unitId are required. materialRate is optional (defaults to 0). The variations array is optional — omit it to create a product without variations."
+        assertions:
+          - "res.status equals 201"
+          - "res.body.success is true"
+          - "res.body.data.variations is Array"
+
+      - name: Get Product by ID
+        method: GET
+        path: /products/:id
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves a single product by its primary key, including all active variations.
+        parameters:
+          id: { type: 'number', description: 'Unique identifier of the product' }
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "id": 1, "colorId": 1, "colorName": "Red", "size": "M", "materialRate": 550 }] } }
+
+      - name: Update Product
+        method: PUT
+        path: /products/:id
+        roles: [ADMIN, OPERATOR]
+        description: "Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use matrixId to distinguish: present = update, absent = insert, isActive:false = soft-delete."
+        headers: { Content-Type: application/json }
+        body: |
+          { "materialRate": 550, "variations": [{ "matrixId": 1, "colorId": 1, "size": "M", "materialRate": 560 }, { "colorId": 3, "size": "S", "materialRate": 480 }, { "matrixId": 2, "isActive": false }] }
+        responseStatus: 200
+        notes: "All fields optional. Variations diff: matrixId present → update, matrixId absent → insert new, matrixId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors."
+        assertions:
+          - "res.status equals 200"
+          - "res.body.success is true"
+
+      - name: Delete Product
+        method: DELETE
+        path: /products/:id
+        roles: [ADMIN, OPERATOR]
+        description: Soft-deletes a product from the catalog.
+        responseStatus: 200
+
+      - name: Product Dropdown
+        method: GET
+        path: /products/dropdown
+        roles: [ADMIN, OPERATOR]
+        description: Combined product + category flat dropdown list for order forms.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "productId": 1, "variationId": 1, "materialName": "Cotton Roll", "colorName": "Red", "size": "M", "materialRate": 550, "categoryName": "Textiles", "label": "Cotton Roll — Red / M (Textiles)" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+
+      - name: Add/Update Product Color Matrix (Standalone)
+        method: POST
+        path: /products/:id/matrix
+        roles: [ADMIN, OPERATOR]
+        description: Standalone endpoint to add or update a single color/size pricing variation. Kept as a fallback for individual variation edits outside the product form.
+        headers: { Content-Type: application/json }
+        body: |
+          { "fkLuColorId": 1, "materialRate": 550, "size": "M" }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "id": 3, "productId": 1, "colorId": 1, "materialRate": 550, "size": "M" } }
+        notes: "Pass matrixId in body for updates. Omit matrixId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations."
+        assertions:
+          - "res.status equals 201"
+          - "res.body.data.materialRate equals 550"
+
+  # ========== 3. EMPLOYEE MANAGEMENT ==========
+  - name: Employee Management (ADMIN)
+    slug: employee-management
+    description: Employee CRUD and access control (ADMIN only)
+    endpoints:
+      - name: List Employees
+        method: GET
+        path: /employees
+        roles: [ADMIN]
+        description: Retrieves all employees.
+        responseStatus: 200
+
+      - name: Create Employee
+        method: POST
+        path: /employees
+        roles: [ADMIN]
+        description: Creates a new employee account.
+        headers: { Content-Type: application/json }
+        body: |
+          { "name": "New Emp", "role": "OPERATOR", "email": "newemp@example.com", "password": "Test123456" }
+        responseStatus: 201
+
+      - name: Get Employee by ID
+        method: GET
+        path: /employees/:id
+        roles: [ADMIN]
+        description: Retrieves a single employee by ID.
+        responseStatus: 200
+
+      - name: Update Employee
+        method: PUT
+        path: /employees/:id
+        roles: [ADMIN]
+        description: Updates employee details.
+        headers: { Content-Type: application/json }
+        body: |
+          { "name": "Updated Name" }
+        responseStatus: 200
+
+      - name: Toggle Employee Access
+        method: PATCH
+        path: /employees/:id/toggle-access
+        roles: [ADMIN]
+        description: Enables or disables an employee's login access.
+        headers: { Content-Type: application/json }
+        body: |
+          { "allowLogin": true }
+        responseStatus: 200
+
+  # ========== 4. COURIER PARTNERS ==========
+  - name: Courier Partners
+    slug: courier-partners
+    description: Courier partner CRUD operations
+    endpoints:
+      - name: List Couriers
+        method: GET
+        path: /courier-partners
+        roles: [ADMIN, OPERATOR, COURIER]
+        description: Retrieves all courier partners.
+        responseStatus: 200
+
+      - name: Create Courier
+        method: POST
+        path: /courier-partners
+        roles: [ADMIN, OPERATOR]
+        description: Registers a new courier partner.
+        headers: { Content-Type: application/json }
+        body: |
+          { "courierName": "TestCourier Express", "trackingUrlTemplate": "https://track.testcourier.com/awb/{AWB}" }
+        responseStatus: 201
+
+      - name: Get Courier by ID
+        method: GET
+        path: /courier-partners/:id
+        roles: [ADMIN, OPERATOR, COURIER]
+        description: Retrieves a courier partner by ID.
+        responseStatus: 200
+
+      - name: Update Courier
+        method: PUT
+        path: /courier-partners/:id
+        roles: [ADMIN, OPERATOR]
+        description: Updates courier partner details.
+        headers: { Content-Type: application/json }
+        body: |
+          { "courierName": "Updated Courier" }
+        responseStatus: 200
+
+      - name: Delete Courier
+        method: DELETE
+        path: /courier-partners/:id
+        roles: [ADMIN, OPERATOR]
+        description: Removes a courier partner.
+        responseStatus: 200
+
+  # ========== 5. SENDERS ==========
+  - name: Senders
+    slug: senders
+    description: Sender (Party) CRUD, lookup, and address book
+    endpoints:
+      - name: List Senders
+        method: GET
+        path: /senders
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves all active sender entities.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "customerName": "John Doe", "phoneNo": "9876543210", "emailId": "john.doe@example.com", "isActive": true }] }
+
+      - name: Create Sender
+        method: POST
+        path: /senders
+        roles: [ADMIN, OPERATOR]
+        description: Registers a new sender with contact and address info.
+        headers: { Content-Type: application/json }
+        body: |
+          { "customerName": "John Doe Enterprises", "phoneNo": "9876543210", "emailId": "john.doe@example.com", "address": "123 Business Park, Sector 62", "city": "Noida", "state": "Uttar Pradesh", "pincode": "201301" }
+        responseStatus: 201
+
+      - name: Get Sender by ID
+        method: GET
+        path: /senders/:id
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves a single sender profile.
+        responseStatus: 200
+
+      - name: Lookup by Phone
+        method: GET
+        path: /senders/lookup?phone=9876543210
+        roles: [ADMIN, OPERATOR]
+        description: Quick sender lookup by mobile number for auto-fill.
+        responseStatus: 200
+
+      - name: Get All Sender Names
+        method: GET
+        path: /senders/names
+        roles: [ADMIN, OPERATOR]
+        description: Distinct sender names for autocomplete dropdown.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": ["John Doe Enterprises", "Ramesh Textiles"] }
+
+      - name: Get All Sender Phones
+        method: GET
+        path: /senders/phones
+        roles: [ADMIN, OPERATOR]
+        description: Distinct phone numbers for autocomplete dropdown.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": ["9876543210", "9000000001"] }
+
+      - name: Lookup by Name
+        method: GET
+        path: /senders/lookup-by-name?name=John
+        roles: [ADMIN, OPERATOR]
+        description: Search senders by partial name match.
+        responseStatus: 200
+
+      - name: Update Sender
+        method: PUT
+        path: /senders/:id
+        roles: [ADMIN, OPERATOR]
+        description: Updates sender information (partial updates supported).
+        headers: { Content-Type: application/json }
+        body: |
+          { "customerName": "John Doe Enterprises Updated", "city": "Gurugram", "state": "Haryana" }
+        responseStatus: 200
+
+      - name: Delete Sender
+        method: DELETE
+        path: /senders/:id
+        roles: [ADMIN, OPERATOR]
+        description: Soft-deletes a sender.
+        responseStatus: 200
+
+      - name: Get Addresses
+        method: GET
+        path: /senders/:id/addresses
+        roles: [ADMIN, OPERATOR]
+        description: Address book entries for a sender (dropdown).
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 10, "partyId": 1, "partyName": "John Doe Enterprises", "phoneNo": "9876543210", "address": "123 Business Park", "city": "Noida", "state": "UP", "pincode": "201301", "isDefault": true }] }
+
+      - name: Create Address
+        method: POST
+        path: /senders/:id/addresses
+        roles: [ADMIN, OPERATOR]
+        description: Adds a new address to a sender's address book.
+        headers: { Content-Type: application/json }
+        body: |
+          { "address": "456 New Location", "city": "Mumbai", "state": "Maharashtra", "pincode": "400001" }
+        responseStatus: 201
+
+  # ========== 6. RECEIVERS ==========
+  - name: Receivers
+    slug: receivers
+    description: Receiver lookup and dropdown endpoints
+    endpoints:
+      - name: Get All Receiver Names
+        method: GET
+        path: /receivers/names
+        roles: [ADMIN, OPERATOR]
+        description: Distinct receiver names for autocomplete dropdown.
+        responseStatus: 200
+
+      - name: Get All Receiver Phones
+        method: GET
+        path: /receivers/phones
+        roles: [ADMIN, OPERATOR]
+        description: Distinct receiver phone numbers for autocomplete.
+        responseStatus: 200
+
+      - name: Lookup by Name
+        method: GET
+        path: /receivers/lookup-by-name?name=Receiver
+        roles: [ADMIN, OPERATOR]
+        description: Search receivers by partial name match.
+        responseStatus: 200
+
+  # ========== 7. ORDER PIPELINE ==========
+  - name: Order Pipeline
+    slug: order-pipeline
+    description: Order CRUD with Mode A/B/C support
+    guide: "Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique Parcel ID (PDS-XXX)."
+    endpoints:
+      - name: List Orders
+        method: GET
+        path: /orders?page=1&limit=20
+        roles: [ADMIN, OPERATOR, COURIER]
+        description: Paginated order list with derived status.
+        parameters:
+          page: { type: 'number', description: 'Current page number' }
+          limit: { type: 'number', description: 'Number of items per page' }
+          status: { type: 'string', description: 'Filter by derived status (PENDING, DISPATCHED, etc.)' }
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "orderCode": "ORD-2026-001", "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "totalAmount": 2100.00, "derivedStatus": "PENDING", "createdAt": "2026-04-24T10:00:00Z" }], "meta": { "page": 1, "limit": 20, "totalRows": 1, "totalPages": 1 } }
+
+      - name: "Create Order — Mode B (Sender → Receivers)"
+        method: POST
+        path: /orders
+        roles: [ADMIN, OPERATOR]
+        description: Creates an order with sender and multiple receivers. Each receiver generates a parcel.
+        notes: "This is Mode B. Ensure each object in the 'receivers' array has its own 'products' array. The 'courierId' is mandatory to determine the shipping partner."
+        headers: { Content-Type: application/json }
+        body: |
+          { "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "senderAddress": "14, Gandhi Nagar, Surat", "courierId": 1, "receivers": [{ "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "products": [{ "productId": 1, "qty": 5, "unitPrice": 420.00 }] }] }
+        responseStatus: 201
+        assertions:
+          - "res.status equals 201"
+          - "Each receiver has a nested parcel with parcelId starting with PDS-"
+          - "Parcel status is PENDING"
+          - "Mode B detected: multiple receivers created"
+
+      - name: "Create Order — Mode A (Sender-to-Self)"
+        method: POST
+        path: /orders
+        roles: [ADMIN, OPERATOR]
+        description: Sender-to-self order using top-level products array.
+        headers: { Content-Type: application/json }
+        body: |
+          { "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "senderAddress": "14, Gandhi Nagar", "courierId": 1, "products": [{ "productId": 1, "qty": 10, "unitPrice": 500.00 }] }
+        responseStatus: 201
+
+      - name: Get Order Aggregate
+        method: GET
+        path: /orders/:id
+        roles: [ADMIN, OPERATOR, COURIER]
+        description: Full order with nested receivers, items, and parcels.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": 1, "orderCode": "ORD-2026-001", "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "totalAmount": 2100.00, "derivedStatus": "PENDING", "senderAddress": "14, Gandhi Nagar, Surat", "courierId": 1, "receivers": [{ "id": 1, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "parcel": { "id": 1, "parcelId": "PDS-A1B2C3", "status": "PENDING" }, "products": [{ "productId": 1, "qty": 5, "unitPrice": 420.00 }] }] } }
+
+      - name: Update Order
+        method: PUT
+        path: /orders/:id
+        roles: [ADMIN, OPERATOR]
+        description: Updates order details (blocked if any parcel >= AWB_LINKED).
+        headers: { Content-Type: application/json }
+        body: |
+          { "senderName": "Ramesh Textiles Updated", "courierId": 2 }
+        responseStatus: 200
+
+      - name: Cancel Order
+        method: PATCH
+        path: /orders/:id/cancel
+        roles: [ADMIN, OPERATOR]
+        description: Cancels order and all non-dispatched parcels.
+        responseStatus: 200
+
+  # ========== 8. PARCELS RETRIEVAL ==========
+  - name: Parcels Retrieval and Label Data
+    slug: parcels-retrieval
+    description: Parcel read operations, label data, and timeline
+    endpoints:
+      - name: List Parcels
+        method: GET
+        path: /parcels
+        roles: [ADMIN, OPERATOR, COURIER]
+        description: Paginated parcel list.
+        parameters:
+          page: { type: 'number', description: 'Page index' }
+          limit: { type: 'number', description: 'Items per page' }
+          orderCode: { type: 'string', description: 'Search by partial Order Code' }
+          parcelId: { type: 'string', description: 'Search by QR code/Parcel ID' }
+        responseStatus: 200
+
+      - name: Get Parcel by ID
+        method: GET
+        path: /parcels/:id
+        roles: [ADMIN, OPERATOR, COURIER]
+        description: Single parcel details.
+        parameters:
+          id: { type: 'number', description: 'Unique identifier of the parcel' }
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": 1, "parcelId": "PDS-A1B2C3", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
+
+      - name: Get Label Data
+        method: GET
+        path: /parcels/:id/label-data
+        roles: [ADMIN, OPERATOR]
+        description: On-demand label generation data for printing.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": { "id": 1, "parcelId": "PDS-A1B2C3", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
+
+      - name: Get Timeline
+        method: GET
+        path: /parcels/:id/timeline
+        roles: [ADMIN, OPERATOR, COURIER]
+        description: Append-only event timeline for a parcel.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "parcelId": "PDS-A1B2C3", "orderCode": "ORD-2026-001", "actionType": "STATUS_UPDATE", "awbNumber": null, "previousStatus": "Created", "newStatus": "PENDING", "scannedBy": "EMP-001", "timestamp": "2026-04-24T10:05:00Z" }] }
+
+  # ========== 9. LABEL PRINT LOGGING ==========
+  - name: Label Print Logging
+    slug: label-print
+    description: Log label print events (PENDING → LABEL_PRINTED)
+    endpoints:
+      - name: Log Print
+        method: POST
+        path: /parcels/:id/log-print
+        roles: [ADMIN, OPERATOR]
+        description: Transitions parcel from PENDING to LABEL_PRINTED.
+        responseStatus: 200
+        assertions:
+          - "res.body.data.status equals LABEL_PRINTED"
+
+  # ========== 10. TWO SCAN OPERATIONS ==========
+  - name: Two Scan Operations
+    slug: scan-operations
+    description: Atomic QR + AWB scanning flow
+    endpoints:
+      - name: Scan and Link AWB
+        method: POST
+        path: /parcels/scan
+        roles: [ADMIN, OPERATOR, COURIER]
+        description: "QR identifies parcel, AWB links shipment. OPERATOR → AWB_LINKED, COURIER → auto-DISPATCHED."
+        notes: "This is an atomic operation. You must scan the QR code first to identify the parcel. If a user with the COURIER role performs this scan, the parcel is automatically moved to the DISPATCHED state, skipping the manual dispatch step."
+        headers: { Content-Type: application/json }
+        body: |
+          { "qrCode": "PDS-A1B2C3", "awbNumber": "AWB-DTDC-001" }
+        responseStatus: 200
+        assertions:
+          - "OPERATOR scan → status AWB_LINKED"
+          - "COURIER scan → status DISPATCHED (auto-dispatch)"
+
+  # ========== 11. DISPATCH AND TERMINAL STATES ==========
+  - name: Dispatch and Terminal States
+    slug: dispatch-terminal
+    description: Dispatch, deliver, and return parcel operations
+    endpoints:
+      - name: Batch Dispatch
+        method: POST
+        path: /parcels/dispatch
+        roles: [ADMIN, OPERATOR]
+        description: Dispatches one or more AWB_LINKED parcels.
+        headers: { Content-Type: application/json }
+        body: |
+          { "parcelIds": [1, 2, 3] }
+        responseStatus: 200
+
+      - name: Mark Delivered
+        method: PATCH
+        path: /parcels/:id/deliver
+        roles: [ADMIN, OPERATOR]
+        description: Terminal state — marks parcel as DELIVERED.
+        responseStatus: 200
+
+      - name: Mark Returned
+        method: PATCH
+        path: /parcels/:id/return
+        roles: [ADMIN, OPERATOR]
+        description: Terminal state — marks parcel as RETURNED.
+        responseStatus: 200
+
+
+  # ========== 12. PARCEL EVENTS ==========
+  - name: Parcel Events & Audit Export
+    slug: parcel-events
+    description: Parcel event log and CSV export
+    endpoints:
+      - name: List Events
+        method: GET
+        path: /parcel-events
+        roles: [ADMIN, OPERATOR]
+        description: Paginated event log from receiver_status_details.
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 1, "parcelId": "PDS-A1B2C3", "orderCode": "ORD-2026-001", "actionType": "AWB_LINK", "awbNumber": "AWB-DTDC-001", "previousStatus": "LABEL_PRINTED", "newStatus": "AWB_LINKED", "scannedBy": "EMP-001", "timestamp": "2026-04-24T12:00:00Z" }], "meta": { "totalRows": 50 } }
+
+      - name: Export CSV
+        method: GET
+        path: /parcel-events/export
+        roles: [ADMIN, OPERATOR]
+        description: Downloads event log as CSV file.
+        responseStatus: 200
+        assertions:
+          - "Content-Type is text/csv"
+          - "Body contains EventID header"
+
+  # ========== 13. DASHBOARD ==========
+  - name: Dashboard
+    slug: dashboard
+    description: Admin-only dashboard metrics
+    endpoints:
+      - name: Get Metrics
+        method: GET
+        path: /dashboard/metrics
+        roles: [ADMIN]
+        description: Aggregated dashboard statistics.
+        responseStatus: 200
+        responseBody: |
+          { 
+            "success": true, 
+            "data": { 
+              "TotalOrders": 150, "PendingOrders": 45, "DispatchedOrders": 80, "DeliveredOrders": 25,
+              "totalOrders": 150, // @deprecated
+              "parcelsByStatus": { "PENDING": 45, "DISPATCHED": 80, "DELIVERED": 25 } // @deprecated
+            } 
+          }
+
+  # ========== 14. BULK UPLOAD ==========
+  - name: Bulk Upload
+    slug: bulk-upload
+    description: Batch order creation via array upload
+    endpoints:
+      - name: Create Bulk Session
+        method: POST
+        path: /bulk-uploads
+        roles: [ADMIN, OPERATOR]
+        description: Processes an array of orders in a single batch.
+        headers: { Content-Type: application/json }
+        body: |
+          { "rows": [{ "senderName": "Bulk Sender", "senderMobile": "9000000099", "courierId": 1, "receivers": [{ "receiverName": "Bulk Receiver", "receiverPhone": "9000000098", "products": [{ "productId": 1, "qty": 1, "unitPrice": 100 }] }] }] }
+        responseStatus: 201
+        responseBody: |
+          { "success": true, "data": { "sessionId": 1, "totalOrders": 1 } }
+
+      - name: List Sessions
+        method: GET
+        path: /bulk-uploads
+        roles: [ADMIN, OPERATOR]
+        description: Lists all bulk upload sessions.
+        responseStatus: 200
+
+      - name: Get Session by ID
+        method: GET
+        path: /bulk-uploads/:id
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves details of a bulk upload session.
+        responseStatus: 200
+
+  # ========== 15. NOTIFICATION ==========
+  - name: Notification
+    slug: notification
+    description: Parcel notification sending, resending, and webhook
+    endpoints:
+      - name: Send Notification
+        method: POST
+        path: /parcels/:id/notify
+        roles: [ADMIN, OPERATOR]
+        description: Sends a tracking notification for a parcel.
+        responseStatus: 200
+
+      - name: Get Notification History
+        method: GET
+        path: /parcels/:id/notifications
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves notification log for a parcel.
+        responseStatus: 200
+
+      - name: Resend Notification
+        method: POST
+        path: /notifications/:id/resend
+        roles: [ADMIN, OPERATOR]
+        description: Resends a previously sent notification.
+        responseStatus: 200
+
+      - name: Webhook
+        method: POST
+        path: /notifications/webhook
+        auth: none
+        roles: [ALL]
+        description: External delivery status webhook endpoint.
+        headers: { Content-Type: application/json }
+        body: |
+          { "notificationId": 1, "status": "delivered" }
+        responseStatus: 200
