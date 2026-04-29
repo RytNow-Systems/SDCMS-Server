@@ -70,7 +70,7 @@ class SenderRepository {
   async checkDuplicate(id, phone) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_check_duplicate_Party_master(?, ?)', [id, phone]);
-      return Object.values(rows[0][0])[0];
+      return (rows?.[0]?.[0] ? Object.values(rows[0][0])[0] : 0);
     }
     return mockParties.filter(s => s.PhoneNo === phone && s.PkPartyId !== parseInt(id) && s.IsActive === 1).length;
   }
@@ -83,7 +83,7 @@ class SenderRepository {
   async findAll(partyTypeId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
-      return rows[0];
+      return rows?.[0] || [];
     }
     return mockParties.filter(s => s.IsActive === 1 && (partyTypeId === null || s.PartyTypeId === partyTypeId));
   }
@@ -97,7 +97,7 @@ class SenderRepository {
   async findById(id, partyTypeId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [id, partyTypeId]);
-      return rows[0][0] || null;
+      return rows?.[0]?.[0] || null;
     }
     const match = mockParties.find(s => s.PkPartyId === parseInt(id) && s.IsActive === 1 && (partyTypeId === null || s.PartyTypeId === partyTypeId));
     return match || null;
@@ -117,7 +117,7 @@ class SenderRepository {
         'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [0, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, data.city, data.state, data.pincode, adminId, 1]
       );
-      const party = rows[0][0];
+      const party = rows?.[0]?.[0];
 
       // Step 2: Seed the default address record in party_details
       if (party && party.IsNewParty === 1) {
@@ -164,7 +164,7 @@ class SenderRepository {
         'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [id, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, data.city, data.state, data.pincode, adminId, 1]
       );
-      return rows[0][0];
+      return rows?.[0]?.[0] || { PkPartyId: id, ...data };
     }
     const idx = mockParties.findIndex(s => s.PkPartyId === parseInt(id));
     if (idx === -1) return null;
@@ -187,7 +187,7 @@ class SenderRepository {
         'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [id, partyTypeId, existing.CustomerName, existing.PhoneNo, existing.EmailId, existing.Address, existing.City, existing.State, existing.Pincode, adminId, 0]
       );
-      return rows[0][0];
+      return rows?.[0]?.[0] || { ...existing, IsActive: 0 };
     }
     const idx = mockParties.findIndex(s => s.PkPartyId === parseInt(id));
     mockParties[idx].IsActive = 0;
@@ -202,7 +202,8 @@ class SenderRepository {
   async findAllNames(partyTypeId = null) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
-      return [...new Set(rows[0].map(r => r.CustomerName))];
+      const results = rows?.[0] || [];
+      return [...new Set(results.map(r => r.CustomerName))];
     }
     let list = mockParties.filter(s => s.IsActive === 1);
     if (partyTypeId) list = list.filter(s => s.PartyTypeId === partyTypeId);
@@ -217,7 +218,8 @@ class SenderRepository {
   async findAllPhones(partyTypeId = null) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
-      return [...new Set(rows[0].map(r => r.PhoneNo))];
+      const results = rows?.[0] || [];
+      return [...new Set(results.map(r => r.PhoneNo))];
     }
     let list = mockParties.filter(s => s.IsActive === 1);
     if (partyTypeId) list = list.filter(s => s.PartyTypeId === partyTypeId);
@@ -233,8 +235,9 @@ class SenderRepository {
   async findByName(name, partyTypeId = null) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
+      const results = rows?.[0] || [];
       const q = name.toLowerCase();
-      return rows[0].filter(s => s.CustomerName && s.CustomerName.toLowerCase().includes(q));
+      return results.filter(s => s.CustomerName && s.CustomerName.toLowerCase().includes(q));
     }
     const q = name.toLowerCase();
     let list = mockParties.filter(s => s.IsActive === 1 && s.CustomerName.toLowerCase().includes(q));
@@ -250,7 +253,7 @@ class SenderRepository {
   async findAddressesByPartyId(partyId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_Party_Details_get(?, ?, ?)', [0, 0, partyId]);
-      return rows[0];
+      return rows?.[0] || [];
     }
     return mockPartyDetails.filter(d => d.FkPartyId === parseInt(partyId) && d.IsActive === 1);
   }
@@ -266,7 +269,7 @@ class SenderRepository {
     const creator = user?.id || user?.employeeCode || null;
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_Party_Details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [0, partyId, data.partyName, data.phoneNo, data.emailId, data.address, data.city, data.state, data.pincode, data.country, creator, 1, data.isDefault ? 1 : 0]);
-      return rows[0][0];
+      return rows?.[0]?.[0];
     }
     const newId = mockPartyDetails.length > 0 ? Math.max(...mockPartyDetails.map(d => d.PkPartyDetailsId)) + 1 : 1;
     const newDet = { PkPartyDetailsId: newId, FkPartyId: parseInt(partyId), PartyName: data.partyName, PhoneNo: data.phoneNo, EmailId: data.emailId, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, Country: data.country || null, IsActive: 1, IsDefault: data.isDefault ? 1 : 0, CreatedDate: new Date().toISOString() };
