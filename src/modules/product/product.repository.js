@@ -190,7 +190,7 @@ class ProductRepository {
    */
   async getColors() {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_lu_color_code_get(?)', [0]);
+      const [rows] = await db.execute('CALL prc_lu_color_code_get(?, ?)', [0, 0]);
       return rows[0] || [];
     }
     return seedColors.filter(c => c.IsActive);
@@ -205,12 +205,11 @@ class ProductRepository {
    */
   async createCategory(categoryName, adminId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_category_set(?, ?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL prc_product_category_set(?, ?, ?, ?)', [
         0,
         categoryName,
-        1,
         adminId,
-        adminId
+        1
       ]);
       return rows[0]?.[0] || null;
     }
