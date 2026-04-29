@@ -12,7 +12,6 @@ import orderService from '../../../modules/order/order.service.js';
 /**
  * POST /api/v1/orders
  * Creates a complex order (sender → order → receivers → items → parcels).
- * Maps to: prc_CreateComplexOrder
  */
 export const createOrder = asyncHandler(async (req, res) => {
   const result = await orderService.createOrder(req.body, req.user);

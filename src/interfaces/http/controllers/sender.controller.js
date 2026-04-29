@@ -34,7 +34,7 @@ class SenderController {
 
   /**
    * @route POST /api/v1/senders
-   * @desc  Creates a new sender (PartyTypeId=30).
+   * @desc  Creates a new sender (PartyTypeId=1).
    */
   createSender = asyncHandler(async (req, res) => {
     const sender = await senderService.createSender(req.body, req.user);
@@ -64,7 +64,7 @@ class SenderController {
    * @desc  Finds a sender by phone number for form auto-fill.
    */
   lookupByPhone = asyncHandler(async (req, res) => {
-    const sender = await senderService.lookupByPhone(req.query.phone);
+    const sender = await senderService.lookupByPhone(req.query.phone, 1);
     res.json({ success: true, data: sender });
   });
 
@@ -73,7 +73,7 @@ class SenderController {
    * @desc  Autocomplete for distinct sender names.
    */
   getAllNames = asyncHandler(async (req, res) => {
-    const names = await senderService.getAllSenderNames(30);
+    const names = await senderService.getAllSenderNames(1);
     res.json({ success: true, data: names });
   });
 
@@ -82,7 +82,7 @@ class SenderController {
    * @desc  Autocomplete for distinct sender phone numbers.
    */
   getAllPhones = asyncHandler(async (req, res) => {
-    const phones = await senderService.getAllPhoneNumbers(30);
+    const phones = await senderService.getAllPhoneNumbers(1);
     res.json({ success: true, data: phones });
   });
 
@@ -91,7 +91,7 @@ class SenderController {
    * @desc  Partial name search for party suggestions.
    */
   lookupByName = asyncHandler(async (req, res) => {
-    const parties = await senderService.lookupByName(req.query.name, 30);
+    const parties = await senderService.lookupByName(req.query.name, 1);
     res.json({ success: true, data: parties });
   });
 

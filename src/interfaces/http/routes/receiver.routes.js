@@ -33,6 +33,13 @@ router.get('/phones', receiverController.getAllPhones);
 router.get('/lookup-by-name', receiverController.lookupByName);
 
 /**
+ * @route   GET /api/v1/receivers/lookup-by-phone
+ * @desc    Search receivers by phone (partial match)
+ */
+router.get('/lookup-by-phone', receiverController.lookupByPhone);
+
+
+/**
  * @route   GET /api/v1/receivers/:id/addresses
  * @desc    Get all addresses for a receiver
  */

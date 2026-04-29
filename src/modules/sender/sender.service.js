@@ -4,7 +4,7 @@
 //
 // [INJECTION SITE] Service Dependencies:
 // - senderRepository: Handles all direct database / stored procedure interactions.
-// - partyTypeId: Enforced as 30 for Senders and 31 for Receivers.
+// - partyTypeId: Enforced as 1 for Senders and 2 for Receivers.
 // ============================================================================
 
 import senderRepository from './sender.repository.js';
@@ -41,8 +41,7 @@ class SenderService {
     return {
       id: detail.PkPartyDetailsId,
       partyId: detail.FkPartyId,
-      partyName: detail.PartyName,
-      phoneNo: detail.PhoneNo,
+      customerName: detail.CustomerName || null,
       emailId: detail.EmailId || null,
       address: detail.Address,
       city: detail.City,
@@ -50,16 +49,17 @@ class SenderService {
       pincode: detail.Pincode,
       country: detail.Country || null,
       isDefault: detail.IsDefault === 1 || detail.IsDefault === true,
+      isActive: detail.IsActive === 1 || detail.IsActive === true,
       createdAt: detail.CreatedDate
     };
   }
 
   /**
-   * Retrieves all active senders (PartyTypeId=30).
+   * Retrieves all active senders (PartyTypeId=1).
    * @returns {Promise<Array<object>>} List of senders in API format.
    */
   async getSenders() {
-    const senders = await senderRepository.findAll(30);
+    const senders = await senderRepository.findAll(1);
     return senders.map(s => this._mapToApi(s));
   }
 
@@ -70,7 +70,7 @@ class SenderService {
    * @throws {Error} 404 if sender not found or is not a sender type.
    */
   async getSenderById(id) {
-    const sender = await senderRepository.findById(id, 30);
+    const sender = await senderRepository.findById(id, 1);
     if (!sender) {
       const error = new Error('Sender not found');
       error.statusCode = 404;
@@ -94,7 +94,7 @@ class SenderService {
       throw error;
     }
     const adminId = user?.id || user?.employeeCode || 1;
-    const result = await senderRepository.create(senderData, adminId, 30);
+    const result = await senderRepository.create(senderData, adminId, 1);
     return this._mapToApi(result);
   }
 
@@ -116,7 +116,7 @@ class SenderService {
       }
     }
     const adminId = user?.id || user?.employeeCode || 1;
-    const result = await senderRepository.update(id, { ...existing, ...senderData }, adminId, 30);
+    const result = await senderRepository.update(id, { ...existing, ...senderData }, adminId, 1);
     return this._mapToApi(result);
   }
 
@@ -129,7 +129,7 @@ class SenderService {
   async deleteSender(id, user) {
     await this.getSenderById(id);
     const adminId = user?.id || user?.employeeCode || 1;
-    await senderRepository.delete(id, adminId, 30);
+    await senderRepository.delete(id, adminId, 1);
     return true;
   }
 
@@ -138,13 +138,13 @@ class SenderService {
    * @param {string} phone - Target phone number.
    * @returns {Promise<object>} Matching sender.
    */
-  async lookupByPhone(phone) {
+  async lookupByPhone(phone, partyTypeId) {
     if (!phone) {
       const error = new Error('Phone number is required for lookup');
       error.statusCode = 400;
       throw error;
     }
-    const senders = await senderRepository.findAll(30);
+    const senders = await senderRepository.findAll(partyTypeId);
     const sender = senders.find(s => s.PhoneNo === phone);
     if (!sender) {
       const error = new Error(`No sender found for phone: ${phone}`);
@@ -160,7 +160,7 @@ class SenderService {
    * @returns {Promise<Array<string>>}
    */
   async getAllSenderNames(partyTypeId = null) {
-    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
+    const typeId = partyTypeId === 1 ? 1 : partyTypeId === 2 ? 2 : partyTypeId;
     return await senderRepository.findAllNames(typeId);
   }
 
@@ -170,7 +170,7 @@ class SenderService {
    * @returns {Promise<Array<string>>}
    */
   async getAllPhoneNumbers(partyTypeId = null) {
-    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
+    const typeId = partyTypeId === 1 ? 1 : partyTypeId === 2 ? 2 : partyTypeId;
     return await senderRepository.findAllPhones(typeId);
   }
 
@@ -186,7 +186,7 @@ class SenderService {
       error.statusCode = 400;
       throw error;
     }
-    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
+    const typeId = partyTypeId === 1 ? 1 : partyTypeId === 2 ? 2 : partyTypeId;
     const parties = await senderRepository.findByName(name, typeId);
     return parties.map((s) => this._mapToApi(s));
   }
@@ -197,12 +197,6 @@ class SenderService {
    * @returns {Promise<Array<object>>} API-formatted addresses.
    */
   async getAddressesByPartyId(partyId) {
-    const party = await senderRepository.findById(partyId, null);
-    if (!party) {
-      const error = new Error('Party not found');
-      error.statusCode = 404;
-      throw error;
-    }
     const addresses = await senderRepository.findAddressesByPartyId(partyId);
     return addresses.map((d) => this._mapAddressToApi(d));
   }
@@ -222,9 +216,9 @@ class SenderService {
       throw error;
     }
     const payload = {
-      partyName: party.CustomerName, phoneNo: party.PhoneNo, emailId: party.EmailId,
+      emailId: party.EmailId,
       address: data.address, city: data.city, state: data.state, pincode: data.pincode,
-      country: data.country || null, isDefault: data.isDefault
+      country: data.country || 'India', isDefault: data.isDefault
     };
     const result = await senderRepository.createPartyDetail(partyId, payload, user);
     return this._mapAddressToApi(result);

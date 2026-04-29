@@ -16,7 +16,7 @@ import db from '../../infrastructure/database/db.js';
 let mockParties = [
   {
     PkPartyId: 1,
-    PartyTypeId: 30, // 30 for Senders in DB
+    PartyTypeId: 1, // 1 for Senders in DB
     CustomerName: 'John Doe',
     PhoneNo: '9876543210',
     EmailId: 'john@example.com',
@@ -29,7 +29,7 @@ let mockParties = [
   },
   {
     PkPartyId: 2,
-    PartyTypeId: 30,
+    PartyTypeId: 1,
     CustomerName: 'Jane Smith',
     PhoneNo: '9876543211',
     EmailId: 'jane@example.com',
@@ -77,12 +77,15 @@ class SenderRepository {
 
   /**
    * Retrieves all active parties of a specific type.
-   * @param {number} partyTypeId - 30 for Sender, 31 for Receiver.
+   * @param {number} partyTypeId - 1 for Sender, 2 for Receiver.
    * @returns {Promise<Array>} List of raw party records.
    */
   async findAll(partyTypeId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
+      // pAction=2: Get all parties filtered by FkPartyTypeId
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      // pAction=0 has no type filter (WHERE commented out), so we use pAction=2
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [2, partyTypeId, 0]);
       return rows?.[0] || [];
     }
     return mockParties.filter(s => s.IsActive === 1 && (partyTypeId === null || s.PartyTypeId === partyTypeId));
@@ -96,7 +99,9 @@ class SenderRepository {
    */
   async findById(id, partyTypeId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [id, partyTypeId]);
+      // pAction=1: Get specific party by PkPartyId
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [1, partyTypeId ?? null, id]);
       return rows?.[0]?.[0] || null;
     }
     const match = mockParties.find(s => s.PkPartyId === parseInt(id) && s.IsActive === 1 && (partyTypeId === null || s.PartyTypeId === partyTypeId));
@@ -107,7 +112,7 @@ class SenderRepository {
    * Creates a new Party record.
    * @param {object} data - Party master fields.
    * @param {number|string} adminId - PkEmployeeId of creator.
-   * @param {number} partyTypeId - 30 (Sender) or 31 (Receiver).
+   * @param {number} partyTypeId - 1 (Sender) or 2 (Receiver).
    * @returns {Promise<object>} Created record.
    */
   async create(data, adminId, partyTypeId) {
@@ -201,7 +206,9 @@ class SenderRepository {
    */
   async findAllNames(partyTypeId = null) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
+      // pAction=2: Fetch type-filtered parties, extract distinct names in JS
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [2, partyTypeId ?? null, 0]);
       const results = rows?.[0] || [];
       return [...new Set(results.map(r => r.CustomerName))];
     }
@@ -217,7 +224,9 @@ class SenderRepository {
    */
   async findAllPhones(partyTypeId = null) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
+      // pAction=2: Fetch type-filtered parties, extract distinct phones in JS
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [2, partyTypeId ?? null, 0]);
       const results = rows?.[0] || [];
       return [...new Set(results.map(r => r.PhoneNo))];
     }
@@ -234,7 +243,9 @@ class SenderRepository {
    */
   async findByName(name, partyTypeId = null) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
+      // pAction=2: Fetch type-filtered parties, filter by name in JS
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [2, partyTypeId ?? null, 0]);
       const results = rows?.[0] || [];
       const q = name.toLowerCase();
       return results.filter(s => s.CustomerName && s.CustomerName.toLowerCase().includes(q));
@@ -252,7 +263,9 @@ class SenderRepository {
    */
   async findAddressesByPartyId(partyId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Party_Details_get(?, ?, ?)', [0, 0, partyId]);
+      // pAction=1: Get all addresses filtered by FkPartyId
+      // Signature: prc_party_details_get(pAction, pLookupId)
+      const [rows] = await db.execute('CALL prc_party_details_get(?, ?)', [1, partyId]);
       return rows?.[0] || [];
     }
     return mockPartyDetails.filter(d => d.FkPartyId === parseInt(partyId) && d.IsActive === 1);
@@ -268,8 +281,9 @@ class SenderRepository {
   async createPartyDetail(partyId, data, user) {
     const creator = user?.id || user?.employeeCode || null;
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Party_Details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [0, partyId, data.partyName, data.phoneNo, data.emailId, data.address, data.city, data.state, data.pincode, data.country, creator, 1, data.isDefault ? 1 : 0]);
-      return rows?.[0]?.[0];
+      // Signature: prc_party_details_set(pPkPartyDetailsId, pFkPartyId, pEmailId, pAddress, pCity, pState, pPincode, pCountry, pIsDefault, pCreatedBy, pIsActive)
+      const [rows] = await db.execute('CALL prc_party_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [0, partyId, data.emailId, data.address, data.city, data.state, data.pincode, data.country, data.isDefault ? 1 : 0, creator, 1]);
+      return rows?.[0]?.[0] || null;
     }
     const newId = mockPartyDetails.length > 0 ? Math.max(...mockPartyDetails.map(d => d.PkPartyDetailsId)) + 1 : 1;
     const newDet = { PkPartyDetailsId: newId, FkPartyId: parseInt(partyId), PartyName: data.partyName, PhoneNo: data.phoneNo, EmailId: data.emailId, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, Country: data.country || null, IsActive: 1, IsDefault: data.isDefault ? 1 : 0, CreatedDate: new Date().toISOString() };

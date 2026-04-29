@@ -140,7 +140,7 @@ class ProductRepository {
    */
   async getCategories() {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_category_get(?)', [0]);
+      const [rows] = await db.execute('CALL prc_product_category_get(?, ?)', [0, 0]);
       return rows[0] || [];
     }
     return seedCategories.filter(c => c.IsActive);
