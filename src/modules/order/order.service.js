@@ -330,7 +330,7 @@ class OrderService {
       senderName: o.SenderName || o.senderName,
       senderMobile: o.SenderMobile || o.senderMobile,
       totalAmount: o.TotalAmount || o.totalAmount,
-      derivedStatus: o.DynamicOrderStatus || o.DerivedStatus || o.derivedStatus || 'Created',
+      derivedStatus: o.DynamicOrderStatus || o.DerivedStatus || o.derivedStatus || 'Pending',
       createdAt: o.OrderDate || o.CreatedAt || o.createdAt,
       totalParcels: o.TotalParcels || o.totalParcels || 0
     };

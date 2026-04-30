@@ -238,6 +238,7 @@ class OrderRepository {
     const order = {
       PkOrderId: rows[0].PkOrderId,
       OrderCode: rows[0].OrderCode,
+      FkSenderId: rows[0].FkSenderId,
       OrderDate: rows[0].OrderDate,
       ExpectedDeliveryDate: rows[0].ExpectedDeliveryDate,
       TotalAmount: rows[0].TotalAmount,
@@ -403,7 +404,7 @@ class OrderRepository {
    * @private
    */
   _deriveOrderStatus(parcels) {
-    if (!parcels || parcels.length === 0) return 'Created';
+    if (!parcels || parcels.length === 0) return 'Pending';
     const s = parcels.map((p) => p.parcelStatusCode);
     if (s.every((x) => x === 'CANCELLED')) return 'Cancelled';
     if (s.every((x) => x === 'DELIVERED')) return 'Completed';
@@ -411,7 +412,7 @@ class OrderRepository {
     if (s.some((x) => ['DISPATCHED', 'DELIVERED'].includes(x))) return 'Partially Dispatched';
     if (s.every((x) => ['LABEL_PRINTED', 'AWB_LINKED'].includes(x))) return 'Label Printed';
     if (s.some((x) => ['LABEL_PRINTED', 'AWB_LINKED'].includes(x))) return 'Partially Printed';
-    return 'Created';
+    return 'Pending';
   }
 
   // MOCK sub-methods used by service
