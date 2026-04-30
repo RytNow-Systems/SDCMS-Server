@@ -7,6 +7,7 @@
 // ============================================================================
 
 import parcelRepository from './parcel.repository.js';
+import ParcelCodeService from './parcel-code.service.js';
 
 // Status constants mapping (from lu_details/system flow)
 const STATUS = {
@@ -65,7 +66,11 @@ class ParcelService {
       orderCode: parcel.OrderCode || parcel.orderCode,
       orderId: parcel.FkOrderId || parcel.orderId,
       receiverDetailsId: parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId,
-      createdAt: parcel.CreatedDate || parcel.createdAt
+      createdAt: parcel.CreatedDate || parcel.createdAt,
+      parcelCode: ParcelCodeService.generateCode(
+        parcel.FkOrderId || parcel.orderId,
+        parcel.PkParcelDetailsId || parcel.id
+      )
     };
   }
 

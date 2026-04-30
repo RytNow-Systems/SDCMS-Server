@@ -7,6 +7,7 @@
 
 import orderRepository from './order.repository.js';
 import productRepository from '../product/product.repository.js';
+import ParcelCodeService from '../parcel/parcel-code.service.js';
 
 class OrderService {
   /**
@@ -357,7 +358,11 @@ class OrderService {
         parcel: r.parcel ? {
           id: r.parcel.PkParcelDetailsId || r.parcel.id,
           parcelId: r.parcel.ParcelID || r.parcel.parcel_id,
-          status: r.parcel.ParcelStatus || r.parcel.parcelStatusCode || 'PENDING'
+          status: r.parcel.ParcelStatus || r.parcel.parcelStatusCode || 'PENDING',
+          parcelCode: ParcelCodeService.generateCode(
+            o.PkOrderId || o.id,
+            r.parcel.PkParcelDetailsId || r.parcel.id
+          )
         } : null,
         products: (r.items || []).map((i) => ({
           productId: i.FkProductId || i.fkProductId,
