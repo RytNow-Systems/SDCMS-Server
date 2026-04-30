@@ -74,7 +74,7 @@ export const lookupByPhone = asyncHandler(async (req, res) => {
  * @access Private (ADMIN, OPERATOR)
  */
 export const getAddresses = asyncHandler(async (req, res) => {
-  const addresses = await senderService.getAddressesByPartyId(req.params.id);
+  const addresses = await senderService.getAddressesByPartyId(req.params.id, 2);
 
   res.status(200).json({
     success: true,
@@ -88,7 +88,7 @@ export const getAddresses = asyncHandler(async (req, res) => {
  * @access Private (ADMIN, OPERATOR)
  */
 export const createAddress = asyncHandler(async (req, res) => {
-  const address = await senderService.createAddress(req.params.id, req.body, req.user);
+  const address = await senderService.createAddress(req.params.id, req.body, req.user, 2);
 
   res.status(201).json({
     success: true,

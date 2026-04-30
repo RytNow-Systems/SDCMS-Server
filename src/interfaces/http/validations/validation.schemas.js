@@ -115,33 +115,21 @@ export const createUnitSchema = z.object({
 // ----------------------------------------------------------------------------
 // Product item shape (shared between root-level and receiver-level products)
 const productItemSchema = z.object({
-  productId: z.number().int().positive('Valid product ID is required'),
-  qty: z.number().int().positive('Quantity must be positive'),
-  unitPrice: z.number().nonnegative().nullable().optional(),
-  colorId: z.number().int().positive().optional(),
-  size: z.string().min(1).optional()
+  variationId: z.number().int().positive('Valid variation ID is required'),
+  quantity: z.number().int().positive('Quantity must be positive')
 });
 
 const baseOrderSchema = z.object({
   senderId: z.number().int().positive('Valid sender ID is required'),
-  senderName: z.string().min(1, 'Sender name is required'),
-  senderMobile: z.string().min(1, 'Sender mobile is required'),
-  senderAddress: z.string().optional(),
-  senderCity: z.string().optional(),
-  senderState: z.string().optional(),
-  senderPincode: z.string().optional(),
+  senderAddressId: z.number().int().positive('Valid sender address ID is required'),
   courierId: z.number().int().positive('Valid courier ID is required'),
   // Root-level products: used in Mode A (sender-to-self) and Mode C (combo)
   products: z.array(productItemSchema).optional(),
   // Receivers array: used in Mode B (normal) and Mode C (combo)
   receivers: z.array(
     z.object({
-      receiverName: z.string().min(1, 'Receiver name is required'),
-      receiverPhone: z.string().optional(),
-      address: z.string().optional(),
-      city: z.string().optional(),
-      state: z.string().optional(),
-      pincode: z.string().optional(),
+      receiverId: z.number().int().positive('Valid receiver ID is required'),
+      receiverAddressId: z.number().int().positive('Valid receiver address ID is required'),
       products: z.array(productItemSchema)
         .min(1, 'At least one product is required for each receiver')
     })

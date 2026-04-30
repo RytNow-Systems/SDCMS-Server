@@ -100,7 +100,7 @@ class SenderController {
    * @desc  Retrieves secondary addresses from the Address Book.
    */
   getAddresses = asyncHandler(async (req, res) => {
-    const addresses = await senderService.getAddressesByPartyId(req.params.id);
+    const addresses = await senderService.getAddressesByPartyId(req.params.id, 1);
     res.json({ success: true, data: addresses });
   });
 
@@ -109,7 +109,7 @@ class SenderController {
    * @desc  Adds a new secondary address to a sender's profile.
    */
   createAddress = asyncHandler(async (req, res) => {
-    const address = await senderService.createAddress(req.params.id, req.body, req.user);
+    const address = await senderService.createAddress(req.params.id, req.body, req.user, 1);
     res.status(201).json({ success: true, data: address });
   });
 }

@@ -17,23 +17,106 @@ class OrderService {
    * @returns {Promise<object>} Created order aggregate or receiver array.
    */
   async createOrder(payload, user) {
-    const { senderId, senderName, senderMobile, senderAddress, senderCity, senderState, senderPincode, courierId, products, receivers } = payload;
+    const { senderId, senderAddressId, courierId, products, receivers } = payload;
     const createdBy = user?.employeeCode || null;
 
-    // Detect Modes:
-    // Mode A: root products only.
-    // Mode B: receivers only.
-    // Mode C: both.
-    const hasRootProducts = Array.isArray(products) && products.length > 0;
-    const hasReceivers = Array.isArray(receivers) && receivers.length > 0;
+    // Resolve Sender details
+    const sender = await orderRepository.resolveParty(senderId);
+    if (!sender) {
+      const error = new Error('Invalid senderId: Party not found.');
+      error.statusCode = 400;
+      throw error;
+    }
 
-    const ctx = { senderId, senderName, senderMobile, senderAddress, senderCity, senderState, senderPincode, courierId, products, receivers, hasRootProducts, hasReceivers, createdBy };
+    const senderAddressDetails = await orderRepository.resolveAddress(senderId, senderAddressId);
+    if (!senderAddressDetails) {
+      const error = new Error('Invalid senderAddressId: Address not found for sender.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Resolve receivers and products
+    const resolvedProducts = await this._resolveProducts(products);
+    const resolvedReceivers = await this._resolveReceivers(receivers);
+
+    // Detect Modes
+    const hasRootProducts = Array.isArray(resolvedProducts) && resolvedProducts.length > 0;
+    const hasReceivers = Array.isArray(resolvedReceivers) && resolvedReceivers.length > 0;
+
+    const ctx = { 
+      senderId, 
+      senderName: sender.CustomerName, 
+      senderMobile: sender.PhoneNo, 
+      senderAddress: senderAddressDetails.Address, 
+      senderCity: senderAddressDetails.City, 
+      senderState: senderAddressDetails.State, 
+      senderPincode: senderAddressDetails.Pincode, 
+      courierId, 
+      products: resolvedProducts, 
+      receivers: resolvedReceivers, 
+      hasRootProducts, 
+      hasReceivers, 
+      createdBy 
+    };
 
     if (process.env.USE_MOCK_DB !== 'true') {
       return this._createOrderLive(ctx);
     }
 
     return this._createOrderMock(ctx);
+  }
+
+  async _resolveProducts(products) {
+    if (!products) return undefined;
+    const resolved = [];
+    for (const p of products) {
+      const variation = await orderRepository.resolveVariation(p.variationId);
+      if (!variation) {
+        const error = new Error(`Invalid variationId: ${p.variationId} not found.`);
+        error.statusCode = 400;
+        throw error;
+      }
+      resolved.push({
+        productId: variation.FkProductId,
+        qty: p.quantity,
+        unitPrice: variation.MaterialRate
+      });
+    }
+    return resolved;
+  }
+
+  async _resolveReceivers(receivers) {
+    if (!receivers) return undefined;
+    const resolved = [];
+    for (const r of receivers) {
+      const party = await orderRepository.resolveParty(r.receiverId);
+      if (!party) {
+        const error = new Error(`Invalid receiverId: ${r.receiverId} not found.`);
+        error.statusCode = 400;
+        throw error;
+      }
+      
+      const address = await orderRepository.resolveAddress(r.receiverId, r.receiverAddressId);
+      if (!address) {
+        const error = new Error(`Invalid receiverAddressId: ${r.receiverAddressId} not found for receiver.`);
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const resolvedProducts = await this._resolveProducts(r.products);
+
+      resolved.push({
+        receiverId: r.receiverId,
+        receiverName: party.CustomerName,
+        receiverPhone: party.PhoneNo,
+        address: address.Address,
+        city: address.City,
+        state: address.State,
+        pincode: address.Pincode,
+        products: resolvedProducts
+      });
+    }
+    return resolved;
   }
 
   /**
@@ -56,10 +139,7 @@ class OrderService {
       ctx.senderName, ctx.senderMobile, senderCtx
     );
 
-    // Step 3: Resolve pricing for items missing unitPrice (v2.3 fallback chain)
-    await this._resolvePricing(normalizedReceivers);
-
-    // Step 4: Build the aggregate graph for the repository
+    // Step 3: Build the aggregate graph for the repository
     const orderPayload = {
       senderId: ctx.senderId,
       senderName: ctx.senderName,
@@ -103,10 +183,7 @@ class OrderService {
       ctx.senderName, ctx.senderMobile, senderCtx
     );
 
-    // Step 4: Resolve pricing for items missing unitPrice (v2.3 fallback chain)
-    await this._resolvePricing(receiversList);
-
-    // Step 5: Iteratively build the mock graph (receivers -> items -> parcels)
+    // Step 4: Iteratively build the mock graph (receivers -> items -> parcels)
     const aggregatedReceivers = await this._processMockReceivers(order.id, receiversList, ctx.courierId);
 
     return {
@@ -136,38 +213,7 @@ class OrderService {
     return aggregated;
   }
 
-  /**
-   * Pricing Hierarchy (v2.3):
-   *   1. Explicit unitPrice from payload
-   *   2. product_color_matrix.MaterialRate (if colorId + size specified)
-   *   3. product_master.MaterialRate (catalog fallback)
-   * Mutates the products array in-place to fill in resolved unitPrice.
-   * @private
-   */
-  async _resolvePricing(receivers) {
-    for (const rec of receivers) {
-      for (const prod of (rec.products || [])) {
-        if (prod.unitPrice != null && prod.unitPrice > 0) continue;
 
-        // Try color matrix pricing if colorId + size provided
-        if (prod.colorId && prod.size) {
-          const matrix = await productRepository.getColorMatrix(prod.productId);
-          const match = matrix.find(
-            m => (m.FkLuColorId === prod.colorId || m.colorId === prod.colorId) &&
-                 (m.Size === prod.size || m.size === prod.size)
-          );
-          if (match) {
-            prod.unitPrice = match.MaterialRate || match.materialRate;
-            continue;
-          }
-        }
-
-        // Catalog fallback from product_master
-        const product = await productRepository.findById(prod.productId);
-        prod.unitPrice = product?.MaterialRate || product?.materialRate || 0;
-      }
-    }
-  }
 
   /**
    * Business Logic: Calculate total order value across all items.
@@ -270,6 +316,7 @@ class OrderService {
     return {
       id: o.PkOrderId || o.id,
       orderCode: o.OrderCode || o.orderCode,
+      senderId: o.FkSenderId || o.fkSenderId,
       senderName: o.SenderName || o.senderName,
       senderMobile: o.SenderMobile || o.senderMobile,
       totalAmount: o.TotalAmount || o.totalAmount,
@@ -290,6 +337,7 @@ class OrderService {
       courierId: o.FkCourierId || o.fkCourierId,
       receivers: (o.receivers || []).map((r) => ({
         id: r.PkReceiverDetailsId || r.id,
+        receiverId: r.FkPartyId || r.fkPartyId,
         receiverName: r.ReceiverName || r.receiverName,
         receiverPhone: r.ReceiverPhone || r.receiverPhone,
         address: r.Address || r.address,
@@ -303,7 +351,7 @@ class OrderService {
         } : null,
         products: (r.items || []).map((i) => ({
           productId: i.FkProductId || i.fkProductId,
-          qty: i.OutwardQty || i.outwardQty,
+          quantity: i.OutwardQty || i.outwardQty,
           unitPrice: i.UnitPrice || i.unitPrice
         }))
       }))

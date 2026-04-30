@@ -21,23 +21,17 @@ Headers:
 
 Body:
 {
-  "senderName": "Ramesh Textiles",
-  "senderMobile": "9876543210",
-  "senderAddress": "14, Gandhi Nagar, Surat",
+  "senderId": 1,
+  "senderAddressId": 1,
   "courierId": 1,
   "receivers": [
     {
-      "receiverName": "Delhi Fabrics Ltd.",
-      "receiverPhone": "9123456780",
-      "address": "45, Karol Bagh",
-      "city": "New Delhi",
-      "state": "Delhi",
-      "pincode": "110005",
+      "receiverId": 2,
+      "receiverAddressId": 2,
       "products": [
         {
-          "productId": 1,
-          "qty": 5,
-          "unitPrice": 420
+          "variationId": 1,
+          "quantity": 5
         }
       ]
     }
@@ -56,15 +50,13 @@ Headers:
 
 Body:
 {
-  "senderName": "Ramesh Textiles",
-  "senderMobile": "9876543210",
-  "senderAddress": "14, Gandhi Nagar",
+  "senderId": 1,
+  "senderAddressId": 1,
   "courierId": 1,
   "products": [
     {
-      "productId": 1,
-      "qty": 10,
-      "unitPrice": 500
+      "variationId": 1,
+      "quantity": 10
     }
   ]
 }

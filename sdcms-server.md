@@ -69,6 +69,7 @@ bruno/
   Parcel Events & Audit Export.zip
   Parcels Retrieval and Label Data.zip
   Product Catalog.zip
+  Receivers.zip
   Senders.zip
   Two Scan Operations.zip
 bruno-html-docs/
@@ -84,6 +85,7 @@ bruno-html-docs/
   Parcel Events & Audit Export-documentation.html
   Parcels Retrieval and Label Data-documentation.html
   Product Catalog-documentation.html
+  Receivers-documentation.html
   Senders-documentation.html
   Two Scan Operations-documentation.html
 docs/
@@ -216,6 +218,7 @@ tests/
 .gitignore
 .nvmrc
 API_CHANGELOG.md
+Auth_Login_Fix_Test_Data.txt
 jest.config.js
 package.json
 README.md
@@ -2978,35 +2981,6 @@ We eliminated separate sender and customer tables. Everyone is a `Party_master`.
 Unlike older documentation which limited procedures to transactional flows, the backend heavily utilizes Master Data CRUD stored procedures (e.g., `prc_CreateProduct`, `prc_CreateCourierPartner`, `prc_FindOrCreateParty`) to keep data access strictly unified and optimized at the database layer.
 ````
 
-## File: bruno-html-docs/Authentication-documentation.html
-````html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Authentication - API Documentation</title>
-    <style>
-        body { margin: 0; padding: 0; }
-        #opencollection-container { width: 100vw; height: 100vh; }
-    </style>
-    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
-    <script src="https://cdn.opencollection.com/docs.js"></script>
-</head>
-<body>
-    <div id="opencollection-container"></div>
-    <script>
-        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Authentication\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Login Users\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/auth/login'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n            \"email\":\"admin@example.com\",\n            \"password\":\"securePass123\"\n          }\n\n          // {\n          //   \"email\": \"john@example.com\",\n          //   \"password\": \"password123\"\n          // }\n    runtime:\n      scripts:\n        - type: after-response\n          code: |-\n            // 1. Parse the JSON response\n            const response = res.getBody();\n\n            // 2. Check if login was successful and token exists\n            if (response.success && response.data && response.data.token) {\n              const token = response.data.token;\n              \n              // 3. Save the token to your environment variable\n              bru.setGlobalEnvVar(\"authToken\", token);\n              \n              console.log(\"Token successfully saved!\");\n            } else {\n              console.error(\"Login failed or token not found in response\");\n            }\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.token\n          operator: isDefined\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 1. Login (Token Generation)\n      Authenticates a user and provides a JWT (JSON Web Token) to be used for subsequent authorized requests.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/auth/login` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"email\": \"admin@example.com\",\n        \"password\": \"securePass123\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n          \"expiresIn\": \"8h\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Post-Request Script / Assertions**\n      * **Status Check:** `res.status` must be **200**.\n      * **Success Check:** `res.body.success` should be **true**.\n      * **Environment Setup:** Automatically store `res.body.data.token` as the variable `{{authToken}}`.\n\n      ---\n  - info:\n      name: System Health\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/system/health'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: Only Run this if you're in Office, or sure that the MYSQL Database is up & Running\n  - info:\n      name: USER Profile @private\n      type: http\n      seq: 2\n    http:\n      method: GET\n      url: '{{base_url}}/auth/profile'\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Get Profile Details\n      Retrieves the identity and permission metadata for the currently authenticated user based on the provided Bearer token. This ensures the frontend can adapt the UI based on the user's role.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/auth/profile` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"employeeCode\": \"EMP-001\",\n          \"firstName\": \"Admin\",\n          \"lastName\": \"User\",\n          \"roleCode\": \"ADMIN\",\n          \"permissions\": [\"CREATE_ORDER\", \"MANAGE_EMPLOYEES\"]\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Property Check:** `res.body.data` must contain the keys `employeeCode` and `roleCode`.\n      * **Type Validation:** `res.body.data.firstName` must be a **string**.\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-20T05:20:35.691Z'\n    exportedUsing: Bruno/3.2.2\n";
-        new window.OpenCollection({
-            target: document.getElementById('opencollection-container'),
-            opencollection: collectionData,
-            theme: 'light'
-        });
-    </script>
-</body>
-</html>
-````
-
 ## File: bruno-html-docs/Bulk Upload-documentation.html
 ````html
 <!DOCTYPE html>
@@ -3026,35 +3000,6 @@ Unlike older documentation which limited procedures to transactional flows, the 
     <div id="opencollection-container"></div>
     <script>
         const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Bulk Upload\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: GET Specific Session Result\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/bulk-uploads/:id'\n      params:\n        - name: id\n          value: '1'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## Get Specific Session Result\n\n      Fetch the detailed status and processing results of a specific bulk upload session. This includes summary metadata and an array of individual row results (successes and failures).\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/bulk-uploads/:id` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{token}}\n      ```\n\n      **Path Parameters**\n      * `id`: The unique identifier of the bulk upload session.\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * `res.body.data.session.fileName` should be a **String**\n      * `res.body.data.details` should be an **Array**\n  - info:\n      name: List Bulk Upload Sessions\n      type: http\n      seq: 2\n    http:\n      method: GET\n      url: '{{base_url}}/bulk-uploads'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## List Upload Sessions\n\n      Retrieve a list of all bulk upload sessions performed by the user. This is useful for tracking the status and history of multiple batch processing requests.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/bulk-uploads` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{token}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"id\": \"bulk_88291\",\n            \"fileName\": \"test_orders.json\",\n            \"totalRows\": 2,\n            \"processedRows\": 2,\n            \"status\": \"completed\",\n            \"createdAt\": \"2026-04-20T09:40:00Z\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * `res.body.data[0].fileName` should be a **String**\n      * `res.body.data[0].totalRows` should be a **Number**\n  - info:\n      name: Submit Bulk Upload\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/bulk-uploads'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n            \"fileName\": \"test_orders.json\",\n            \"rows\": [\n              {\n                \"senderName\": \"Bulk Sender One\",\n                \"senderMobile\": \"9000000001\",\n                \"senderAddress\": \"123 Bulk Road, Surat\",\n                \"courierId\": 1,\n                \"receivers\": [\n                  {\n                    \"receiverName\": \"Bulk Receiver Alpha\",\n                    \"receiverPhone\": \"8000000001\",\n                    \"addressLine1\": \"A-101, Alpha Towers\",\n                    \"city\": \"Mumbai\",\n                    \"state\": \"Maharashtra\",\n                    \"pincode\": \"400001\",\n                    \"products\": [\n                      {\n                        \"productId\": 1,\n                        \"qty\": 10,\n                        \"unitPrice\": 450.00\n                      }\n                    ]\n                  }\n                ]\n              },\n              {\n                \"senderName\": \"Bulk Sender Two\",\n                \"senderMobile\": \"9000000002\",\n                \"senderAddress\": \"456 Bulk Ave, Delhi\",\n                \"courierId\": 1,\n                \"receivers\": [\n                  {\n                    \"receiverName\": \"Bulk Receiver Beta\",\n                    \"receiverPhone\": \"8000000002\",\n                    \"addressLine1\": \"B-202, Beta Plaza\",\n                    \"city\": \"New Delhi\",\n                    \"state\": \"Delhi\",\n                    \"pincode\": \"110001\",\n                    \"products\": [\n                      {\n                        \"productId\": 2,\n                        \"qty\": 5,\n                        \"unitPrice\": 1200.00\n                      }\n                    ]\n                  }\n                ]\n              }\n            ]\n          }\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## Submit Bulk Upload\n\n      This endpoint allows for the batch processing of multiple orders. It accepts a list of senders, receivers, and associated products to streamline high-volume parcel creation.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/bulk-uploads` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{token}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"fileName\": \"test_orders.json\",\n        \"rows\": [\n          {\n            \"senderName\": \"Bulk Sender One\",\n            \"senderMobile\": \"9000000001\",\n            \"senderAddress\": \"123 Bulk Road, Surat\",\n            \"courierId\": 1,\n            \"receivers\": [\n              {\n                \"receiverName\": \"Bulk Receiver Alpha\",\n                \"receiverPhone\": \"8000000001\",\n                \"addressLine1\": \"A-101, Alpha Towers\",\n                \"city\": \"Mumbai\",\n                \"state\": \"Maharashtra\",\n                \"pincode\": \"400001\",\n                \"products\": [\n                  {\n                    \"productId\": 1,\n                    \"qty\": 10,\n                    \"unitPrice\": 450.00\n                  }\n                ]\n              }\n            ]\n          },\n          {\n            \"senderName\": \"Bulk Sender Two\",\n            \"senderMobile\": \"9000000002\",\n            \"senderAddress\": \"456 Bulk Ave, Delhi\",\n            \"courierId\": 1,\n            \"receivers\": [\n              {\n                \"receiverName\": \"Bulk Receiver Beta\",\n                \"receiverPhone\": \"8000000002\",\n                \"addressLine1\": \"B-202, Beta Plaza\",\n                \"city\": \"New Delhi\",\n                \"state\": \"Delhi\",\n                \"pincode\": \"110001\",\n                \"products\": [\n                  {\n                    \"productId\": 2,\n                    \"qty\": 5,\n                    \"unitPrice\": 1200.00\n                  }\n                ]\n              }\n            ]\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Response Structure (Example)**\n\n      **Status Code:** `202 Accepted`\n\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"uploadId\": \"bulk_88291\",\n          \"status\": \"processing\",\n          \"message\": \"Bulk upload has been queued for processing.\"\n        }\n      }\n      ```\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-20T05:24:46.997Z'\n    exportedUsing: Bruno/3.2.2\n";
-        new window.OpenCollection({
-            target: document.getElementById('opencollection-container'),
-            opencollection: collectionData,
-            theme: 'light'
-        });
-    </script>
-</body>
-</html>
-````
-
-## File: bruno-html-docs/Courier Partners-documentation.html
-````html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Courier Partners - API Documentation</title>
-    <style>
-        body { margin: 0; padding: 0; }
-        #opencollection-container { width: 100vw; height: 100vh; }
-    </style>
-    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
-    <script src="https://cdn.opencollection.com/docs.js"></script>
-</head>
-<body>
-    <div id="opencollection-container"></div>
-    <script>
-        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Courier Partners\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Create Courier\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/courier-partners'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |\n          {\n            \"courierName\": \"Speedy Express\",\n            \"phoneNo\": \"1234567890\",\n            \"trackingUrlTemplate\": \"https://speedy.express/track?awb={AWB}\"\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.success\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.courierName\n          operator: eq\n          value: '\"Speedy Express\"'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Create Courier Partner\n      Registers a new shipping provider in the system. The `trackingUrlTemplate` is a critical field, as it allows the system to dynamically generate tracking links for customers by replacing the `{AWB}` placeholder with actual tracking numbers.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/courier-partners` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"courierName\": \"Speedy Express\",\n        \"phoneNo\": \"1234567890\",\n        \"trackingUrlTemplate\": \"https://speedy.express/track?awb={AWB}\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"courierName\": \"Speedy Express\",\n          \"phoneNo\": \"1234567890\",\n          \"trackingUrlTemplate\": \"https://speedy.express/track?awb={AWB}\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Data Integrity:** `res.body.data.courierName` must match exactly **\"Speedy Express\"**.\n\n      ---\n  - info:\n      name: Delete Courier\n      type: http\n      seq: 5\n    http:\n      method: DELETE\n      url: '{{base_url}}/courier-partners/3'\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Delete Courier Partner\n      Removes a courier partner from the active rotation. Like other modules in this sprint, this action typically flags the partner as inactive to ensure that historical order tracking links remain functional.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `DELETE` |\n      | **URL** | `{{baseUrl}}/api/v1/courier-partners/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"message\": \"Courier partner deleted successfully\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Persistence Check:** The deleted courier should no longer appear in the results for the **Get All Courier Partners** endpoint.\n\n      ---\n  - info:\n      name: Get Courier By ID\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/courier-partners/:id'\n      params:\n        - name: id\n          value: '3'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: List Couriers\n      type: http\n      seq: 1\n    http:\n      method: GET\n      url: '{{base_url}}/courier-partners?page=1&limit=20'\n      params:\n        - name: page\n          value: '1'\n          type: query\n        - name: limit\n          value: '20'\n          type: query\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data[0].courierName\n          operator: isDefined\n          value: ''\n        - expression: res.body.data[0].trackingUrlTemplate\n          operator: isDefined\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. Get All Courier Partners\n      Retrieves a list of all active courier partners integrated with the platform, including their unique tracking URL templates.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/courier-partners` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"id\": 1,\n            \"courierName\": \"Speedy Express\",\n            \"phoneNo\": \"1234567890\",\n            \"trackingUrlTemplate\": \"https://speedy.express/track?awb={AWB}\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Field Validation:** Each record must contain a `courierName` and a `trackingUrlTemplate`.\n\n      ---\n  - info:\n      name: Update Courier\n      type: http\n      seq: 4\n    http:\n      method: PUT\n      url: '{{base_url}}/courier-partners/3'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n            \"courierName\": \"Speedy Express Premium\"\n            //  \"trackingUrlTemplate\": \"https://speedooo.express/track?awb={AWB}\"\n            //   \"isActive\": false\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Update Courier Partner\n      Enables the modification of an existing courier partner's details, such as rebranding the partner name or updating contact information.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PUT` |\n      | **URL** | `{{baseUrl}}/api/v1/courier-partners/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"courierName\": \"Speedy Express Premium\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"courierName\": \"Speedy Express Premium\",\n          \"updatedAt\": \"2026-04-20T10:35:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * **Verification:** The response body should confirm the name change to **\"Speedy Express Premium\"**.\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-20T05:21:33.618Z'\n    exportedUsing: Bruno/3.2.2\n";
         new window.OpenCollection({
             target: document.getElementById('opencollection-container'),
             opencollection: collectionData,
@@ -3113,35 +3058,6 @@ Unlike older documentation which limited procedures to transactional flows, the 
     <div id="opencollection-container"></div>
     <script>
         const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Dispatch and Terminal States\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: BULK Dispatch Parcels (Happy Path)\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/parcels/dispatch'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. Dispatch Parcels (Bulk \u2014 Happy Path)\n      Finalizes the warehouse process by moving multiple parcels from the linked stage to the dispatched stage in a single operation.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/dispatch` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      Content-Type: application/json\n      ```\n\n      **Pre-condition**\n      Target parcels must be in the `AWB_LINKED` state.\n\n      **Payload**\n      ```json\n      {\n        \"parcelIds\": [1, 2]\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"dispatched\": 2,\n          \"parcels\": [\n            { \"id\": 1, \"status\": \"DISPATCHED\", \"dispatchDate\": \"2026-04-20T10:45:00Z\" },\n            { \"id\": 2, \"status\": \"DISPATCHED\", \"dispatchDate\": \"2026-04-20T10:45:00Z\" }\n          ]\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**.\n      * `res.body.success` should equal **true**.\n      * **Transition Logic:** Every parcel ID in the array must now show `status: \"DISPATCHED\"`.\n      * **Data Integrity:** A `dispatchDate` timestamp must be generated for each record.\n\n      ---\n\n      ### **Post-Request Verification**\n      * **GET** `{{baseUrl}}/api/v1/parcels/1/timeline`\n      * **Check:** Verify a `STATUS_UPDATE` event exists with `newStatus: \"DISPATCHED\"`.\n\n      ---s\n  - info:\n      name: Cancel Parcel (Happy Path - Before Dispatch)\n      type: http\n      seq: 7\n    http:\n      method: PATCH\n      url: '{{base_url}}/parcels/2/cancel'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 7. Cancel Parcel (Happy Path \u2014 Before Dispatch)\n      Allows the cancellation of a parcel as long as it has not yet left the facility. This is applicable for orders in `PENDING`, `LABEL_PRINTED`, or `AWB_LINKED` states.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PATCH` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/2/cancel` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Pre-condition**\n      The parcel (ID 2) must be in a pre-dispatch state (e.g., `PENDING`).\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"status\": \"CANCELLED\",\n          \"previousStatus\": \"PENDING\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **State Check:** The status must be successfully updated to **\"CANCELLED\"**.\n\n      ---\n  - info:\n      name: Deliver Parcels (Happy Path)\n      type: http\n      seq: 5\n    http:\n      method: PATCH\n      url: '{{base_url}}/parcels/1/deliver'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 5. Deliver Parcel (Happy Path)\n      Updates a parcel to its final terminal state: `DELIVERED`. This signifies the completion of the delivery lifecycle.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PATCH` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/1/deliver` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Pre-condition**\n      The parcel (ID 1) must currently be in the `DISPATCHED` state.\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"status\": \"DELIVERED\",\n          \"previousStatus\": \"DISPATCHED\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **State Check:** Confirm the `status` has transitioned to **\"DELIVERED\"**.\n\n      ---\n  - info:\n      name: Return Parcel (Happy Path - After Dispatch)\n      type: http\n      seq: 9\n    http:\n      method: PATCH\n      url: '{base_url}}/parcels/1/return'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 9. Return Parcel (Happy Path \u2014 After Dispatch)\n      Logs a parcel as returned. This terminal state is applicable only after a parcel has been dispatched or delivered, representing a reversal in the logistics flow.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PATCH` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/1/return` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Pre-condition**\n      The parcel (ID 1) must be in either the `DISPATCHED` or `DELIVERED` state.\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"status\": \"RETURNED\",\n          \"previousStatus\": \"DISPATCHED\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **State Check:** Confirm the `status` has transitioned to **\"RETURNED\"**.\n\n      ---\n\n      Ready for Unit 10 (Return \u2014 State Validation)?\n  - info:\n      name: '[CR]: BULK Dispatch Parcels (Happy Path)'\n      type: http\n      seq: 11\n    http:\n      method: POST\n      url: '{{base_url}}/parcels/dispatch'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## Courier Role \u2014 Cannot Dispatch\n\n      This test ensures that the dispatch action is restricted to higher-level administrative roles and that users with the `COURIER` role are blocked from executing bulk dispatches.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/dispatch` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{courierToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"parcelIds\": [1]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **403**\n      * **Validation:** Only `ADMIN` and `OPERATOR` roles are authorized to dispatch parcels.\n  - info:\n      name: Return Parcel (Not Dispatched - Wrong State)\n      type: http\n      seq: 10\n    http:\n      method: PATCH\n      url: '{base_url}}/parcels/1/return'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 10. Return \u2014 Wrong State (Not Dispatched)\n      Ensures that a parcel cannot be marked as \"Returned\" if it never left the facility. The system requires a parcel to have reached at least the `DISPATCHED` state before a return can be processed, as you cannot return what was never sent.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PATCH` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/2/return` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Pre-condition**\n      The parcel (ID 2) is currently in a pre-dispatch state (e.g., `PENDING` or `LABEL_PRINTED`).\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Invalid state transition: cannot move parcel from 'PENDING' to 'RETURNED'...\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Validation:** The system must block the transition, confirming that a parcel cannot be returned before it is dispatched.\n\n      ---\n  - info:\n      name: Cancel Parcel (Wrong State - Already Dispatched)\n      type: http\n      seq: 8\n    http:\n      method: PATCH\n      url: '{{base_url}}/parcels/2/cancel'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 8. Cancel \u2014 Wrong State (Already Dispatched)\n      Enforces the rule that once a parcel has physically left the facility (status `DISPATCHED`), it can no longer be cancelled through the standard cancellation flow. At this stage, the \"Return\" flow must be used instead.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PATCH` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/1/cancel` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Pre-condition**\n      The parcel (ID 1) is already in the `DISPATCHED` state.\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Invalid state transition: cannot move parcel from 'DISPATCHED' to 'CANCELLED'...\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Logic Check:** The system must reject the cancellation and inform the user that the transition from `DISPATCHED` is prohibited.\n\n      ---\n  - info:\n      name: Deliver Parcels - Wrong State (Not Dispatched)\n      type: http\n      seq: 6\n    http:\n      method: PATCH\n      url: '{{base_url}}/parcels/1/deliver'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 6. Deliver \u2014 Wrong State (Not Dispatched)\n      Prevents a parcel from being marked as delivered if it hasn't actually been dispatched yet. This logical guard ensures the integrity of the delivery timeline.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PATCH` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/1/deliver` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Pre-condition**\n      The parcel (ID 1) is currently in a non-dispatched state (e.g., `PENDING`, `LABEL_PRINTED`, or `AWB_LINKED`).\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Invalid state transition: cannot move parcel from 'PENDING' to 'DELIVERED'...\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Business Logic:** The system must block the transition and return a relevant error message regarding the invalid state sequence.\n\n      ---\n  - info:\n      name: BULK Dispatch Parcels- Wrong State (Still PENDING)\n      type: http\n      seq: 2\n    http:\n      method: POST\n      url: '{{base_url}}/parcels/dispatch'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Dispatch \u2014 Wrong State (Still PENDING)\n      Ensures that a parcel cannot be dispatched if the mandatory prerequisite of linking an AWB (Air Waybill) has not been met. This maintains the integrity of the shipping pipeline.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/dispatch` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      Content-Type: application/json\n      ```\n\n      **Pre-condition**\n      The parcel (e.g., ID 1) exists but is still in the `PENDING` or `LABEL_PRINTED` state (not yet `AWB_LINKED`).\n\n      **Payload**\n      ```json\n      {\n        \"parcelIds\": [1]\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Cannot dispatch parcel PDS-A1B2C3: status is 'PENDING'. Dispatch requires AWB_LINKED status.\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Logic Check:** The error message must specify that the current status is insufficient for dispatch.\n\n      ---\n  - info:\n      name: BULK Dispatch Parcels \u2014 Parcel Not Found\n      type: http\n      seq: 3\n    http:\n      method: POST\n      url: '{{base_url}}/parcels/dispatch'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Dispatch \u2014 Parcel Not Found\n      Validates that the bulk dispatch operation fails correctly when provided with a parcel ID that does not exist in the database.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/dispatch` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"parcelIds\": [9999]\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `404 Not Found`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Parcel with ID 9999 not found\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **404**\n      * `res.body.success` should equal **false**\n      * **Validation:** The error message should clearly identify the missing ID.\n\n      ---\n  - info:\n      name: BULK Dispatch Parcels \u2014 Validation Error (Empty Array)\n      type: http\n      seq: 4\n    http:\n      method: POST\n      url: '{{base_url}}/parcels/dispatch'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Dispatch \u2014 Validation Error (Empty Array)\n      Protects the system from processing empty bulk requests. The API requires at least one parcel ID to initiate a dispatch job.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/parcels/dispatch` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer <OPERATOR_TOKEN>\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"parcelIds\": []\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Validation Error - parcelIds: At least one parcel ID is required\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Schema Check:** The API must return a validation error when the `parcelIds` array is empty.\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-20T05:23:56.925Z'\n    exportedUsing: Bruno/3.2.2\n";
-        new window.OpenCollection({
-            target: document.getElementById('opencollection-container'),
-            opencollection: collectionData,
-            theme: 'light'
-        });
-    </script>
-</body>
-</html>
-````
-
-## File: bruno-html-docs/Employee Management (ADMIN)-documentation.html
-````html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Management (ADMIN) - API Documentation</title>
-    <style>
-        body { margin: 0; padding: 0; }
-        #opencollection-container { width: 100vw; height: 100vh; }
-    </style>
-    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
-    <script src="https://cdn.opencollection.com/docs.js"></script>
-</head>
-<body>
-    <div id="opencollection-container"></div>
-    <script>
-        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Employee Management (ADMIN)\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Create Employee\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/employees'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |\n          {\n            \"employeeName\": \"John Doe\",\n            \"email\": \"john@example.com\",\n            \"phoneNo\": \"9000000000\",\n            \"roleCode\": \"OPERATOR\",\n            \"password\": \"password123\"\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '201'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.employeeCode\n          operator: isDefined\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Create Employee\n      Registers a new user into the system with specific access privileges defined by their `roleCode`. This endpoint handles the initial setup of credentials and account status.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/employees` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"employeeName\": \"John Doe\",\n        \"email\": \"john@example.com\",\n        \"phoneNo\": \"9000000000\",\n        \"roleCode\": \"OPERATOR\",\n        \"password\": \"password123\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK` or `201 Created`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 5,\n          \"employeeName\": \"John Doe\",\n          \"roleCode\": \"OPERATOR\",\n          \"createdAt\": \"2026-04-20T10:40:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should be **200** or **201**.\n      * `res.body.success` should equal **true**.\n      * **Data Validation:** The `employeeName` in the response must match **\"John Doe\"**.\n      * **Security Check:** The `password` field should **never** be returned in the response body.\n\n      ---\n  - info:\n      name: Get Employee By ID\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/employees/:id'\n      params:\n        - name: id\n          value: '3'\n          type: path\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: List Employees\n      type: http\n      seq: 2\n    http:\n      method: GET\n      url: '{{base_url}}/employees?page=1&limit=20'\n      params:\n        - name: page\n          value: '1'\n          type: query\n        - name: limit\n          value: '20'\n          type: query\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. List All Employees\n      Retrieves a comprehensive list of staff members. This is typically restricted to users with **ADMIN** privileges to manage system access.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/employees` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"id\": 1,\n            \"employeeName\": \"John Doe\",\n            \"email\": \"john@example.com\",\n            \"roleCode\": \"OPERATOR\",\n            \"allowLogin\": true\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Data Integrity:** The response should return an array of employee objects.\n\n      ---\n  - info:\n      name: Toggle Access\n      type: http\n      seq: 5\n    http:\n      method: PATCH\n      url: '{{base_url}}/employees/3/toggle-access'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |2-\n            {\n              \"allowLogin\": false\n            }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.allowLogin\n          operator: isFalsy\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Toggle Employee Access\n      Controls an employee's ability to log into the system without deleting their record. This is vital for temporary suspensions or immediate revocation of access upon offboarding.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PATCH` |\n      | **URL** | `{{baseUrl}}/api/v1/employees/1/toggle-access` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"allowLogin\": false\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"employeeName\": \"John Doe Updated\",\n          \"allowLogin\": false,\n          \"statusMessage\": \"Login access has been disabled.\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Logic Check:** The `allowLogin` flag in the response must match the boolean value sent in the payload.\n\n      ---\n  - info:\n      name: Update Employee\n      type: http\n      seq: 4\n    http:\n      method: PUT\n      url: '{{base_url}}/employees/3'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n              \"employeeName\": \"Ravi Kumar Updated\"\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Update Employee\n      Modifies the profile information of an existing employee record. This is used for administrative updates such as name changes or contact detail corrections.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PUT` |\n      | **URL** | `{{baseUrl}}/api/v1/employees/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"employeeName\": \"John Doe Updated\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"employeeName\": \"John Doe Updated\",\n          \"updatedAt\": \"2026-04-20T10:45:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Verification:** The `employeeName` field in the response must reflect the updated value.\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-20T05:21:25.193Z'\n    exportedUsing: Bruno/3.2.2\n";
         new window.OpenCollection({
             target: document.getElementById('opencollection-container'),
             opencollection: collectionData,
@@ -3297,14 +3213,14 @@ Unlike older documentation which limited procedures to transactional flows, the 
 </html>
 ````
 
-## File: bruno-html-docs/Product Catalog-documentation.html
+## File: bruno-html-docs/Receivers-documentation.html
 ````html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Catalog - API Documentation</title>
+    <title>Receivers - API Documentation</title>
     <style>
         body { margin: 0; padding: 0; }
         #opencollection-container { width: 100vw; height: 100vh; }
@@ -3315,36 +3231,7 @@ Unlike older documentation which limited procedures to transactional flows, the 
 <body>
     <div id="opencollection-container"></div>
     <script>
-        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Product Catalog\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Add Product\n      type: http\n      seq: 2\n    http:\n      method: POST\n      url: '{{base_url}}/products'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n            // these are the only required fields\n            \"productName\": \"Heavy Equipment\",\n            \"materialRate\": 500\n            //   \"description\": \"\",\n            //   \"categoryId\": null,\n            //   \"unitId\": null,\n            //   \"isActive\": true,\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Create Product\n      Adds a new product to the inventory with a defined name and base material rate.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/products` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"productName\": \"Heavy Equipment\",\n        \"materialRate\": 500\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 2,\n          \"productName\": \"Heavy Equipment\",\n          \"materialRate\": 500\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Persistence Check:** The response must return the newly created product's unique ID.\n\n      ---\n  - info:\n      name: Delete Product\n      type: http\n      seq: 5\n    http:\n      method: DELETE\n      url: '{{base_url}}/products/3'\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Delete Product\n      Removes a product from the system. This typically follows soft-delete logic to preserve historical pricing data in existing orders.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `DELETE` |\n      | **URL** | `{{baseUrl}}/api/v1/products/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"message\": \"Product deleted successfully\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Verification:** Future `GET` requests for product ID `1` should return a `404 Not Found` or show the product as inactive.\n\n      ---\n  - info:\n      name: Get Product by ID\n      type: http\n      seq: 4\n    http:\n      method: GET\n      url: '{{base_url}}/products/:id'\n      params:\n        - name: id\n          value: '3'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: List Products\n      type: http\n      seq: 1\n    http:\n      method: GET\n      url: '{{base_url}}/products'\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. List All Products\n      Retrieves a list of all products available in the system, including their associated material rates.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/products` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"id\": 1,\n            \"productName\": \"Heavy Equipment\",\n            \"materialRate\": 500,\n            \"updatedAt\": \"2026-04-20T09:00:00Z\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Schema Check:** Each item in the `data` array should contain an `id`, `productName`, and `materialRate`.\n\n      ---\n  - info:\n      name: Update Product\n      type: http\n      seq: 3\n    http:\n      method: PUT\n      url: '{{base_url}}/products/3'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |\n          {\n            \"materialRate\": 550\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Update Product\n      Updates specific fields of an existing product, such as adjusting the material rate due to market fluctuations.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PUT` |\n      | **URL** | `{{baseUrl}}/api/v1/products/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"materialRate\": 550\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"productName\": \"Heavy Equipment\",\n          \"materialRate\": 550,\n          \"updatedAt\": \"2026-04-20T10:30:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Update Verification:** The `materialRate` in the response must match the new value (**550**).\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-20T05:21:55.244Z'\n    exportedUsing: Bruno/3.2.2\n";
-        new window.OpenCollection({
-            target: document.getElementById('opencollection-container'),
-            opencollection: collectionData,
-            theme: 'light'
-        });
-    </script>
-</body>
-</html>
-````
-
-## File: bruno-html-docs/Senders-documentation.html
-````html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Senders - API Documentation</title>
-    <style>
-        body { margin: 0; padding: 0; }
-        #opencollection-container { width: 100vw; height: 100vh; }
-    </style>
-    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
-    <script src="https://cdn.opencollection.com/docs.js"></script>
-</head>
-<body>
-    <div id="opencollection-container"></div>
-    <script>
-        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Senders\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Create Sender\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/senders'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |+\n          {\n            \"customerName\": \"John Doe Enterprises\",\n            \"phoneNo\": \"9876543210\",\n            \"emailId\": \"john.doe@example.com\",\n            \"addressLine1\": \"123 Business Park\",\n            \"addressLine2\": \"Sector 62\",\n            \"city\": \"Noida\",\n            \"state\": \"Uttar Pradesh\",\n            \"pincode\": \"201301\"\n          }\n\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. Create Sender\n      Registers a new sender entity in the system with full contact and address details.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"customerName\": \"John Doe Enterprises\",\n        \"phoneNo\": \"9876543210\",\n        \"emailId\": \"john.doe@example.com\",\n        \"addressLine1\": \"123 Business Park\",\n        \"addressLine2\": \"Sector 62\",\n        \"city\": \"Noida\",\n        \"state\": \"Uttar Pradesh\",\n        \"pincode\": \"201301\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `201 Created`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"PkPartyId\": 10,\n          \"customerName\": \"John Doe Enterprises\",\n          \"createdAt\": \"2026-04-20T10:22:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **201**\n      * `res.body.success` should equal **true**\n      * **Persistence Check:** The response should return a unique `PkPartyId`.\n\n      ---\n  - info:\n      name: Delete Specific Sender (Soft Delete)\n      type: http\n      seq: 6\n    http:\n      method: DELETE\n      url: '{{base_url}}/senders/1'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 6. Delete Sender (Soft-Delete)\n      Removes a sender from active use. To maintain data integrity for past orders, the system performs a **soft-delete** (marking the record as inactive) rather than a permanent removal from the database.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `DELETE` |\n      | **URL** | `{{baseUrl}}/api/v1/senders/:id` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"message\": \"Sender deleted successfully\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Inactivity Check:** Subsequent `GET` requests for this ID should return a `404` or indicate the record is inactive, depending on the implementation.\n\n      ---\n  - info:\n      name: Get Specific Sender\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/senders/1'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Get Specific Sender\n      Retrieves the detailed profile of a single sender using their unique primary key.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/senders/:id` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      > **Note:** Replace `:id` with a valid `PkPartyId` (e.g., `10`) obtained from the creation or list response.\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Consistency:** The `PkPartyId` in the response must match the `:id` provided in the URL.\n\n      ---\n  - info:\n      name: Get all senders\n      type: http\n      seq: 2\n    http:\n      method: GET\n      url: '{{base_url}}/senders'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Get All Senders\n      Retrieves a list of all registered sender entities in the system.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"PkPartyId\": 10,\n            \"customerName\": \"John Doe Enterprises\",\n            \"phoneNo\": \"9876543210\",\n            \"emailId\": \"john.doe@example.com\",\n            \"city\": \"Noida\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Type Validation:** `customerName`, `phoneNo`, and `emailId` must all be of type **String**.\n      * **Data Check:** The `data` array should contain at least one sender object if the database is seeded.\n\n      ---\n  - info:\n      name: Lookup Sender By Phone\n      type: http\n      seq: 4\n    http:\n      method: GET\n      url: '{{base_url}}/senders/lookup?phone=9876543210'\n      params:\n        - name: phone\n          value: '9876543210'\n          type: query\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Lookup Sender by Phone\n      Enables quick retrieval of a sender's profile using their mobile number. This is typically used in the UI to auto-fill sender details during order creation.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/senders/lookup?phone=9876543210` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"PkPartyId\": 10,\n          \"customerName\": \"John Doe Enterprises\",\n          \"phoneNo\": \"9876543210\",\n          \"addressLine1\": \"123 Business Park\",\n          \"city\": \"Noida\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Verification:** The `phoneNo` in the response must match the query parameter provided.\n\n      ---\n  - info:\n      name: Update Sender\n      type: http\n      seq: 5\n    http:\n      method: PUT\n      url: '{{base_url}}/senders/3'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |+\n          {\n            \"customerName\": \"John Doe Enterprises Updated\",\n            \"city\": \"Gurugram\",\n            \"state\": \"Haryana\"\n          }\n\n\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 5. Update Sender\n      Updates the information for an existing sender record. Partial updates are supported (e.g., changing just the city and state).\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PUT` |\n      | **URL** | `{{baseUrl}}/api/v1/senders/:id` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"customerName\": \"John Doe Enterprises Updated\",\n        \"city\": \"Gurugram\",\n        \"state\": \"Haryana\"\n      }\n      ```\n\n      > **Note:** Replace `:id` with the relevant `PkPartyId`.\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"PkPartyId\": 10,\n          \"customerName\": \"John Doe Enterprises Updated\",\n          \"city\": \"Gurugram\",\n          \"state\": \"Haryana\",\n          \"updatedAt\": \"2026-04-20T10:25:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Update Verification:** Ensure fields like `customerName` and `city` reflect the new values provided in the payload.\n\n      ---\n  - info:\n      name: Validation - Create Sender\n      type: http\n      seq: 7\n    http:\n      method: POST\n      url: '{{base_url}}/senders'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n            \"customerName\": \"John Doe Enterprises\",\n            \"phoneNo\": \"9876543210\",\n            \"emailId\": \"INVALID_EMAIL\",\n            //   \"emailId\": \"john.doe@example.com\",\n            \"addressLine1\": \"123 Business Park\",\n            \"addressLine2\": \"Sector 62\",\n            \"city\": \"Noida\",\n            \"state\": \"Uttar Pradesh\",\n            \"pincode\": \"201301\"\n          }\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 7. Validation Test (Missing Required Fields)\n      Verifies that the API correctly identifies and rejects requests that are missing mandatory sender information.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"customerName\": \"Incomplete Sender\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Validation failed\",\n        \"details\": [\n          \"phoneNo is required\",\n          \"addressLine1 is required\",\n          \"city is required\"\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Error Detail:** The response must contain specific error messages pointing out the missing required fields.\n\n      ---\n  - info:\n      name: Validation - Update Sender\n      type: http\n      seq: 8\n    http:\n      method: POST\n      url: '{{base_url}}/senders'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          // These are the required fields\n          // {\n          //   \"customerName\": \"John Doe Enterprises Updated\",\n          //   \"city\": \"Gurugram\",\n          //   \"state\": \"Haryana\"\n          // }\n\n          // Missing Required Fields \n          {\n            \"customerName\": \"John Doe Enterprises Missing\"\n          }\n\n          // Should Throw Error\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 8. Validation Test (Invalid Email)\n      Ensures that the API performs data format validation on specific fields, such as checking for a correctly formatted email address.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"customerName\": \"Jane Smith\",\n        \"phoneNo\": \"1234567890\",\n        \"emailId\": \"invalid-email\",\n        \"addressLine1\": \"A-101\",\n        \"city\": \"Mumbai\",\n        \"state\": \"Maharashtra\",\n        \"pincode\": \"400001\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Validation failed\",\n        \"details\": [\n          \"emailId must be a valid email address\"\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Constraint Check:** The system must reject the payload specifically because the `emailId` does not follow the standard email format (e.g., `user@domain.com`).\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-20T05:22:16.608Z'\n    exportedUsing: Bruno/3.2.2\n";
+        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Receivers\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Create Receiver Address\n      type: http\n      seq: 5\n    http:\n      method: POST\n      url: '{{base_url}}/receivers/:id/addresses'\n      params:\n        - name: id\n          value: '4'\n          type: path\n      body:\n        type: json\n        data: |-\n          {\n            \"address\": \"456 Chotu\",\n            \n            \"city\": \"Mumbai\",\n            \"state\": \"Maharashtra\",\n            \"pincode\": \"400001\"\n          }\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: Get Receiver Addresses\n      type: http\n      seq: 4\n    http:\n      method: GET\n      url: '{{base_url}}/receivers/:id/addresses'\n      params:\n        - name: id\n          value: '4'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: Receiver Names\n      type: http\n      seq: 2\n    http:\n      method: GET\n      url: '{{base_url}}/receivers/names'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: All Receivers\n      type: http\n      seq: 1\n    http:\n      method: GET\n      url: '{{base_url}}/receivers'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: Receiver Phone Numbers\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/receivers/phones'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: Lookup Receivers By Name\n      type: http\n      seq: 6\n    http:\n      method: GET\n      url: '{{base_url}}/receivers/lookup-by-name?name=Aditya'\n      params:\n        - name: name\n          value: Aditya\n          type: query\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: Lookup Receivers By Phone\n      type: http\n      seq: 7\n    http:\n      method: GET\n      url: '{{base_url}}/receivers/lookup-by-phone?phone=+917411236589'\n      params:\n        - name: phone\n          value: '+917411236589'\n          type: query\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-29T08:37:22.523Z'\n    exportedUsing: Bruno/3.3.0\n";
         new window.OpenCollection({
             target: document.getElementById('opencollection-container'),
             opencollection: collectionData,
@@ -4111,6 +3998,43 @@ package-lock.json -diff
 24
 ````
 
+## File: Auth_Login_Fix_Test_Data.txt
+````
+Feature: Auth Login Field Fix
+Description: Verification of separated username and email fields in login response.
+
+HTTP Method: POST
+URL: {{baseUrl}}/api/v1/auth/login
+Headers:
+  Content-Type: application/json
+
+Payload:
+{
+  "email": "admin@example.com",
+  "password": "securePass123"
+}
+
+Assertions:
+1. Status Code: 200 OK
+2. success is true
+3. data.username is "admin"
+4. data.email is "admin@example.com"
+5. data.token is present
+
+---
+
+HTTP Method: GET
+URL: {{baseUrl}}/api/v1/auth/profile
+Headers:
+  Authorization: Bearer {{token}}
+
+Assertions:
+1. Status Code: 200 OK
+2. success is true
+3. data.username is "admin"
+4. data.email is "admin@example.com"
+````
+
 ## File: jest.config.js
 ````javascript
 // ============================================================================
@@ -4760,6 +4684,151 @@ Adds or updates a color/size pricing variation for a product. Maps to `prc_produ
 ---
 ````
 
+## File: bruno-html-docs/Authentication-documentation.html
+````html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication - API Documentation</title>
+    <style>
+        body { margin: 0; padding: 0; }
+        #opencollection-container { width: 100vw; height: 100vh; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
+    <script src="https://cdn.opencollection.com/docs.js"></script>
+</head>
+<body>
+    <div id="opencollection-container"></div>
+    <script>
+        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Authentication\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Login Users\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/auth/login'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n            \n            \n            \"email\":\"admin@test.com\",\n            \"password\":\"admin\"\n            \n          }\n\n\n          // // Operator Login\n\n          // {\n          //   \"email\":\"operator@test.com\",\n          //   \"password\":\"user\"\n          // }\n\n          // {\n          //   \"email\": \"john@example.com\",\n          //   \"password\": \"password123\"\n          // }\n    runtime:\n      scripts:\n        - type: after-response\n          code: |-\n            // 1. Parse the JSON response\n            const response = res.getBody();\n\n            // 2. Check if login was successful and token exists\n            if (response.success && response.data && response.data.token) {\n              const token = response.data.token;\n              \n              // 3. Save the token to your environment variable\n              bru.setGlobalEnvVar(\"authToken\", token);\n              \n              console.log(\"Token successfully saved!\");\n            } else {\n              console.error(\"Login failed or token not found in response\");\n            }\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.token\n          operator: isDefined\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 1. Login (Token Generation)\n      Authenticates a user and provides a JWT (JSON Web Token) to be used for subsequent authorized requests.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/auth/login` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"email\": \"admin@example.com\",\n        \"password\": \"securePass123\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n          \"expiresIn\": \"8h\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Post-Request Script / Assertions**\n      * **Status Check:** `res.status` must be **200**.\n      * **Success Check:** `res.body.success` should be **true**.\n      * **Environment Setup:** Automatically store `res.body.data.token` as the variable `{{authToken}}`.\n\n      ---\n  - info:\n      name: System Health\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/system/health'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: Only Run this if you're in Office, or sure that the MYSQL Database is up & Running\n  - info:\n      name: USER Profile @private\n      type: http\n      seq: 2\n    http:\n      method: GET\n      url: '{{base_url}}/auth/profile'\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Get Profile Details\n      Retrieves the identity and permission metadata for the currently authenticated user based on the provided Bearer token. This ensures the frontend can adapt the UI based on the user's role.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/auth/profile` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"employeeCode\": \"EMP-001\",\n          \"firstName\": \"Admin\",\n          \"lastName\": \"User\",\n          \"roleCode\": \"ADMIN\",\n          \"permissions\": [\"CREATE_ORDER\", \"MANAGE_EMPLOYEES\"]\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Property Check:** `res.body.data` must contain the keys `employeeCode` and `roleCode`.\n      * **Type Validation:** `res.body.data.firstName` must be a **string**.\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-29T08:36:37.763Z'\n    exportedUsing: Bruno/3.3.0\n";
+        new window.OpenCollection({
+            target: document.getElementById('opencollection-container'),
+            opencollection: collectionData,
+            theme: 'light'
+        });
+    </script>
+</body>
+</html>
+````
+
+## File: bruno-html-docs/Courier Partners-documentation.html
+````html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courier Partners - API Documentation</title>
+    <style>
+        body { margin: 0; padding: 0; }
+        #opencollection-container { width: 100vw; height: 100vh; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
+    <script src="https://cdn.opencollection.com/docs.js"></script>
+</head>
+<body>
+    <div id="opencollection-container"></div>
+    <script>
+        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Courier Partners\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Create Courier\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/courier-partners'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |\n          {\n            \"courierName\": \"Bacha Bhaya Express\",\n            \"phoneNo\": \"0987542149\",\n            \"trackingUrlTemplate\": \"https://bacha.express/track?awb={AWB}\"\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.success\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.courierName\n          operator: eq\n          value: '\"Speedy Express\"'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Create Courier Partner\n      Registers a new shipping provider in the system. The `trackingUrlTemplate` is a critical field, as it allows the system to dynamically generate tracking links for customers by replacing the `{AWB}` placeholder with actual tracking numbers.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/courier-partners` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"courierName\": \"Speedy Express\",\n        \"phoneNo\": \"1234567890\",\n        \"trackingUrlTemplate\": \"https://speedy.express/track?awb={AWB}\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"courierName\": \"Speedy Express\",\n          \"phoneNo\": \"1234567890\",\n          \"trackingUrlTemplate\": \"https://speedy.express/track?awb={AWB}\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Data Integrity:** `res.body.data.courierName` must match exactly **\"Speedy Express\"**.\n\n      ---\n  - info:\n      name: Delete Courier\n      type: http\n      seq: 5\n    http:\n      method: DELETE\n      url: '{{base_url}}/courier-partners/:id'\n      params:\n        - name: id\n          value: '7'\n          type: path\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Delete Courier Partner\n      Removes a courier partner from the active rotation. Like other modules in this sprint, this action typically flags the partner as inactive to ensure that historical order tracking links remain functional.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `DELETE` |\n      | **URL** | `{{baseUrl}}/api/v1/courier-partners/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"message\": \"Courier partner deleted successfully\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Persistence Check:** The deleted courier should no longer appear in the results for the **Get All Courier Partners** endpoint.\n\n      ---\n  - info:\n      name: Get Courier By ID\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/courier-partners/:id'\n      params:\n        - name: id\n          value: '7'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: List Couriers\n      type: http\n      seq: 1\n    http:\n      method: GET\n      url: '{{base_url}}/courier-partners?page=1&limit=20'\n      params:\n        - name: page\n          value: '1'\n          type: query\n        - name: limit\n          value: '20'\n          type: query\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data[0].courierName\n          operator: isDefined\n          value: ''\n        - expression: res.body.data[0].trackingUrlTemplate\n          operator: isDefined\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. Get All Courier Partners\n      Retrieves a list of all active courier partners integrated with the platform, including their unique tracking URL templates.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/courier-partners` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"id\": 1,\n            \"courierName\": \"Speedy Express\",\n            \"phoneNo\": \"1234567890\",\n            \"trackingUrlTemplate\": \"https://speedy.express/track?awb={AWB}\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Field Validation:** Each record must contain a `courierName` and a `trackingUrlTemplate`.\n\n      ---\n  - info:\n      name: Update Courier\n      type: http\n      seq: 4\n    http:\n      method: PUT\n      url: '{{base_url}}/courier-partners/:id'\n      headers:\n        - name: Content-Type\n          value: application/json\n      params:\n        - name: id\n          value: '7'\n          type: path\n      body:\n        type: json\n        data: |-\n          {\n            \"courierName\": \"Mulay Bhaya\",\n             \"trackingUrlTemplate\": \"https://mulay.express/track?awb={AWB}\"\n          //     \"isActive\": false\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Update Courier Partner\n      Enables the modification of an existing courier partner's details, such as rebranding the partner name or updating contact information.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PUT` |\n      | **URL** | `{{baseUrl}}/api/v1/courier-partners/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"courierName\": \"Speedy Express Premium\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"courierName\": \"Speedy Express Premium\",\n          \"updatedAt\": \"2026-04-20T10:35:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * **Verification:** The response body should confirm the name change to **\"Speedy Express Premium\"**.\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-29T08:36:56.527Z'\n    exportedUsing: Bruno/3.3.0\n";
+        new window.OpenCollection({
+            target: document.getElementById('opencollection-container'),
+            opencollection: collectionData,
+            theme: 'light'
+        });
+    </script>
+</body>
+</html>
+````
+
+## File: bruno-html-docs/Employee Management (ADMIN)-documentation.html
+````html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Management (ADMIN) - API Documentation</title>
+    <style>
+        body { margin: 0; padding: 0; }
+        #opencollection-container { width: 100vw; height: 100vh; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
+    <script src="https://cdn.opencollection.com/docs.js"></script>
+</head>
+<body>
+    <div id="opencollection-container"></div>
+    <script>
+        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Employee Management (ADMIN)\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Create Employee\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/employees'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |\n          {\n            \"name\": \"Nikhil Swami\",\n            \"email\": \"nikhil@example.com\",\n            \"phoneNo\": \"8404881819\",\n            \"role\": \"ADMIN\",\n            \"password\": \"password123\"\n            \n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '201'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.employeeCode\n          operator: isDefined\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Create Employee\n      Registers a new user into the system with specific access privileges defined by their `roleCode`. This endpoint handles the initial setup of credentials and account status.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/employees` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"employeeName\": \"John Doe\",\n        \"email\": \"john@example.com\",\n        \"phoneNo\": \"9000000000\",\n        \"roleCode\": \"OPERATOR\",\n        \"password\": \"password123\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK` or `201 Created`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 5,\n          \"employeeName\": \"John Doe\",\n          \"roleCode\": \"OPERATOR\",\n          \"createdAt\": \"2026-04-20T10:40:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should be **200** or **201**.\n      * `res.body.success` should equal **true**.\n      * **Data Validation:** The `employeeName` in the response must match **\"John Doe\"**.\n      * **Security Check:** The `password` field should **never** be returned in the response body.\n\n      ---\n  - info:\n      name: Get Employee By ID\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/employees/:id'\n      params:\n        - name: id\n          value: '3'\n          type: path\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: List Employees\n      type: http\n      seq: 2\n    http:\n      method: GET\n      url: '{{base_url}}/employees?page=1&limit=20'\n      params:\n        - name: page\n          value: '1'\n          type: query\n        - name: limit\n          value: '20'\n          type: query\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. List All Employees\n      Retrieves a comprehensive list of staff members. This is typically restricted to users with **ADMIN** privileges to manage system access.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/employees` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"id\": 1,\n            \"employeeName\": \"John Doe\",\n            \"email\": \"john@example.com\",\n            \"roleCode\": \"OPERATOR\",\n            \"allowLogin\": true\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Data Integrity:** The response should return an array of employee objects.\n\n      ---\n  - info:\n      name: Toggle Access\n      type: http\n      seq: 5\n    http:\n      method: PATCH\n      url: '{{base_url}}/employees/3/toggle-access'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |2-\n            {\n              \"allowLogin\": false \n            }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n        - expression: res.body.data.allowLogin\n          operator: isFalsy\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Toggle Employee Access\n      Controls an employee's ability to log into the system without deleting their record. This is vital for temporary suspensions or immediate revocation of access upon offboarding.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PATCH` |\n      | **URL** | `{{baseUrl}}/api/v1/employees/1/toggle-access` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"allowLogin\": false\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"employeeName\": \"John Doe Updated\",\n          \"allowLogin\": false,\n          \"statusMessage\": \"Login access has been disabled.\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Logic Check:** The `allowLogin` flag in the response must match the boolean value sent in the payload.\n\n      ---\n  - info:\n      name: Update Employee\n      type: http\n      seq: 4\n    http:\n      method: PUT\n      url: '{{base_url}}/employees/:id'\n      headers:\n        - name: Content-Type\n          value: application/json\n      params:\n        - name: id\n          value: '3'\n          type: path\n      body:\n        type: json\n        data: |-\n          {\n            \"name\": \"Ravi Kumar\",\n            \"phoneNo\": \"1234567890\",\n            \"email\": \"aditb@example.com\"\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n        - expression: res.body.success\n          operator: isTruthy\n          value: ''\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Update Employee\n      Modifies the profile information of an existing employee record. This is used for administrative updates such as name changes or contact detail corrections.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PUT` |\n      | **URL** | `{{baseUrl}}/api/v1/employees/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"employeeName\": \"John Doe Updated\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"employeeName\": \"John Doe Updated\",\n          \"updatedAt\": \"2026-04-20T10:45:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Verification:** The `employeeName` field in the response must reflect the updated value.\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-29T08:36:48.231Z'\n    exportedUsing: Bruno/3.3.0\n";
+        new window.OpenCollection({
+            target: document.getElementById('opencollection-container'),
+            opencollection: collectionData,
+            theme: 'light'
+        });
+    </script>
+</body>
+</html>
+````
+
+## File: bruno-html-docs/Product Catalog-documentation.html
+````html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Catalog - API Documentation</title>
+    <style>
+        body { margin: 0; padding: 0; }
+        #opencollection-container { width: 100vw; height: 100vh; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
+    <script src="https://cdn.opencollection.com/docs.js"></script>
+</head>
+<body>
+    <div id="opencollection-container"></div>
+    <script>
+        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Product Catalog\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Add Product\n      type: http\n      seq: 2\n    http:\n      method: POST\n      url: '{{base_url}}/products'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n            \"materialName\": \"Product w. variations\",\n            \"categoryId\": 1,\n            \"unitId\": 1,\n            \"materialRate\": 500,\n            \"materialDescription\": \"Testing\",\n            \n            \"variations\": [\n              {\n                \"colorId\": 1,\n                \"size\": \"M\",\n                \"materialRate\": 550\n              },\n              \n              {\n                \"colorId\": 2,\n                \"size\": \"L\",\n                \"materialRate\": 600\n              }\n            ]\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Create Product\n      Adds a new product to the inventory with a defined name and base material rate.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/products` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"productName\": \"Heavy Equipment\",\n        \"materialRate\": 500\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 2,\n          \"productName\": \"Heavy Equipment\",\n          \"materialRate\": 500\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Persistence Check:** The response must return the newly created product's unique ID.\n\n      ---\n  - info:\n      name: Delete Product\n      type: http\n      seq: 5\n    http:\n      method: DELETE\n      url: '{{base_url}}/products/:id'\n      params:\n        - name: id\n          value: '46'\n          type: path\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Delete Product\n      Removes a product from the system. This typically follows soft-delete logic to preserve historical pricing data in existing orders.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `DELETE` |\n      | **URL** | `{{baseUrl}}/api/v1/products/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"message\": \"Product deleted successfully\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Verification:** Future `GET` requests for product ID `1` should return a `404 Not Found` or show the product as inactive.\n\n      ---\n  - info:\n      name: Get Product by ID\n      type: http\n      seq: 4\n    http:\n      method: GET\n      url: '{{base_url}}/products/:id'\n      params:\n        - name: id\n          value: '46'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: List Products\n      type: http\n      seq: 1\n    http:\n      method: GET\n      url: '{{base_url}}/products'\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. List All Products\n      Retrieves a list of all products available in the system, including their associated material rates.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/products` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"id\": 1,\n            \"productName\": \"Heavy Equipment\",\n            \"materialRate\": 500,\n            \"updatedAt\": \"2026-04-20T09:00:00Z\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Schema Check:** Each item in the `data` array should contain an `id`, `productName`, and `materialRate`.\n\n      ---\n  - info:\n      name: Product Dropdown\n      type: http\n      seq: 6\n    http:\n      method: GET\n      url: '{{base_url}}/products/dropdown'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: // No Color IN response of product dropdown\n  - info:\n      name: Update Product\n      type: http\n      seq: 3\n    http:\n      method: PUT\n      url: '{{base_url}}/products/:id'\n      headers:\n        - name: Content-Type\n          value: application/json\n      params:\n        - name: id\n          value: '46'\n          type: path\n      body:\n        type: json\n        data: |-\n          {\n            \"materialRate\": 550,\n            \"variations\": [\n              {\n                \"matrixId\": 186,\n                \"colorId\": 1,\n                \"size\": \"M\",\n                \"materialRate\": 560\n              },\n              {\n                \"colorId\": 1,\n                \"size\": \"S\",\n                \"materialRate\": 480\n              },\n              {\n                \"matrixId\": 187,\n                \"isActive\": false\n              }\n              // IsAcive Not running\n            ]\n          }\n      auth: inherit\n    runtime:\n      assertions:\n        - expression: res.status\n          operator: eq\n          value: '200'\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Update Product\n      Updates specific fields of an existing product, such as adjusting the material rate due to market fluctuations.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PUT` |\n      | **URL** | `{{baseUrl}}/api/v1/products/1` |\n\n      **Headers**\n      ```http\n      Authorization: Bearer {{authToken}}\n      Content-Type: application/json\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"materialRate\": 550\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"id\": 1,\n          \"productName\": \"Heavy Equipment\",\n          \"materialRate\": 550,\n          \"updatedAt\": \"2026-04-20T10:30:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Update Verification:** The `materialRate` in the response must match the new value (**550**).\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-29T08:37:07.168Z'\n    exportedUsing: Bruno/3.3.0\n";
+        new window.OpenCollection({
+            target: document.getElementById('opencollection-container'),
+            opencollection: collectionData,
+            theme: 'light'
+        });
+    </script>
+</body>
+</html>
+````
+
+## File: bruno-html-docs/Senders-documentation.html
+````html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senders - API Documentation</title>
+    <style>
+        body { margin: 0; padding: 0; }
+        #opencollection-container { width: 100vw; height: 100vh; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.opencollection.com/docs.css">
+    <script src="https://cdn.opencollection.com/docs.js"></script>
+</head>
+<body>
+    <div id="opencollection-container"></div>
+    <script>
+        const collectionData = "opencollection: 1.0.0\ninfo:\n  name: Senders\nconfig:\n  proxy:\n    inherit: true\n    config:\n      protocol: http\n      hostname: ''\n      port: ''\n      auth:\n        username: ''\n        password: ''\n      bypassProxy: ''\nitems:\n  - info:\n      name: Create Sender Address\n      type: http\n      seq: 12\n    http:\n      method: POST\n      url: '{{base_url}}/senders/:id/addresses'\n      params:\n        - name: id\n          value: '1'\n          type: path\n      body:\n        type: json\n        data: |-\n          {\n            \"address\": \"456 Khalifa\",\n            \"city\": \"Mumbai\",\n            \"state\": \"Maharashtra\",\n            \"pincode\": \"400001\"\n          }\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: Create Sender\n      type: http\n      seq: 1\n    http:\n      method: POST\n      url: '{{base_url}}/senders'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |+\n          {\n            \"customerName\": \"John Doe Enterprises\",\n            \"phoneNo\": \"9876123450\",\n            \"emailId\": \"john.doe@example.com\",\n            \"address\": \"123 Business Park, Sector 62\",\n            \"city\": \"Noida\",\n            \"state\": \"Uttar Pradesh\",\n            \"pincode\": \"201301\"\n          }\n\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ---\n\n      ## 1. Create Sender\n      Registers a new sender entity in the system with full contact and address details.\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"customerName\": \"John Doe Enterprises\",\n        \"phoneNo\": \"9876543210\",\n        \"emailId\": \"john.doe@example.com\",\n        \"addressLine1\": \"123 Business Park\",\n        \"addressLine2\": \"Sector 62\",\n        \"city\": \"Noida\",\n        \"state\": \"Uttar Pradesh\",\n        \"pincode\": \"201301\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `201 Created`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"PkPartyId\": 10,\n          \"customerName\": \"John Doe Enterprises\",\n          \"createdAt\": \"2026-04-20T10:22:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **201**\n      * `res.body.success` should equal **true**\n      * **Persistence Check:** The response should return a unique `PkPartyId`.\n\n      ---\n  - info:\n      name: Delete Specific Sender (Soft Delete)\n      type: http\n      seq: 10\n    http:\n      method: DELETE\n      url: '{{base_url}}/senders/:id'\n      params:\n        - name: id\n          value: '6'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 6. Delete Sender (Soft-Delete)\n      Removes a sender from active use. To maintain data integrity for past orders, the system performs a **soft-delete** (marking the record as inactive) rather than a permanent removal from the database.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `DELETE` |\n      | **URL** | `{{baseUrl}}/api/v1/senders/:id` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"message\": \"Sender deleted successfully\"\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Inactivity Check:** Subsequent `GET` requests for this ID should return a `404` or indicate the record is inactive, depending on the implementation.\n\n      ---\n  - info:\n      name: Get Specific Sender\n      type: http\n      seq: 4\n    http:\n      method: GET\n      url: '{{base_url}}/senders/:id'\n      params:\n        - name: id\n          value: '1'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 3. Get Specific Sender\n      Retrieves the detailed profile of a single sender using their unique primary key.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/senders/:id` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      > **Note:** Replace `:id` with a valid `PkPartyId` (e.g., `10`) obtained from the creation or list response.\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Consistency:** The `PkPartyId` in the response must match the `:id` provided in the URL.\n\n      ---\n  - info:\n      name: Get all senders\n      type: http\n      seq: 3\n    http:\n      method: GET\n      url: '{{base_url}}/senders'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Get All Senders\n      Retrieves a list of all registered sender entities in the system.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"PkPartyId\": 10,\n            \"customerName\": \"John Doe Enterprises\",\n            \"phoneNo\": \"9876543210\",\n            \"emailId\": \"john.doe@example.com\",\n            \"city\": \"Noida\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Type Validation:** `customerName`, `phoneNo`, and `emailId` must all be of type **String**.\n      * **Data Check:** The `data` array should contain at least one sender object if the database is seeded.\n\n      ---\n  - info:\n      name: Lookup Sender By Phone\n      type: http\n      seq: 7\n    http:\n      method: GET\n      url: '{{base_url}}/senders/lookup?phone=9876543210'\n      params:\n        - name: phone\n          value: '9876543210'\n          type: query\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 4. Lookup Sender by Phone\n      Enables quick retrieval of a sender's profile using their mobile number. This is typically used in the UI to auto-fill sender details during order creation.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/senders/lookup?phone=9876543210` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"PkPartyId\": 10,\n          \"customerName\": \"John Doe Enterprises\",\n          \"phoneNo\": \"9876543210\",\n          \"addressLine1\": \"123 Business Park\",\n          \"city\": \"Noida\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Verification:** The `phoneNo` in the response must match the query parameter provided.\n\n      ---\n  - info:\n      name: Update Sender\n      type: http\n      seq: 8\n    http:\n      method: PUT\n      url: '{{base_url}}/senders/:id'\n      headers:\n        - name: Content-Type\n          value: application/json\n      params:\n        - name: id\n          value: '6'\n          type: path\n      body:\n        type: json\n        data: |-\n          {\n            \"emailId\": \"udsuds@gmail.com\"\n          }\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 5. Update Sender\n      Updates the information for an existing sender record. Partial updates are supported (e.g., changing just the city and state).\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `PUT` |\n      | **URL** | `{{baseUrl}}/api/v1/senders/:id` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"customerName\": \"John Doe Enterprises Updated\",\n        \"city\": \"Gurugram\",\n        \"state\": \"Haryana\"\n      }\n      ```\n\n      > **Note:** Replace `:id` with the relevant `PkPartyId`.\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": {\n          \"PkPartyId\": 10,\n          \"customerName\": \"John Doe Enterprises Updated\",\n          \"city\": \"Gurugram\",\n          \"state\": \"Haryana\",\n          \"updatedAt\": \"2026-04-20T10:25:00Z\"\n        }\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Update Verification:** Ensure fields like `customerName` and `city` reflect the new values provided in the payload.\n\n      ---\n  - info:\n      name: Validation - Create Sender\n      type: http\n      seq: 2\n    http:\n      method: POST\n      url: '{{base_url}}/senders'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          {\n            \"customerName\": \"John Doe Enterprises\",\n            \"phoneNo\": \"9876543210\",\n            \"emailId\": \"INVALID_EMAIL\",\n            //   \"emailId\": \"john.doe@example.com\",\n            \"addressLine1\": \"123 Business Park\",\n            \"addressLine2\": \"Sector 62\",\n            \"city\": \"Noida\",\n            \"state\": \"Uttar Pradesh\",\n            \"pincode\": \"201301\"\n          }\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 7. Validation Test (Missing Required Fields)\n      Verifies that the API correctly identifies and rejects requests that are missing mandatory sender information.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"customerName\": \"Incomplete Sender\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Validation failed\",\n        \"details\": [\n          \"phoneNo is required\",\n          \"addressLine1 is required\",\n          \"city is required\"\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Error Detail:** The response must contain specific error messages pointing out the missing required fields.\n\n      ---\n  - info:\n      name: Validation - Update Sender\n      type: http\n      seq: 9\n    http:\n      method: POST\n      url: '{{base_url}}/senders'\n      headers:\n        - name: Content-Type\n          value: application/json\n      body:\n        type: json\n        data: |-\n          // These are the required fields\n          // {\n          //   \"customerName\": \"John Doe Enterprises Updated\",\n          //   \"city\": \"Gurugram\",\n          //   \"state\": \"Haryana\"\n          // }\n\n          // Missing Required Fields \n          {\n            \"customerName\": \"John Doe Enterprises Missing\"\n          }\n\n          // Should Throw Error\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 8. Validation Test (Invalid Email)\n      Ensures that the API performs data format validation on specific fields, such as checking for a correctly formatted email address.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `POST` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      **Payload**\n      ```json\n      {\n        \"customerName\": \"Jane Smith\",\n        \"phoneNo\": \"1234567890\",\n        \"emailId\": \"invalid-email\",\n        \"addressLine1\": \"A-101\",\n        \"city\": \"Mumbai\",\n        \"state\": \"Maharashtra\",\n        \"pincode\": \"400001\"\n      }\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `400 Bad Request`\n\n      **Body**\n      ```json\n      {\n        \"success\": false,\n        \"error\": \"Validation failed\",\n        \"details\": [\n          \"emailId must be a valid email address\"\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **400**\n      * `res.body.success` should equal **false**\n      * **Constraint Check:** The system must reject the payload specifically because the `emailId` does not follow the standard email format (e.g., `user@domain.com`).\n\n      ---\n  - info:\n      name: GET Addresses\n      type: http\n      seq: 11\n    http:\n      method: GET\n      url: '{{base_url}}/senders/:id/addresses'\n      params:\n        - name: id\n          value: '1'\n          type: path\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n  - info:\n      name: Get all senders names\n      type: http\n      seq: 5\n    http:\n      method: GET\n      url: '{{base_url}}/senders/names'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Get All Senders\n      Retrieves a list of all registered sender entities in the system.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"PkPartyId\": 10,\n            \"customerName\": \"John Doe Enterprises\",\n            \"phoneNo\": \"9876543210\",\n            \"emailId\": \"john.doe@example.com\",\n            \"city\": \"Noida\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Type Validation:** `customerName`, `phoneNo`, and `emailId` must all be of type **String**.\n      * **Data Check:** The `data` array should contain at least one sender object if the database is seeded.\n\n      ---\n  - info:\n      name: Get all senders Phones\n      type: http\n      seq: 6\n    http:\n      method: GET\n      url: '{{base_url}}/senders/phones'\n      auth: inherit\n    settings:\n      encodeUrl: true\n      timeout: 0\n      followRedirects: true\n      maxRedirects: 5\n    docs: |-\n      ## 2. Get All Senders\n      Retrieves a list of all registered sender entities in the system.\n\n      ---\n\n      ### **Request Details**\n\n      | Type | Value |\n      | :--- | :--- |\n      | **Method** | `GET` |\n      | **URL** | `{{baseUrl}}/api/v1/senders` |\n\n      **Headers**\n      ```http\n      Content-Type: application/json\n      Authorization: Bearer <OPERATOR_TOKEN>\n      ```\n\n      ---\n\n      ### **Expected Response**\n\n      **Status Code:** `200 OK`\n\n      **Body**\n      ```json\n      {\n        \"success\": true,\n        \"data\": [\n          {\n            \"PkPartyId\": 10,\n            \"customerName\": \"John Doe Enterprises\",\n            \"phoneNo\": \"9876543210\",\n            \"emailId\": \"john.doe@example.com\",\n            \"city\": \"Noida\"\n          }\n        ]\n      }\n      ```\n\n      ---\n\n      ### **Assertions**\n      * `res.status` should equal **200**\n      * `res.body.success` should equal **true**\n      * **Type Validation:** `customerName`, `phoneNo`, and `emailId` must all be of type **String**.\n      * **Data Check:** The `data` array should contain at least one sender object if the database is seeded.\n\n      ---\nrequest:\n  auth:\n    type: bearer\n    token: '{{authToken}}'\nbundled: true\nextensions:\n  bruno:\n    ignore:\n      - node_modules\n      - .git\n    exportedAt: '2026-04-29T08:37:14.646Z'\n    exportedUsing: Bruno/3.3.0\n";
+        new window.OpenCollection({
+            target: document.getElementById('opencollection-container'),
+            opencollection: collectionData,
+            theme: 'light'
+        });
+    </script>
+</body>
+</html>
+````
+
 ## File: src/interfaces/http/controllers/employee.controller.js
 ````javascript
 // ============================================================================
@@ -5226,57 +5295,6 @@ router.patch('/:id/deliver', protect, authorizeRoles('ADMIN', 'OPERATOR'), deliv
 
 // PATCH  /api/v1/parcels/:id/return     → Mark as returned (ADMIN, OPERATOR)
 router.patch('/:id/return', protect, authorizeRoles('ADMIN', 'OPERATOR'), returnParcel);
-
-export default router;
-````
-
-## File: src/interfaces/http/routes/receiver.routes.js
-````javascript
-// ============================================================================
-// File: src/interfaces/http/routes/receiver.routes.js
-// Description: Route definitions for Receiver lookup endpoints.
-//              Reuses SenderService with partyTypeId=2 via receiver controller.
-// ============================================================================
-
-import express from 'express';
-import * as receiverController from '../controllers/receiver.controller.js';
-import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
-
-const router = express.Router();
-
-// All receiver routes require authentication + ADMIN/OPERATOR role
-router.use(protect);
-router.use(authorizeRoles('ADMIN', 'OPERATOR'));
-
-/**
- * @route   GET /api/v1/receivers/names
- * @desc    Get all distinct active receiver names (autocomplete dropdown)
- */
-router.get('/names', receiverController.getAllNames);
-
-/**
- * @route   GET /api/v1/receivers/phones
- * @desc    Get all distinct active receiver phone numbers (autocomplete dropdown)
- */
-router.get('/phones', receiverController.getAllPhones);
-
-/**
- * @route   GET /api/v1/receivers/lookup-by-name
- * @desc    Search receivers by name (partial match)
- */
-router.get('/lookup-by-name', receiverController.lookupByName);
-
-/**
- * @route   GET /api/v1/receivers/:id/addresses
- * @desc    Get all addresses for a receiver
- */
-router.get('/:id/addresses', receiverController.getAddresses);
-
-/**
- * @route   POST /api/v1/receivers/:id/addresses
- * @desc    Create a new address for a receiver
- */
-router.post('/:id/addresses', receiverController.createAddress);
 
 export default router;
 ````
@@ -6749,90 +6767,6 @@ export const deleteCourier = asyncHandler(async (req, res) => {
 });
 ````
 
-## File: src/interfaces/http/controllers/order.controller.js
-````javascript
-// ============================================================================
-// File: src/interfaces/http/controllers/order.controller.js
-// Description: Express route handlers for Order module endpoints.
-// Uses express-async-handler to automatically pass exceptions to the
-// global error handler (AGENTS.md §3D).
-// All responses use the standard envelope: { success, data?, error? }
-// ============================================================================
-
-import asyncHandler from 'express-async-handler';
-import orderService from '../../../modules/order/order.service.js';
-
-/**
- * POST /api/v1/orders
- * Creates a complex order (sender → order → receivers → items → parcels).
- * Maps to: prc_CreateComplexOrder
- */
-export const createOrder = asyncHandler(async (req, res) => {
-  const result = await orderService.createOrder(req.body, req.user);
-  res.status(201).json({ success: true, data: result });
-});
-
-/**
- * GET /api/v1/orders
- * Lists all orders with derived statuses, paginated.
- * Maps to: prc_GetAllOrdersSummary
- */
-export const getOrderList = asyncHandler(async (req, res) => {
-  const filters = {
-    page: parseInt(req.query.page) || 1,
-    limit: parseInt(req.query.limit) || 20,
-    search: req.query.search || null,
-    sortBy: req.query.sortBy || 'created_at',
-    sortOrder: req.query.sortOrder || 'desc'
-  };
-
-  const { data, total } = await orderService.getOrderSummaryList(filters);
-
-  res.json({
-    success: true,
-    data,
-    meta: {
-      page: filters.page,
-      limit: filters.limit,
-      totalRows: total,
-      totalPages: Math.ceil(total / filters.limit)
-    }
-  });
-});
-
-/**
- * GET /api/v1/orders/:id
- * Gets full order aggregate (nested JSON: Order → Receivers → [Items, Parcel]).
- * Maps to: prc_GetOrderAggregate
- */
-export const getOrderById = asyncHandler(async (req, res) => {
-  const orderDetails = await orderService.getOrderDetails(req.params.id);
-  res.json({ success: true, data: orderDetails });
-});
-
-/**
- * PUT /api/v1/orders/:id
- * Updates an existing order (before dispatch threshold).
- * Maps to: prc_UpdateComplexOrder
- * ❗ Fails if any parcel status ≥ AWB_LINKED
- */
-export const updateOrder = asyncHandler(async (req, res) => {
-  const result = await orderService.updateOrder(req.params.id, req.body, req.user);
-  res.json({ success: true, data: result });
-});
-
-/**
- * PATCH /api/v1/orders/:id/cancel
- * Cancels entire order and cascades to all parcels.
- * Maps to: prc_CancelOrder
- * ❌ Cannot cancel if any parcel is DISPATCHED or DELIVERED
- */
-export const cancelOrder = asyncHandler(async (req, res) => {
-  const result = await orderService.cancelOrder(req.params.id, req.user);
-  res.json({ success: true, data: result });
-});
-````
-
 ## File: src/interfaces/http/routes/courier.routes.js
 ````javascript
 // ============================================================================
@@ -6926,6 +6860,64 @@ router.post('/notifications/:id/resend', protect, authorizeRoles('ADMIN', 'OPERA
  * @desc    Get notification history for a parcel
  */
 router.get('/parcels/:id/notifications', protect, authorizeRoles('ADMIN', 'OPERATOR'), getHistory);
+
+export default router;
+````
+
+## File: src/interfaces/http/routes/receiver.routes.js
+````javascript
+// ============================================================================
+// File: src/interfaces/http/routes/receiver.routes.js
+// Description: Route definitions for Receiver lookup endpoints.
+//              Reuses SenderService with partyTypeId=2 via receiver controller.
+// ============================================================================
+
+import express from 'express';
+import * as receiverController from '../controllers/receiver.controller.js';
+import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
+
+const router = express.Router();
+
+// All receiver routes require authentication + ADMIN/OPERATOR role
+router.use(protect);
+router.use(authorizeRoles('ADMIN', 'OPERATOR'));
+
+/**
+ * @route   GET /api/v1/receivers/names
+ * @desc    Get all distinct active receiver names (autocomplete dropdown)
+ */
+router.get('/names', receiverController.getAllNames);
+
+/**
+ * @route   GET /api/v1/receivers/phones
+ * @desc    Get all distinct active receiver phone numbers (autocomplete dropdown)
+ */
+router.get('/phones', receiverController.getAllPhones);
+
+/**
+ * @route   GET /api/v1/receivers/lookup-by-name
+ * @desc    Search receivers by name (partial match)
+ */
+router.get('/lookup-by-name', receiverController.lookupByName);
+
+/**
+ * @route   GET /api/v1/receivers/lookup-by-phone
+ * @desc    Search receivers by phone (partial match)
+ */
+router.get('/lookup-by-phone', receiverController.lookupByPhone);
+
+
+/**
+ * @route   GET /api/v1/receivers/:id/addresses
+ * @desc    Get all addresses for a receiver
+ */
+router.get('/:id/addresses', receiverController.getAddresses);
+
+/**
+ * @route   POST /api/v1/receivers/:id/addresses
+ * @desc    Create a new address for a receiver
+ */
+router.post('/:id/addresses', receiverController.createAddress);
 
 export default router;
 ````
@@ -11717,6 +11709,89 @@ export const getUserProfile = asyncHandler(async (req, res) => {
 });
 ````
 
+## File: src/interfaces/http/controllers/order.controller.js
+````javascript
+// ============================================================================
+// File: src/interfaces/http/controllers/order.controller.js
+// Description: Express route handlers for Order module endpoints.
+// Uses express-async-handler to automatically pass exceptions to the
+// global error handler (AGENTS.md §3D).
+// All responses use the standard envelope: { success, data?, error? }
+// ============================================================================
+
+import asyncHandler from 'express-async-handler';
+import orderService from '../../../modules/order/order.service.js';
+
+/**
+ * POST /api/v1/orders
+ * Creates a complex order (sender → order → receivers → items → parcels).
+ */
+export const createOrder = asyncHandler(async (req, res) => {
+  const result = await orderService.createOrder(req.body, req.user);
+  res.status(201).json({ success: true, data: result });
+});
+
+/**
+ * GET /api/v1/orders
+ * Lists all orders with derived statuses, paginated.
+ * Maps to: prc_GetAllOrdersSummary
+ */
+export const getOrderList = asyncHandler(async (req, res) => {
+  const filters = {
+    page: parseInt(req.query.page) || 1,
+    limit: parseInt(req.query.limit) || 20,
+    search: req.query.search || null,
+    sortBy: req.query.sortBy || 'created_at',
+    sortOrder: req.query.sortOrder || 'desc'
+  };
+
+  const { data, total } = await orderService.getOrderSummaryList(filters);
+
+  res.json({
+    success: true,
+    data,
+    meta: {
+      page: filters.page,
+      limit: filters.limit,
+      totalRows: total,
+      totalPages: Math.ceil(total / filters.limit)
+    }
+  });
+});
+
+/**
+ * GET /api/v1/orders/:id
+ * Gets full order aggregate (nested JSON: Order → Receivers → [Items, Parcel]).
+ * Maps to: prc_GetOrderAggregate
+ */
+export const getOrderById = asyncHandler(async (req, res) => {
+  const orderDetails = await orderService.getOrderDetails(req.params.id);
+  res.json({ success: true, data: orderDetails });
+});
+
+/**
+ * PUT /api/v1/orders/:id
+ * Updates an existing order (before dispatch threshold).
+ * Maps to: prc_UpdateComplexOrder
+ * ❗ Fails if any parcel status ≥ AWB_LINKED
+ */
+export const updateOrder = asyncHandler(async (req, res) => {
+  const result = await orderService.updateOrder(req.params.id, req.body, req.user);
+  res.json({ success: true, data: result });
+});
+
+/**
+ * PATCH /api/v1/orders/:id/cancel
+ * Cancels entire order and cascades to all parcels.
+ * Maps to: prc_CancelOrder
+ * ❌ Cannot cancel if any parcel is DISPATCHED or DELIVERED
+ */
+export const cancelOrder = asyncHandler(async (req, res) => {
+  const result = await orderService.cancelOrder(req.params.id, req.user);
+  res.json({ success: true, data: result });
+});
+````
+
 ## File: src/modules/courier/courier.service.js
 ````javascript
 // ============================================================================
@@ -14743,134 +14818,6 @@ export const createProductUnit = asyncHandler(async (req, res) => {
 });
 ````
 
-## File: src/interfaces/http/controllers/sender.controller.js
-````javascript
-// ============================================================================
-// File: src/interfaces/http/controllers/sender.controller.js
-// Description: HTTP Controller for Senders (Parties) and Address Book.
-//
-// [INJECTION SITE] Controller Dependencies:
-// - senderService: Encapsulates business logic and uniqueness constraints.
-// - express-async-handler: Automates global error catching for async routes.
-// ============================================================================
-
-import asyncHandler from 'express-async-handler';
-import senderService from '../../../modules/sender/sender.service.js';
-
-/**
- * Controller for managing Senders and Party Address Book entries.
- */
-class SenderController {
-  /**
-   * @route GET /api/v1/senders
-   * @desc  Retrieves all active senders.
-   */
-  getSenders = asyncHandler(async (req, res) => {
-    const senders = await senderService.getSenders();
-    res.json({ success: true, data: senders });
-  });
-
-  /**
-   * @route GET /api/v1/senders/:id
-   * @desc  Retrieves a specific sender by ID.
-   */
-  getSenderById = asyncHandler(async (req, res) => {
-    const sender = await senderService.getSenderById(req.params.id);
-    res.json({ success: true, data: sender });
-  });
-
-  /**
-   * @route POST /api/v1/senders
-   * @desc  Creates a new sender (PartyTypeId=30).
-   */
-  createSender = asyncHandler(async (req, res) => {
-    const sender = await senderService.createSender(req.body, req.user);
-    res.status(201).json({ success: true, data: sender });
-  });
-
-  /**
-   * @route PUT /api/v1/senders/:id
-   * @desc  Updates an existing sender.
-   */
-  updateSender = asyncHandler(async (req, res) => {
-    const sender = await senderService.updateSender(req.params.id, req.body, req.user);
-    res.json({ success: true, data: sender });
-  });
-
-  /**
-   * @route DELETE /api/v1/senders/:id
-   * @desc  Soft-deletes a sender.
-   */
-  deleteSender = asyncHandler(async (req, res) => {
-    await senderService.deleteSender(req.params.id, req.user);
-    res.json({ success: true, message: 'Sender deleted successfully' });
-  });
-
-  /**
-   * @route GET /api/v1/senders/lookup?phone=...
-   * @desc  Finds a sender by phone number for form auto-fill.
-   */
-  lookupByPhone = asyncHandler(async (req, res) => {
-    const sender = await senderService.lookupByPhone(req.query.phone);
-    res.json({ success: true, data: sender });
-  });
-
-  /**
-   * @route GET /api/v1/senders/names
-   * @desc  Autocomplete for distinct sender names.
-   */
-  getAllNames = asyncHandler(async (req, res) => {
-    const names = await senderService.getAllSenderNames(30);
-    res.json({ success: true, data: names });
-  });
-
-  /**
-   * @route GET /api/v1/senders/phones
-   * @desc  Autocomplete for distinct sender phone numbers.
-   */
-  getAllPhones = asyncHandler(async (req, res) => {
-    const phones = await senderService.getAllPhoneNumbers(30);
-    res.json({ success: true, data: phones });
-  });
-
-  /**
-   * @route GET /api/v1/senders/lookup-by-name?name=...
-   * @desc  Partial name search for party suggestions.
-   */
-  lookupByName = asyncHandler(async (req, res) => {
-    const parties = await senderService.lookupByName(req.query.name, 30);
-    res.json({ success: true, data: parties });
-  });
-
-  /**
-   * @route GET /api/v1/senders/:id/addresses
-   * @desc  Retrieves secondary addresses from the Address Book.
-   */
-  getAddresses = asyncHandler(async (req, res) => {
-    const addresses = await senderService.getAddressesByPartyId(req.params.id);
-    res.json({ success: true, data: addresses });
-  });
-
-  /**
-   * @route POST /api/v1/senders/:id/addresses
-   * @desc  Adds a new secondary address to a sender's profile.
-   */
-  createAddress = asyncHandler(async (req, res) => {
-    const address = await senderService.createAddress(req.params.id, req.body, req.user);
-    res.status(201).json({ success: true, data: address });
-  });
-}
-
-const senderControllerInstance = new SenderController();
-export default senderControllerInstance;
-
-// Named exports to support both import styles
-export const {
-  getSenders, getSenderById, createSender, updateSender, deleteSender,
-  lookupByPhone, getAllNames, getAllPhones, lookupByName, getAddresses, createAddress
-} = senderControllerInstance;
-````
-
 ## File: src/modules/courier/courier.repository.js
 ````javascript
 // ============================================================================
@@ -15752,453 +15699,132 @@ sdcms-server.xml
 antigravity-output/
 ````
 
-## File: src/modules/auth/auth.service.js
+## File: src/interfaces/http/controllers/sender.controller.js
 ````javascript
 // ============================================================================
-// File: src/modules/auth/auth.service.js
-// Description: Unifies authentication logic (Login) using the centralized 
-// Employee Repository, removing the legacy duplicate User dependency.
+// File: src/interfaces/http/controllers/sender.controller.js
+// Description: HTTP Controller for Senders (Parties) and Address Book.
+//
+// [INJECTION SITE] Controller Dependencies:
+// - senderService: Encapsulates business logic and uniqueness constraints.
+// - express-async-handler: Automates global error catching for async routes.
 // ============================================================================
 
-import bcrypt from 'bcryptjs';
-import employeeRepository from '../employee/employee.repository.js';
-import generateToken from '../../shared/utils/generateToken.js';
+import asyncHandler from 'express-async-handler';
+import senderService from '../../../modules/sender/sender.service.js';
 
-class AuthService {
+/**
+ * Controller for managing Senders and Party Address Book entries.
+ */
+class SenderController {
   /**
-   * Orchestrates the login flow by validating credentials and generating a JWT.
-   * 
-   * @param {string} email - User's login email.
-   * @param {string} password - User's plain-text password.
-   * @returns {Promise<Object>} Object containing profile data and token.
+   * @route GET /api/v1/senders
+   * @desc  Retrieves all active senders.
    */
-  async loginUser(email, password) {
-    const employee = await employeeRepository.findByEmail(email);
-    
-    // Compare the raw password with the hashed password.
-    // Dual-case access: mock seed uses PascalCase (Password), live DB may use camelCase.
-    const storedPassword = employee?.Password || employee?.password;
-
-    if (employee && storedPassword && (await bcrypt.compare(password, storedPassword))) {
-      
-      // Enforce the Toggle-Access restriction
-      const canLogin = employee.AllowLogin ?? employee.allowLogin;
-      if (canLogin === false) {
-        const error = new Error('Your account has been locked. Contact your Admin.');
-        error.statusCode = 403;
-        throw error;
-      }
-
-      const empCode = employee.EmployeeCode || employee.employeeCode;
-
-      return {
-        id: empCode,
-        employeeCode: empCode,
-        name: employee.FullName || employee.name,
-        // prc_authenticate_employee returns 'UserName' as the email identifier.
-        email: employee.UserName || employee.EmailAddress || employee.email,
-        role: employee.RoleCode || employee.role,
-        token: generateToken(empCode), // Using employeeCode as identifier in JWT
-      };
-    } else {
-      const error = new Error('Invalid email or password');
-      error.statusCode = 401;
-      throw error;
-    }
-  }
+  getSenders = asyncHandler(async (req, res) => {
+    const senders = await senderService.getSenders();
+    res.json({ success: true, data: senders });
+  });
 
   /**
-   * Internal mapper to standardize Profile queries to the camelCase API contract.
-   * Leverages Employee schema properties.
+   * @route GET /api/v1/senders/:id
+   * @desc  Retrieves a specific sender by ID.
    */
-  _mapToApi(profile) {
-    if (!profile) return null;
-    return {
-      employeeCode: profile.EmployeeCode || profile.employeeCode,
-      firstName: profile.FullName || profile.name || profile.firstName,
-      email: profile.EmailAddress || profile.email,
-      phoneNo: profile.ContactNumber || profile.contactNumber || null,
-      roleCode: profile.RoleCode || profile.role,
-      allowLogin: profile.AllowLogin !== undefined ? profile.AllowLogin : profile.allowLogin,
-      createdAt: profile.CreatedDate || profile.createdAt
-    };
-  }
+  getSenderById = asyncHandler(async (req, res) => {
+    const sender = await senderService.getSenderById(req.params.id);
+    res.json({ success: true, data: sender });
+  });
 
   /**
-   * Retrieves fresh profile data from the database.
-   * Ensures the data is up-to-date even if the JWT is old.
-   * 
-   * @param {string} employeeCode - The unique identifier from the JWT.
-   * @returns {Promise<Object>} The employee profile data.
+   * @route POST /api/v1/senders
+   * @desc  Creates a new sender (PartyTypeId=1).
    */
-  async getProfile(employeeCode) {
-    const profile = await employeeRepository.findById(employeeCode);
-    
-    if (!profile) {
-      const error = new Error('Employee profile not found');
-      error.statusCode = 404;
-      throw error;
-    }
+  createSender = asyncHandler(async (req, res) => {
+    const sender = await senderService.createSender(req.body, req.user);
+    res.status(201).json({ success: true, data: sender });
+  });
 
-    return this._mapToApi(profile);
-  }
+  /**
+   * @route PUT /api/v1/senders/:id
+   * @desc  Updates an existing sender.
+   */
+  updateSender = asyncHandler(async (req, res) => {
+    const sender = await senderService.updateSender(req.params.id, req.body, req.user);
+    res.json({ success: true, data: sender });
+  });
+
+  /**
+   * @route DELETE /api/v1/senders/:id
+   * @desc  Soft-deletes a sender.
+   */
+  deleteSender = asyncHandler(async (req, res) => {
+    await senderService.deleteSender(req.params.id, req.user);
+    res.json({ success: true, message: 'Sender deleted successfully' });
+  });
+
+  /**
+   * @route GET /api/v1/senders/lookup?phone=...
+   * @desc  Finds a sender by phone number for form auto-fill.
+   */
+  lookupByPhone = asyncHandler(async (req, res) => {
+    const sender = await senderService.lookupByPhone(req.query.phone, 1);
+    res.json({ success: true, data: sender });
+  });
+
+  /**
+   * @route GET /api/v1/senders/names
+   * @desc  Autocomplete for distinct sender names.
+   */
+  getAllNames = asyncHandler(async (req, res) => {
+    const names = await senderService.getAllSenderNames(1);
+    res.json({ success: true, data: names });
+  });
+
+  /**
+   * @route GET /api/v1/senders/phones
+   * @desc  Autocomplete for distinct sender phone numbers.
+   */
+  getAllPhones = asyncHandler(async (req, res) => {
+    const phones = await senderService.getAllPhoneNumbers(1);
+    res.json({ success: true, data: phones });
+  });
+
+  /**
+   * @route GET /api/v1/senders/lookup-by-name?name=...
+   * @desc  Partial name search for party suggestions.
+   */
+  lookupByName = asyncHandler(async (req, res) => {
+    const parties = await senderService.lookupByName(req.query.name, 1);
+    res.json({ success: true, data: parties });
+  });
+
+  /**
+   * @route GET /api/v1/senders/:id/addresses
+   * @desc  Retrieves secondary addresses from the Address Book.
+   */
+  getAddresses = asyncHandler(async (req, res) => {
+    const addresses = await senderService.getAddressesByPartyId(req.params.id);
+    res.json({ success: true, data: addresses });
+  });
+
+  /**
+   * @route POST /api/v1/senders/:id/addresses
+   * @desc  Adds a new secondary address to a sender's profile.
+   */
+  createAddress = asyncHandler(async (req, res) => {
+    const address = await senderService.createAddress(req.params.id, req.body, req.user);
+    res.status(201).json({ success: true, data: address });
+  });
 }
 
-export default new AuthService();
-````
+const senderControllerInstance = new SenderController();
+export default senderControllerInstance;
 
-## File: src/modules/employee/employee.repository.js
-````javascript
-// ============================================================================
-// File: src/modules/employee/employee.repository.js
-// Description: Data access layer for Employee Management.
-// Handles interactions with the 'employee_master' table.
-//
-// Dual-Mode: Controlled by USE_MOCK_DB environment variable.
-//   - USE_MOCK_DB=true  → In-memory seed data (frontend development)
-//   - USE_MOCK_DB=false → Live MySQL stored procedures
-//
-// SP Convention (api_procedure_spec_v1.md):
-//   - Reads:   prc_employee_master_get (pAction=0 list, pAction=1 specific)
-//   - Upserts: prc_employee_master_set (EmployeeCode=0 insert, >0 update)
-// ============================================================================
-
-import db from '../../infrastructure/database/db.js';
-import bcrypt from 'bcryptjs';
-
-// ============================================================================
-// MOCK MODE: In-Memory Seed Data
-// Used when USE_MOCK_DB=true for frontend development without a live database.
-// ============================================================================
-// Use a hardcoded hash for 'securePass123' to avoid async bcrypt during module initialization
-const HASHED_MOCK_PASSWORD = '$2b$10$3a6myMEFAljTFDVh3agsAuQ0euXF0v6pUOA.Hw.oeIZEjncNsDn3W'; // hash for 'securePass123'
-
-let seedEmployees = [
-  {
-    EmployeeCode: 1,
-    FullName: 'Admin User',
-    EmailAddress: 'admin@example.com',
-    Password: HASHED_MOCK_PASSWORD,
-    RoleCode: 'ADMIN',
-    AllowLogin: true,
-    CreatedDate: '2026-04-03T08:52:00Z'
-  },
-  {
-    EmployeeCode: 2,
-    FullName: 'Test Operator',
-    EmailAddress: 'operator@example.com',
-    Password: HASHED_MOCK_PASSWORD,
-    RoleCode: 'OPERATOR',
-    AllowLogin: false,
-    CreatedDate: '2026-04-03T08:52:00Z'
-  },
-  {
-    EmployeeCode: 3,
-    FullName: 'Test Courier',
-    EmailAddress: 'courier@example.com',
-    Password: HASHED_MOCK_PASSWORD,
-    RoleCode: 'COURIER',
-    AllowLogin: true,
-    CreatedDate: '2026-04-03T08:52:00Z'
-  }
-];
-
-class EmployeeRepository {
-
-  /**
-   * Checks if an employee with the same email or username already exists.
-   * Procedure: CALL prc_check_duplicate_employee_master(?,?,?)
-   * 
-   * @param {number} id - EmployeeCode (0 for new, ID for update)
-   * @param {string} email - Email address
-   * @param {string} username - Username
-   * @returns {Promise<boolean>} True if duplicate exists, false otherwise.
-   */
-  async checkDuplicate(id, email, username) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_check_duplicate_employee_master(?, ?, ?)', [
-        id || 0,
-        email || null,
-        username || null
-      ]);
-      // Assuming SP returns a count or a record
-      // Let's assume it returns { DuplicateCount: 1 } or similar, but typically checking if there's any row returned
-      if (rows && rows[0] && rows[0][0]) {
-        const row = rows[0][0];
-        // Could be a field like 'Count' or simply presence of row means duplicate
-        return (row.DuplicateCount > 0 || row.Count > 0 || Object.values(row)[0] > 0);
-      }
-      return false;
-    }
-
-    // MOCK MODE
-    const existing = seedEmployees.find(e => 
-      e.EmployeeCode.toString() !== (id || 0).toString() &&
-      (e.EmailAddress === email || e.UserName === username)
-    );
-    return !!existing;
-  }
-
-  /**
-   * Fetches an employee by their email for authentication.
-   * Procedure: CALL prc_authenticate_employee(?)
-   *
-   * @param {string} email - Employee email address.
-   * @returns {Promise<Object|null>} { EmployeeCode, FullName, UserName, Password, RoleCode, AllowLogin } or null.
-   */
-  async findByEmail(email) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_authenticate_employee (by email)
-    // ------------------------------------------------------------------
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_authenticate_employee(?)', [email]);
-      return rows[0]?.[0] || null;
-    }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory lookup by email
-    // ------------------------------------------------------------------
-    const emp = seedEmployees.find((e) => e.EmailAddress === email);
-    return emp || null;
-  }
-
-  /**
-   * Fetches a paginated list of employees with optional filtering.
-   * Procedure: CALL prc_employee_master_get(?, ?, ?, ?, ?)
-   * Convention: pAction=0, paginated list with optional search/role/allowLogin filters.
-   *
-   * @param {object} params - { page, limit, search, role, allowLogin }
-   * @returns {Promise<object>} { data: [...], meta: { page, limit, totalRows, totalPages } }
-   */
-  async findAll({ page = 1, limit = 20, search, role, allowLogin }) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_employee_master_search (EmployeeCode=0, RoleId filtering logic)
-    // ------------------------------------------------------------------
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const roleMap = { 'ADMIN': 1, 'OPERATOR': 2, 'COURIER': 3 };
-      const roleId = roleMap[role] || 0;
-
-      const [rows] = await db.execute('CALL prc_employee_master_search(?, ?)', [
-        0, // pEmployeeCode=0 -> Get all
-        roleId // pFkRoleId
-      ]);
-      
-      let results = rows[0] || [];
-      
-      // In-memory filter for search and allowLogin if they are not handled by SP
-      if (search) {
-        const s = search.toLowerCase();
-        results = results.filter(e => 
-          (e.FullName?.toLowerCase().includes(s)) || 
-          (e.EmailAddress?.toLowerCase().includes(s))
-        );
-      }
-      if (allowLogin !== undefined) {
-        const allowLoginBool = allowLogin === 'true' || allowLogin === true;
-        results = results.filter(e => e.AllowLogin === allowLoginBool);
-      }
-
-      const totalRows = results.length;
-      const startIndex = (page - 1) * limit;
-      const paginatedItems = results.slice(startIndex, startIndex + limit);
-
-      return {
-        data: paginatedItems,
-        meta: { page: parseInt(page), limit: parseInt(limit), totalRows, totalPages: Math.ceil(totalRows / limit) }
-      };
-    }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory filtering and pagination
-    // ------------------------------------------------------------------
-    let results = [...seedEmployees];
-
-    if (role) results = results.filter(e => e.RoleCode === role);
-    if (search) {
-      const s = search.toLowerCase();
-      results = results.filter(e => e.FullName.toLowerCase().includes(s) || e.EmailAddress.toLowerCase().includes(s));
-    }
-    if (allowLogin !== undefined) {
-      results = results.filter(e => e.AllowLogin === (allowLogin === 'true' || allowLogin === true));
-    }
-
-    // Pagination
-    const startIndex = (page - 1) * limit;
-    const paginatedItems = results.slice(startIndex, startIndex + limit);
-
-    return {
-      data: paginatedItems,
-      meta: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalRows: results.length,
-        totalPages: Math.ceil(results.length / limit)
-      }
-    };
-  }
-
-  /**
-   * Fetches an employee by their EmployeeCode.
-   * Procedure: CALL prc_employee_master_get(?, ?)
-   * Convention: pAction=1, pass EmployeeCode.
-   *
-   * @param {number|string} id - EmployeeCode.
-   * @returns {Promise<Object|null>} Employee record or null.
-   */
-  async findById(id) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_employee_master_search (pEmployeeCode, 0)
-    // ------------------------------------------------------------------
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_employee_master_search(?, ?)', [id, 0]);
-      return rows[0]?.[0] || null;
-    }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory lookup by EmployeeCode
-    // ------------------------------------------------------------------
-    const emp = seedEmployees.find((e) => e.EmployeeCode.toString() === id.toString());
-    return emp || null;
-  }
-
-  /**
-   * Creates a new employee record.
-   * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
-   * Convention: EmployeeCode=0 triggers insert. No pAction on _set calls.
-   *
-   * @param {object} employeeData - { FullName, EmailAddress, Password, RoleCode, ... }
-   * @returns {Promise<object>} The newly created employee record.
-   */
-  async create(employeeData) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_employee_master_set (EmployeeCode=0 → Insert)
-    // ------------------------------------------------------------------
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        0, // pEmployeeCode=0 → Insert
-        employeeData.FullName,
-        employeeData.ContactNumber || null,
-        employeeData.EmailAddress,
-        employeeData.UserName || employeeData.EmailAddress,
-        employeeData.Password,
-        employeeData.FkRoleId || null,
-        employeeData.AllowLogin !== undefined ? (employeeData.AllowLogin ? 1 : 0) : 1, // pAllowLogin
-        employeeData.CreatedBy || 1, // pCreatedBy
-        employeeData.IsActive !== undefined ? (employeeData.IsActive ? 1 : 0) : 1 // pIsActive
-      ]);
-      
-      // Return newly created record via SELECT output
-      return rows[0]?.[0] || employeeData;
-    }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory push
-    // ------------------------------------------------------------------
-    const newId = seedEmployees.length > 0 ? Math.max(...seedEmployees.map(e => e.EmployeeCode)) + 1 : 1;
-
-    const newEmployee = {
-      EmployeeCode: newId,
-      FullName: employeeData.FullName,
-      EmailAddress: employeeData.EmailAddress,
-      Password: employeeData.Password,
-      RoleCode: employeeData.RoleCode,
-      AllowLogin: true,
-      CreatedDate: new Date().toISOString()
-    };
-
-    seedEmployees.push(newEmployee);
-    return newEmployee;
-  }
-
-  /**
-   * Updates an employee record entirely.
-   * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
-   * Convention: EmployeeCode>0 triggers update. No pAction on _set calls.
-   *
-   * @param {number|string} id - EmployeeCode.
-   * @param {object} updateData - Fields to update.
-   * @returns {Promise<object|null>} Updated employee record or null.
-   */
-  async update(id, updateData) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_employee_master_set (EmployeeCode>0 → Update)
-    // ------------------------------------------------------------------
-    if (process.env.USE_MOCK_DB !== 'true') {
-      // First fetch existing to retain values not being updated
-      const existing = await this.findById(id);
-      if (!existing) return null;
-
-      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        id, // pEmployeeCode
-        updateData.FullName !== undefined ? updateData.FullName : existing.FullName,
-        updateData.ContactNumber !== undefined ? updateData.ContactNumber : existing.ContactNumber,
-        updateData.EmailAddress !== undefined ? updateData.EmailAddress : existing.EmailAddress,
-        updateData.UserName !== undefined ? updateData.UserName : existing.UserName,
-        updateData.Password !== undefined ? updateData.Password : existing.Password, // Hashed in service layer
-        updateData.FkRoleId !== undefined ? updateData.FkRoleId : existing.FkRoleId,
-        updateData.AllowLogin !== undefined ? (updateData.AllowLogin ? 1 : 0) : existing.AllowLogin,
-        1, // pCreatedBy
-        updateData.IsActive !== undefined ? (updateData.IsActive ? 1 : 0) : existing.IsActive
-      ]);
-      
-      return rows[0]?.[0] || await this.findById(id);
-    }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory update
-    // ------------------------------------------------------------------
-    const index = seedEmployees.findIndex((e) => e.EmployeeCode.toString() === id.toString());
-    if (index === -1) return null;
-
-    seedEmployees[index] = { ...seedEmployees[index], ...updateData };
-    return seedEmployees[index];
-  }
-
-  /**
-   * Toggles login access for an employee.
-   * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
-   * Convention: EmployeeCode>0 with AllowLogin flag. No pAction on _set calls.
-   *
-   * @param {number|string} id - EmployeeCode.
-   * @param {boolean} allowLogin - New access state.
-   * @returns {Promise<object|null>} Updated employee record or null.
-   */
-  async patchAccess(id, allowLogin) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: toggle access via findById + prc_employee_master_set
-    // ------------------------------------------------------------------
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const existing = await this.findById(id);
-      if (!existing) return null;
-
-      await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        id,
-        existing.FullName,
-        existing.ContactNumber,
-        existing.EmailAddress,
-        existing.UserName,
-        existing.Password,
-        existing.FkRoleId,
-        allowLogin ? 1 : 0,
-        1, // pCreatedBy
-        existing.IsActive
-      ]);
-      
-      return await this.findById(id);
-    }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory toggle
-    // ------------------------------------------------------------------
-    const index = seedEmployees.findIndex((e) => e.EmployeeCode.toString() === id.toString());
-    if (index === -1) return null;
-
-    seedEmployees[index].AllowLogin = allowLogin;
-    return seedEmployees[index];
-  }
-}
-
-export default new EmployeeRepository();
+// Named exports to support both import styles
+export const {
+  getSenders, getSenderById, createSender, updateSender, deleteSender,
+  lookupByPhone, getAllNames, getAllPhones, lookupByName, getAddresses, createAddress
+} = senderControllerInstance;
 ````
 
 ## File: src/modules/employee/employee.service.js
@@ -18212,6 +17838,464 @@ collections:
         responseStatus: 200
 ````
 
+## File: src/modules/auth/auth.service.js
+````javascript
+// ============================================================================
+// File: src/modules/auth/auth.service.js
+// Description: Unifies authentication logic (Login) using the centralized 
+// Employee Repository, removing the legacy duplicate User dependency.
+// ============================================================================
+
+import bcrypt from 'bcryptjs';
+import employeeRepository from '../employee/employee.repository.js';
+import generateToken from '../../shared/utils/generateToken.js';
+
+class AuthService {
+  /**
+   * Orchestrates the login flow by validating credentials and generating a JWT.
+   * 
+   * @param {string} email - User's login email.
+   * @param {string} password - User's plain-text password.
+   * @returns {Promise<Object>} Object containing profile data and token.
+   */
+  async loginUser(email, password) {
+    const employee = await employeeRepository.findByEmail(email);
+    
+    // Compare the raw password with the hashed password.
+    // Dual-case access: mock seed uses PascalCase (Password), live DB may use camelCase.
+    const storedPassword = employee?.Password || employee?.password;
+
+    if (employee && storedPassword && (await bcrypt.compare(password, storedPassword))) {
+      
+      // Enforce the Toggle-Access restriction
+      const canLogin = employee.AllowLogin ?? employee.allowLogin;
+      if (canLogin === false) {
+        const error = new Error('Your account has been locked. Contact your Admin.');
+        error.statusCode = 403;
+        throw error;
+      }
+
+      const empCode = employee.EmployeeCode || employee.employeeCode;
+      
+      // Fetch full profile to ensure all fields (like EmailAddress) are included.
+      // prc_authenticate_employee may return a limited set of fields.
+      const fullEmployee = await employeeRepository.findById(empCode);
+      const profile = fullEmployee || employee;
+
+      return {
+        id: empCode,
+        employeeCode: empCode,
+        name: profile.FullName || profile.name,
+        username: profile.UserName || profile.userName || '',
+        email: profile.EmailAddress || profile.email || '',
+        role: profile.RoleCode || profile.role,
+        token: generateToken(empCode), // Using employeeCode as identifier in JWT
+      };
+    } else {
+      const error = new Error('Invalid email or password');
+      error.statusCode = 401;
+      throw error;
+    }
+  }
+
+  /**
+   * Internal mapper to standardize Profile queries to the camelCase API contract.
+   * Leverages Employee schema properties.
+   */
+  _mapToApi(profile) {
+    if (!profile) return null;
+    return {
+      employeeCode: profile.EmployeeCode || profile.employeeCode,
+      name: profile.FullName || profile.name || profile.firstName,
+      username: profile.UserName || profile.userName || '',
+      email: profile.EmailAddress || profile.email,
+      phoneNo: profile.ContactNumber || profile.contactNumber || null,
+      roleCode: profile.RoleCode || profile.role,
+      allowLogin: profile.AllowLogin !== undefined ? profile.AllowLogin : profile.allowLogin,
+      createdAt: profile.CreatedDate || profile.createdAt
+    };
+  }
+
+  /**
+   * Retrieves fresh profile data from the database.
+   * Ensures the data is up-to-date even if the JWT is old.
+   * 
+   * @param {string} employeeCode - The unique identifier from the JWT.
+   * @returns {Promise<Object>} The employee profile data.
+   */
+  async getProfile(employeeCode) {
+    const profile = await employeeRepository.findById(employeeCode);
+    
+    if (!profile) {
+      const error = new Error('Employee profile not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return this._mapToApi(profile);
+  }
+}
+
+export default new AuthService();
+````
+
+## File: src/modules/employee/employee.repository.js
+````javascript
+// ============================================================================
+// File: src/modules/employee/employee.repository.js
+// Description: Data access layer for Employee Management.
+// Handles interactions with the 'employee_master' table.
+//
+// Dual-Mode: Controlled by USE_MOCK_DB environment variable.
+//   - USE_MOCK_DB=true  → In-memory seed data (frontend development)
+//   - USE_MOCK_DB=false → Live MySQL stored procedures
+//
+// SP Convention (api_procedure_spec_v1.md):
+//   - Reads:   prc_employee_master_get (pAction=0 list, pAction=1 specific)
+//   - Upserts: prc_employee_master_set (EmployeeCode=0 insert, >0 update)
+// ============================================================================
+
+import db from '../../infrastructure/database/db.js';
+import bcrypt from 'bcryptjs';
+
+// ============================================================================
+// MOCK MODE: In-Memory Seed Data
+// Used when USE_MOCK_DB=true for frontend development without a live database.
+// ============================================================================
+// Use a hardcoded hash for 'securePass123' to avoid async bcrypt during module initialization
+const HASHED_MOCK_PASSWORD = '$2b$10$3a6myMEFAljTFDVh3agsAuQ0euXF0v6pUOA.Hw.oeIZEjncNsDn3W'; // hash for 'securePass123'
+
+let seedEmployees = [
+  {
+    EmployeeCode: 1,
+    FullName: 'Admin User',
+    UserName: 'admin',
+    EmailAddress: 'admin@example.com',
+    Password: HASHED_MOCK_PASSWORD,
+    RoleCode: 'ADMIN',
+    AllowLogin: true,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    EmployeeCode: 2,
+    FullName: 'Test Operator',
+    UserName: 'operator',
+    EmailAddress: 'operator@example.com',
+    Password: HASHED_MOCK_PASSWORD,
+    RoleCode: 'OPERATOR',
+    AllowLogin: false,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    EmployeeCode: 3,
+    FullName: 'Test Courier',
+    UserName: 'courier',
+    EmailAddress: 'courier@example.com',
+    Password: HASHED_MOCK_PASSWORD,
+    RoleCode: 'COURIER',
+    AllowLogin: true,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  }
+];
+
+class EmployeeRepository {
+
+  /**
+   * Checks if an employee with the same email or username already exists.
+   * Procedure: CALL prc_check_duplicate_employee_master(?,?,?)
+   * 
+   * @param {number} id - EmployeeCode (0 for new, ID for update)
+   * @param {string} email - Email address
+   * @param {string} username - Username
+   * @returns {Promise<boolean>} True if duplicate exists, false otherwise.
+   */
+  async checkDuplicate(id, email, username) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_check_duplicate_employee_master(?, ?, ?)', [
+        id || 0,
+        email || null,
+        username || null
+      ]);
+      // Assuming SP returns a count or a record
+      // Let's assume it returns { DuplicateCount: 1 } or similar, but typically checking if there's any row returned
+      if (rows && rows[0] && rows[0][0]) {
+        const row = rows[0][0];
+        // Could be a field like 'Count' or simply presence of row means duplicate
+        return (row.DuplicateCount > 0 || row.Count > 0 || Object.values(row)[0] > 0);
+      }
+      return false;
+    }
+
+    // MOCK MODE
+    const existing = seedEmployees.find(e => 
+      e.EmployeeCode.toString() !== (id || 0).toString() &&
+      (e.EmailAddress === email || e.UserName === username)
+    );
+    return !!existing;
+  }
+
+  /**
+   * Fetches an employee by their email for authentication.
+   * Procedure: CALL prc_authenticate_employee(?)
+   *
+   * @param {string} email - Employee email address.
+   * @returns {Promise<Object|null>} { EmployeeCode, FullName, UserName, Password, RoleCode, AllowLogin } or null.
+   */
+  async findByEmail(email) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_authenticate_employee (by email)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_authenticate_employee(?)', [email]);
+      return rows[0]?.[0] || null;
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory lookup by email
+    // ------------------------------------------------------------------
+    const emp = seedEmployees.find((e) => e.EmailAddress === email);
+    return emp || null;
+  }
+
+  /**
+   * Fetches a paginated list of employees with optional filtering.
+   * Procedure: CALL prc_employee_master_get(?, ?, ?, ?, ?)
+   * Convention: pAction=0, paginated list with optional search/role/allowLogin filters.
+   *
+   * @param {object} params - { page, limit, search, role, allowLogin }
+   * @returns {Promise<object>} { data: [...], meta: { page, limit, totalRows, totalPages } }
+   */
+  async findAll({ page = 1, limit = 20, search, role, allowLogin }) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_employee_master_search (EmployeeCode=0, RoleId filtering logic)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const roleMap = { 'ADMIN': 1, 'OPERATOR': 2, 'COURIER': 3 };
+      const roleId = roleMap[role] || 0;
+
+      const [rows] = await db.execute('CALL prc_employee_master_search(?, ?)', [
+        0, // pEmployeeCode=0 -> Get all
+        roleId // pFkRoleId
+      ]);
+      
+      let results = rows[0] || [];
+      
+      // In-memory filter for search and allowLogin if they are not handled by SP
+      if (search) {
+        const s = search.toLowerCase();
+        results = results.filter(e => 
+          (e.FullName?.toLowerCase().includes(s)) || 
+          (e.EmailAddress?.toLowerCase().includes(s))
+        );
+      }
+      if (allowLogin !== undefined) {
+        const allowLoginBool = allowLogin === 'true' || allowLogin === true;
+        results = results.filter(e => e.AllowLogin === allowLoginBool);
+      }
+
+      const totalRows = results.length;
+      const startIndex = (page - 1) * limit;
+      const paginatedItems = results.slice(startIndex, startIndex + limit);
+
+      return {
+        data: paginatedItems,
+        meta: { page: parseInt(page), limit: parseInt(limit), totalRows, totalPages: Math.ceil(totalRows / limit) }
+      };
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory filtering and pagination
+    // ------------------------------------------------------------------
+    let results = [...seedEmployees];
+
+    if (role) results = results.filter(e => e.RoleCode === role);
+    if (search) {
+      const s = search.toLowerCase();
+      results = results.filter(e => e.FullName.toLowerCase().includes(s) || e.EmailAddress.toLowerCase().includes(s));
+    }
+    if (allowLogin !== undefined) {
+      results = results.filter(e => e.AllowLogin === (allowLogin === 'true' || allowLogin === true));
+    }
+
+    // Pagination
+    const startIndex = (page - 1) * limit;
+    const paginatedItems = results.slice(startIndex, startIndex + limit);
+
+    return {
+      data: paginatedItems,
+      meta: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalRows: results.length,
+        totalPages: Math.ceil(results.length / limit)
+      }
+    };
+  }
+
+  /**
+   * Fetches an employee by their EmployeeCode.
+   * Procedure: CALL prc_employee_master_get(?, ?)
+   * Convention: pAction=1, pass EmployeeCode.
+   *
+   * @param {number|string} id - EmployeeCode.
+   * @returns {Promise<Object|null>} Employee record or null.
+   */
+  async findById(id) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_employee_master_search (pEmployeeCode, 0)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_employee_master_search(?, ?)', [id, 0]);
+      return rows[0]?.[0] || null;
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory lookup by EmployeeCode
+    // ------------------------------------------------------------------
+    const emp = seedEmployees.find((e) => e.EmployeeCode.toString() === id.toString());
+    return emp || null;
+  }
+
+  /**
+   * Creates a new employee record.
+   * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
+   * Convention: EmployeeCode=0 triggers insert. No pAction on _set calls.
+   *
+   * @param {object} employeeData - { FullName, EmailAddress, Password, RoleCode, ... }
+   * @returns {Promise<object>} The newly created employee record.
+   */
+  async create(employeeData) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_employee_master_set (EmployeeCode=0 → Insert)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        0, // pEmployeeCode=0 → Insert
+        employeeData.FullName,
+        employeeData.ContactNumber || null,
+        employeeData.EmailAddress,
+        employeeData.UserName || employeeData.EmailAddress,
+        employeeData.Password,
+        employeeData.FkRoleId || null,
+        employeeData.AllowLogin !== undefined ? (employeeData.AllowLogin ? 1 : 0) : 1, // pAllowLogin
+        employeeData.CreatedBy || 1, // pCreatedBy
+        employeeData.IsActive !== undefined ? (employeeData.IsActive ? 1 : 0) : 1 // pIsActive
+      ]);
+      
+      // Return newly created record via SELECT output
+      return rows[0]?.[0] || employeeData;
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory push
+    // ------------------------------------------------------------------
+    const newId = seedEmployees.length > 0 ? Math.max(...seedEmployees.map(e => e.EmployeeCode)) + 1 : 1;
+
+    const newEmployee = {
+      EmployeeCode: newId,
+      FullName: employeeData.FullName,
+      EmailAddress: employeeData.EmailAddress,
+      Password: employeeData.Password,
+      RoleCode: employeeData.RoleCode,
+      AllowLogin: true,
+      CreatedDate: new Date().toISOString()
+    };
+
+    seedEmployees.push(newEmployee);
+    return newEmployee;
+  }
+
+  /**
+   * Updates an employee record entirely.
+   * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
+   * Convention: EmployeeCode>0 triggers update. No pAction on _set calls.
+   *
+   * @param {number|string} id - EmployeeCode.
+   * @param {object} updateData - Fields to update.
+   * @returns {Promise<object|null>} Updated employee record or null.
+   */
+  async update(id, updateData) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_employee_master_set (EmployeeCode>0 → Update)
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // First fetch existing to retain values not being updated
+      const existing = await this.findById(id);
+      if (!existing) return null;
+
+      const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        id, // pEmployeeCode
+        updateData.FullName !== undefined ? updateData.FullName : existing.FullName,
+        updateData.ContactNumber !== undefined ? updateData.ContactNumber : existing.ContactNumber,
+        updateData.EmailAddress !== undefined ? updateData.EmailAddress : existing.EmailAddress,
+        updateData.UserName !== undefined ? updateData.UserName : existing.UserName,
+        updateData.Password !== undefined ? updateData.Password : existing.Password, // Hashed in service layer
+        updateData.FkRoleId !== undefined ? updateData.FkRoleId : existing.FkRoleId,
+        updateData.AllowLogin !== undefined ? (updateData.AllowLogin ? 1 : 0) : existing.AllowLogin,
+        1, // pCreatedBy
+        updateData.IsActive !== undefined ? (updateData.IsActive ? 1 : 0) : existing.IsActive
+      ]);
+      
+      return rows[0]?.[0] || await this.findById(id);
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory update
+    // ------------------------------------------------------------------
+    const index = seedEmployees.findIndex((e) => e.EmployeeCode.toString() === id.toString());
+    if (index === -1) return null;
+
+    seedEmployees[index] = { ...seedEmployees[index], ...updateData };
+    return seedEmployees[index];
+  }
+
+  /**
+   * Toggles login access for an employee.
+   * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
+   * Convention: EmployeeCode>0 with AllowLogin flag. No pAction on _set calls.
+   *
+   * @param {number|string} id - EmployeeCode.
+   * @param {boolean} allowLogin - New access state.
+   * @returns {Promise<object|null>} Updated employee record or null.
+   */
+  async patchAccess(id, allowLogin) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: toggle access via findById + prc_employee_master_set
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const existing = await this.findById(id);
+      if (!existing) return null;
+
+      await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        id,
+        existing.FullName,
+        existing.ContactNumber,
+        existing.EmailAddress,
+        existing.UserName,
+        existing.Password,
+        existing.FkRoleId,
+        allowLogin ? 1 : 0,
+        1, // pCreatedBy
+        existing.IsActive
+      ]);
+      
+      return await this.findById(id);
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory toggle
+    // ------------------------------------------------------------------
+    const index = seedEmployees.findIndex((e) => e.EmployeeCode.toString() === id.toString());
+    if (index === -1) return null;
+
+    seedEmployees[index].AllowLogin = allowLogin;
+    return seedEmployees[index];
+  }
+}
+
+export default new EmployeeRepository();
+````
+
 ## File: src/modules/order/order.repository.js
 ````javascript
 // ============================================================================
@@ -18741,7 +18825,7 @@ class ProductRepository {
    */
   async getCategories() {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_category_get(?)', [0]);
+      const [rows] = await db.execute('CALL prc_product_category_get(?, ?)', [0, 0]);
       return rows[0] || [];
     }
     return seedCategories.filter(c => c.IsActive);
@@ -19196,288 +19280,6 @@ class ProductRepository {
 export default new ProductRepository();
 ````
 
-## File: src/modules/sender/sender.repository.js
-````javascript
-// ============================================================================
-// File: src/modules/sender/sender.repository.js
-// Description: Data access layer for Senders (Parties), using stored procedures.
-//
-// [INJECTION SITE] Repository Dependencies:
-// - db: Centralized MySQL connection pool for executing stored procedures.
-// - process.env.USE_MOCK_DB: Toggles between Live MySQL and In-Memory seed data.
-// ============================================================================
-
-import db from '../../infrastructure/database/db.js';
-
-// ============================================================================
-// MOCK MODE: In-Memory Seed Data
-// Used when USE_MOCK_DB=true for frontend development without a live database.
-// ============================================================================
-let mockParties = [
-  {
-    PkPartyId: 1,
-    PartyTypeId: 30, // 30 for Senders in DB
-    CustomerName: 'John Doe',
-    PhoneNo: '9876543210',
-    EmailId: 'john@example.com',
-    Address: '123 Test Street',
-    City: 'Mumbai',
-    State: 'Maharashtra',
-    Pincode: '400001',
-    IsActive: 1,
-    CreatedDate: '2026-04-03T08:52:00Z'
-  },
-  {
-    PkPartyId: 2,
-    PartyTypeId: 30,
-    CustomerName: 'Jane Smith',
-    PhoneNo: '9876543211',
-    EmailId: 'jane@example.com',
-    Address: '456 Sample Road',
-    City: 'Delhi',
-    State: 'Delhi',
-    Pincode: '110001',
-    IsActive: 1,
-    CreatedDate: '2026-04-03T08:52:00Z'
-  }
-];
-
-let mockPartyDetails = [
-  {
-    PkPartyDetailsId: 1,
-    FkPartyId: 1,
-    PartyName: 'John Doe',
-    PhoneNo: '9876543210',
-    EmailId: 'john@example.com',
-    Address: '123 Test Street',
-    City: 'Mumbai',
-    State: 'Maharashtra',
-    Pincode: '400001',
-    Country: 'India',
-    IsActive: 1,
-    IsDefault: 1,
-    CreatedDate: '2026-04-03T08:52:00Z'
-  }
-];
-
-class SenderRepository {
-  /**
-   * Checks if a phone number already exists for a different party.
-   * @param {number|string} id - Current PkPartyId (0 for new).
-   * @param {string} phone - Phone number to check.
-   * @returns {Promise<number>} Count of duplicates found.
-   */
-  async checkDuplicate(id, phone) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_check_duplicate_Party_master(?, ?)', [id, phone]);
-      return Object.values(rows[0][0])[0];
-    }
-    return mockParties.filter(s => s.PhoneNo === phone && s.PkPartyId !== parseInt(id) && s.IsActive === 1).length;
-  }
-
-  /**
-   * Retrieves all active parties of a specific type.
-   * @param {number} partyTypeId - 30 for Sender, 31 for Receiver.
-   * @returns {Promise<Array>} List of raw party records.
-   */
-  async findAll(partyTypeId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
-      return rows[0];
-    }
-    return mockParties.filter(s => s.IsActive === 1 && (partyTypeId === null || s.PartyTypeId === partyTypeId));
-  }
-
-  /**
-   * Retrieves a party by ID and type.
-   * @param {number|string} id - PkPartyId.
-   * @param {number} partyTypeId - Type filter.
-   * @returns {Promise<object|null>} Party record or null.
-   */
-  async findById(id, partyTypeId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [id, partyTypeId]);
-      return rows[0][0] || null;
-    }
-    const match = mockParties.find(s => s.PkPartyId === parseInt(id) && s.IsActive === 1 && (partyTypeId === null || s.PartyTypeId === partyTypeId));
-    return match || null;
-  }
-
-  /**
-   * Creates a new Party record.
-   * @param {object} data - Party master fields.
-   * @param {number|string} adminId - PkEmployeeId of creator.
-   * @param {number} partyTypeId - 30 (Sender) or 31 (Receiver).
-   * @returns {Promise<object>} Created record.
-   */
-  async create(data, adminId, partyTypeId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      // Step 1: Create the party in Party_master (11 params)
-      const [rows] = await db.execute(
-        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [0, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, data.city, data.state, data.pincode, adminId, 1]
-      );
-      const party = rows[0][0];
-
-      // Step 2: Seed the default address record in party_details
-      if (party && party.IsNewParty === 1) {
-        await db.execute(
-          'CALL prc_party_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [
-            0,                          // pPkPartyDetailsId=0 for insert
-            party.PkPartyId,            // pFkPartyId
-            data.emailId || null,       // pEmailId
-            data.address || null,       // pAddress
-            data.city || null,          // pCity
-            data.state || null,         // pState
-            data.pincode || null,       // pPincode
-            'India',                    // pCountry
-            1,                          // pIsDefault: 1 (primary address)
-            adminId,                    // pCreatedBy
-            1                           // pIsActive
-          ]
-        );
-      }
-
-      return party;
-    }
-    const newId = mockParties.length > 0 ? Math.max(...mockParties.map(s => s.PkPartyId)) + 1 : 1;
-    const newSender = { PkPartyId: newId, PartyTypeId: partyTypeId, CustomerName: data.customerName, PhoneNo: data.phoneNo, EmailId: data.emailId || null, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, IsActive: 1, CreatedDate: new Date().toISOString() };
-    mockParties.push(newSender);
-    // Also seed the default address in mockPartyDetails
-    const newDetailId = mockPartyDetails.length > 0 ? Math.max(...mockPartyDetails.map(d => d.PkPartyDetailsId)) + 1 : 1;
-    mockPartyDetails.push({ PkPartyDetailsId: newDetailId, FkPartyId: newId, PartyName: data.customerName, PhoneNo: data.phoneNo, EmailId: data.emailId || null, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, Country: 'India', IsActive: 1, IsDefault: 1, CreatedDate: new Date().toISOString() });
-    return newSender;
-  }
-
-  /**
-   * Updates an existing Party record.
-   * @param {number|string} id - PkPartyId.
-   * @param {object} data - Fields to update.
-   * @param {number|string} adminId - PkEmployeeId of modifier.
-   * @param {number} partyTypeId - Type filter.
-   * @returns {Promise<object>} Updated record.
-   */
-  async update(id, data, adminId, partyTypeId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute(
-        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, data.city, data.state, data.pincode, adminId, 1]
-      );
-      return rows[0][0];
-    }
-    const idx = mockParties.findIndex(s => s.PkPartyId === parseInt(id));
-    if (idx === -1) return null;
-    mockParties[idx] = { ...mockParties[idx], ...data };
-    return mockParties[idx];
-  }
-
-  /**
-   * Soft-deletes a Party record (IsActive=0).
-   * @param {number|string} id - PkPartyId.
-   * @param {number|string} adminId - PkEmployeeId of modifier.
-   * @param {number} partyTypeId - Type filter.
-   * @returns {Promise<object>} Deleted record summary.
-   */
-  async delete(id, adminId, partyTypeId) {
-    const existing = await this.findById(id, partyTypeId);
-    if (!existing) return null;
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute(
-        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, partyTypeId, existing.CustomerName, existing.PhoneNo, existing.EmailId, existing.Address, existing.City, existing.State, existing.Pincode, adminId, 0]
-      );
-      return rows[0][0];
-    }
-    const idx = mockParties.findIndex(s => s.PkPartyId === parseInt(id));
-    mockParties[idx].IsActive = 0;
-    return mockParties[idx];
-  }
-
-  /**
-   * Retrieves unique names for autocomplete.
-   * @param {number|null} partyTypeId - Optional type filter.
-   * @returns {Promise<Array<string>>}
-   */
-  async findAllNames(partyTypeId = null) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
-      return [...new Set(rows[0].map(r => r.CustomerName))];
-    }
-    let list = mockParties.filter(s => s.IsActive === 1);
-    if (partyTypeId) list = list.filter(s => s.PartyTypeId === partyTypeId);
-    return [...new Set(list.map(s => s.CustomerName))];
-  }
-
-  /**
-   * Retrieves unique phones for autocomplete.
-   * @param {number|null} partyTypeId - Optional type filter.
-   * @returns {Promise<Array<string>>}
-   */
-  async findAllPhones(partyTypeId = null) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
-      return [...new Set(rows[0].map(r => r.PhoneNo))];
-    }
-    let list = mockParties.filter(s => s.IsActive === 1);
-    if (partyTypeId) list = list.filter(s => s.PartyTypeId === partyTypeId);
-    return [...new Set(list.map(s => s.PhoneNo))];
-  }
-
-  /**
-   * Partial name match for search suggestions.
-   * @param {string} name - Partial query.
-   * @param {number|null} partyTypeId - Type filter.
-   * @returns {Promise<Array>}
-   */
-  async findByName(name, partyTypeId = null) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_party_master_search(?, ?)', [0, partyTypeId]);
-      const q = name.toLowerCase();
-      return rows[0].filter(s => s.CustomerName && s.CustomerName.toLowerCase().includes(q));
-    }
-    const q = name.toLowerCase();
-    let list = mockParties.filter(s => s.IsActive === 1 && s.CustomerName.toLowerCase().includes(q));
-    if (partyTypeId) list = list.filter(s => s.PartyTypeId === partyTypeId);
-    return list;
-  }
-
-  /**
-   * Retrieves address book for a specific party.
-   * @param {number|string} partyId - PkPartyId.
-   * @returns {Promise<Array>}
-   */
-  async findAddressesByPartyId(partyId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Party_Details_get(?, ?, ?)', [0, 0, partyId]);
-      return rows[0];
-    }
-    return mockPartyDetails.filter(d => d.FkPartyId === parseInt(partyId) && d.IsActive === 1);
-  }
-
-  /**
-   * Creates a detailed address record (Address Book).
-   * @param {number|string} partyId - Parent PkPartyId.
-   * @param {object} data - Address details.
-   * @param {object} user - Creator context.
-   * @returns {Promise<object>}
-   */
-  async createPartyDetail(partyId, data, user) {
-    const creator = user?.id || user?.employeeCode || null;
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_Party_Details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [0, partyId, data.partyName, data.phoneNo, data.emailId, data.address, data.city, data.state, data.pincode, data.country, creator, 1, data.isDefault ? 1 : 0]);
-      return rows[0][0];
-    }
-    const newId = mockPartyDetails.length > 0 ? Math.max(...mockPartyDetails.map(d => d.PkPartyDetailsId)) + 1 : 1;
-    const newDet = { PkPartyDetailsId: newId, FkPartyId: parseInt(partyId), PartyName: data.partyName, PhoneNo: data.phoneNo, EmailId: data.emailId, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, Country: data.country || null, IsActive: 1, IsDefault: data.isDefault ? 1 : 0, CreatedDate: new Date().toISOString() };
-    mockPartyDetails.push(newDet);
-    return newDet;
-  }
-}
-
-export default new SenderRepository();
-````
-
 ## File: package.json
 ````json
 {
@@ -19528,244 +19330,6 @@ export default new SenderRepository();
     "supertest": "^7.2.2"
   }
 }
-````
-
-## File: src/modules/sender/sender.service.js
-````javascript
-// ============================================================================
-// File: src/modules/sender/sender.service.js
-// Description: Business logic layer for Senders (Parties).
-//
-// [INJECTION SITE] Service Dependencies:
-// - senderRepository: Handles all direct database / stored procedure interactions.
-// - partyTypeId: Enforced as 30 for Senders and 31 for Receivers.
-// ============================================================================
-
-import senderRepository from './sender.repository.js';
-
-class SenderService {
-  /**
-   * Internal mapper to standardize Party DB records to the camelCase API contract.
-   * @param {object} sender - Raw database record from Party_master.
-   * @returns {object} API-formatted sender object.
-   */
-  _mapToApi(sender) {
-    if (!sender) return null;
-    return {
-      id: sender.PkPartyId,
-      customerName: sender.CustomerName,
-      phoneNo: sender.PhoneNo,
-      emailId: sender.EmailId || null,
-      address: sender.Address || null,
-      city: sender.City || null,
-      state: sender.State || null,
-      pincode: sender.Pincode || null,
-      isActive: sender.IsActive === 1 || sender.IsActive === true,
-      createdAt: sender.CreatedDate
-    };
-  }
-
-  /**
-   * Internal mapper for Address Book entries.
-   * @param {object} detail - Raw database record from Party_Details.
-   * @returns {object} API-formatted address object.
-   */
-  _mapAddressToApi(detail) {
-    if (!detail) return null;
-    return {
-      id: detail.PkPartyDetailsId,
-      partyId: detail.FkPartyId,
-      partyName: detail.PartyName,
-      phoneNo: detail.PhoneNo,
-      emailId: detail.EmailId || null,
-      address: detail.Address,
-      city: detail.City,
-      state: detail.State,
-      pincode: detail.Pincode,
-      country: detail.Country || null,
-      isDefault: detail.IsDefault === 1 || detail.IsDefault === true,
-      createdAt: detail.CreatedDate
-    };
-  }
-
-  /**
-   * Retrieves all active senders (PartyTypeId=30).
-   * @returns {Promise<Array<object>>} List of senders in API format.
-   */
-  async getSenders() {
-    const senders = await senderRepository.findAll(30);
-    return senders.map(s => this._mapToApi(s));
-  }
-
-  /**
-   * Retrieves a specific sender by ID.
-   * @param {number|string} id - PkPartyId.
-   * @returns {Promise<object>} API-formatted sender object.
-   * @throws {Error} 404 if sender not found or is not a sender type.
-   */
-  async getSenderById(id) {
-    const sender = await senderRepository.findById(id, 30);
-    if (!sender) {
-      const error = new Error('Sender not found');
-      error.statusCode = 404;
-      throw error;
-    }
-    return this._mapToApi(sender);
-  }
-
-  /**
-   * Creates a new sender after uniqueness validation.
-   * @param {object} senderData - Payload from client.
-   * @param {object} user - Authenticated user context.
-   * @returns {Promise<object>} Created sender in API format.
-   * @throws {Error} 409 if phone number is duplicated.
-   */
-  async createSender(senderData, user) {
-    const count = await senderRepository.checkDuplicate(0, senderData.phoneNo);
-    if (count > 0) {
-      const error = new Error('Sender phone number already exists');
-      error.statusCode = 409;
-      throw error;
-    }
-    const adminId = user?.id || user?.employeeCode || 1;
-    const result = await senderRepository.create(senderData, adminId, 30);
-    return this._mapToApi(result);
-  }
-
-  /**
-   * Updates sender details with conditional duplicate checking.
-   * @param {number|string} id - PkPartyId.
-   * @param {object} senderData - Partial updates.
-   * @param {object} user - Authenticated user context.
-   * @returns {Promise<object>} Updated sender.
-   */
-  async updateSender(id, senderData, user) {
-    const existing = await this.getSenderById(id);
-    if (senderData.phoneNo && senderData.phoneNo !== existing.phoneNo) {
-      const count = await senderRepository.checkDuplicate(id, senderData.phoneNo);
-      if (count > 0) {
-        const error = new Error('Sender phone number already exists');
-        error.statusCode = 409;
-        throw error;
-      }
-    }
-    const adminId = user?.id || user?.employeeCode || 1;
-    const result = await senderRepository.update(id, { ...existing, ...senderData }, adminId, 30);
-    return this._mapToApi(result);
-  }
-
-  /**
-   * Performs soft-delete by deactivating the Party record.
-   * @param {number|string} id - PkPartyId.
-   * @param {object} user - Authenticated user context.
-   * @returns {Promise<boolean>} True on success.
-   */
-  async deleteSender(id, user) {
-    await this.getSenderById(id);
-    const adminId = user?.id || user?.employeeCode || 1;
-    await senderRepository.delete(id, adminId, 30);
-    return true;
-  }
-
-  /**
-   * Auto-fill lookup using phone number as unique key.
-   * @param {string} phone - Target phone number.
-   * @returns {Promise<object>} Matching sender.
-   */
-  async lookupByPhone(phone) {
-    if (!phone) {
-      const error = new Error('Phone number is required for lookup');
-      error.statusCode = 400;
-      throw error;
-    }
-    const senders = await senderRepository.findAll(30);
-    const sender = senders.find(s => s.PhoneNo === phone);
-    if (!sender) {
-      const error = new Error(`No sender found for phone: ${phone}`);
-      error.statusCode = 404;
-      throw error;
-    }
-    return this._mapToApi(sender);
-  }
-
-  /**
-   * Autocomplete lookup for party names.
-   * @param {number|null} [partyTypeId=null] - Optional filter.
-   * @returns {Promise<Array<string>>}
-   */
-  async getAllSenderNames(partyTypeId = null) {
-    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
-    return await senderRepository.findAllNames(typeId);
-  }
-
-  /**
-   * Autocomplete lookup for phone numbers.
-   * @param {number|null} [partyTypeId=null] - Optional filter.
-   * @returns {Promise<Array<string>>}
-   */
-  async getAllPhoneNumbers(partyTypeId = null) {
-    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
-    return await senderRepository.findAllPhones(typeId);
-  }
-
-  /**
-   * Search parties by name prefix/partial.
-   * @param {string} name - Partial name.
-   * @param {number|null} [partyTypeId=null] - Optional filter.
-   * @returns {Promise<Array<object>>}
-   */
-  async lookupByName(name, partyTypeId = null) {
-    if (!name) {
-      const error = new Error('Name query parameter is required for lookup');
-      error.statusCode = 400;
-      throw error;
-    }
-    const typeId = partyTypeId === 1 ? 30 : partyTypeId === 2 ? 31 : partyTypeId;
-    const parties = await senderRepository.findByName(name, typeId);
-    return parties.map((s) => this._mapToApi(s));
-  }
-
-  /**
-   * Retrieves all secondary addresses from the Address Book.
-   * @param {number|string} partyId - PkPartyId.
-   * @returns {Promise<Array<object>>} API-formatted addresses.
-   */
-  async getAddressesByPartyId(partyId) {
-    const party = await senderRepository.findById(partyId, null);
-    if (!party) {
-      const error = new Error('Party not found');
-      error.statusCode = 404;
-      throw error;
-    }
-    const addresses = await senderRepository.findAddressesByPartyId(partyId);
-    return addresses.map((d) => this._mapAddressToApi(d));
-  }
-
-  /**
-   * Adds a new entry to the Party's Address Book.
-   * @param {number|string} partyId - Parent Party ID.
-   * @param {object} data - Address fields.
-   * @param {object} user - Creator context.
-   * @returns {Promise<object>} Created address object.
-   */
-  async createAddress(partyId, data, user) {
-    const party = await senderRepository.findById(partyId, null);
-    if (!party) {
-      const error = new Error('Party not found');
-      error.statusCode = 404;
-      throw error;
-    }
-    const payload = {
-      partyName: party.CustomerName, phoneNo: party.PhoneNo, emailId: party.EmailId,
-      address: data.address, city: data.city, state: data.state, pincode: data.pincode,
-      country: data.country || null, isDefault: data.isDefault
-    };
-    const result = await senderRepository.createPartyDetail(partyId, payload, user);
-    return this._mapAddressToApi(result);
-  }
-}
-
-export default new SenderService();
 ````
 
 ## File: src/modules/order/order.service.js
@@ -20084,6 +19648,537 @@ class OrderService {
 }
 
 export default new OrderService();
+````
+
+## File: src/modules/sender/sender.repository.js
+````javascript
+// ============================================================================
+// File: src/modules/sender/sender.repository.js
+// Description: Data access layer for Senders (Parties), using stored procedures.
+//
+// [INJECTION SITE] Repository Dependencies:
+// - db: Centralized MySQL connection pool for executing stored procedures.
+// - process.env.USE_MOCK_DB: Toggles between Live MySQL and In-Memory seed data.
+// ============================================================================
+
+import db from '../../infrastructure/database/db.js';
+
+// ============================================================================
+// MOCK MODE: In-Memory Seed Data
+// Used when USE_MOCK_DB=true for frontend development without a live database.
+// ============================================================================
+let mockParties = [
+  {
+    PkPartyId: 1,
+    PartyTypeId: 1, // 1 for Senders in DB
+    CustomerName: 'John Doe',
+    PhoneNo: '9876543210',
+    EmailId: 'john@example.com',
+    Address: '123 Test Street',
+    City: 'Mumbai',
+    State: 'Maharashtra',
+    Pincode: '400001',
+    IsActive: 1,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    PkPartyId: 2,
+    PartyTypeId: 1,
+    CustomerName: 'Jane Smith',
+    PhoneNo: '9876543211',
+    EmailId: 'jane@example.com',
+    Address: '456 Sample Road',
+    City: 'Delhi',
+    State: 'Delhi',
+    Pincode: '110001',
+    IsActive: 1,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  }
+];
+
+let mockPartyDetails = [
+  {
+    PkPartyDetailsId: 1,
+    FkPartyId: 1,
+    PartyName: 'John Doe',
+    PhoneNo: '9876543210',
+    EmailId: 'john@example.com',
+    Address: '123 Test Street',
+    City: 'Mumbai',
+    State: 'Maharashtra',
+    Pincode: '400001',
+    Country: 'India',
+    IsActive: 1,
+    IsDefault: 1,
+    CreatedDate: '2026-04-03T08:52:00Z'
+  }
+];
+
+class SenderRepository {
+  /**
+   * Checks if a phone number already exists for a different party.
+   * @param {number|string} id - Current PkPartyId (0 for new).
+   * @param {string} phone - Phone number to check.
+   * @returns {Promise<number>} Count of duplicates found.
+   */
+  async checkDuplicate(id, phone) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_check_duplicate_Party_master(?, ?)', [id, phone]);
+      return (rows?.[0]?.[0] ? Object.values(rows[0][0])[0] : 0);
+    }
+    return mockParties.filter(s => s.PhoneNo === phone && s.PkPartyId !== parseInt(id) && s.IsActive === 1).length;
+  }
+
+  /**
+   * Retrieves all active parties of a specific type.
+   * @param {number} partyTypeId - 1 for Sender, 2 for Receiver.
+   * @returns {Promise<Array>} List of raw party records.
+   */
+  async findAll(partyTypeId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // pAction=2: Get all parties filtered by FkPartyTypeId
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      // pAction=0 has no type filter (WHERE commented out), so we use pAction=2
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [2, partyTypeId, 0]);
+      return rows?.[0] || [];
+    }
+    return mockParties.filter(s => s.IsActive === 1 && (partyTypeId === null || s.PartyTypeId === partyTypeId));
+  }
+
+  /**
+   * Retrieves a party by ID and type.
+   * @param {number|string} id - PkPartyId.
+   * @param {number} partyTypeId - Type filter.
+   * @returns {Promise<object|null>} Party record or null.
+   */
+  async findById(id, partyTypeId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // pAction=1: Get specific party by PkPartyId
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [1, partyTypeId ?? null, id]);
+      return rows?.[0]?.[0] || null;
+    }
+    const match = mockParties.find(s => s.PkPartyId === parseInt(id) && s.IsActive === 1 && (partyTypeId === null || s.PartyTypeId === partyTypeId));
+    return match || null;
+  }
+
+  /**
+   * Creates a new Party record.
+   * @param {object} data - Party master fields.
+   * @param {number|string} adminId - PkEmployeeId of creator.
+   * @param {number} partyTypeId - 1 (Sender) or 2 (Receiver).
+   * @returns {Promise<object>} Created record.
+   */
+  async create(data, adminId, partyTypeId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // Step 1: Create the party in Party_master (11 params)
+      const [rows] = await db.execute(
+        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [0, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, data.city, data.state, data.pincode, adminId, 1]
+      );
+      const party = rows?.[0]?.[0];
+
+      // Step 2: Seed the default address record in party_details
+      if (party && party.IsNewParty === 1) {
+        await db.execute(
+          'CALL prc_party_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            0,                          // pPkPartyDetailsId=0 for insert
+            party.PkPartyId,            // pFkPartyId
+            data.emailId || null,       // pEmailId
+            data.address || null,       // pAddress
+            data.city || null,          // pCity
+            data.state || null,         // pState
+            data.pincode || null,       // pPincode
+            'India',                    // pCountry
+            1,                          // pIsDefault: 1 (primary address)
+            adminId,                    // pCreatedBy
+            1                           // pIsActive
+          ]
+        );
+      }
+
+      return party;
+    }
+    const newId = mockParties.length > 0 ? Math.max(...mockParties.map(s => s.PkPartyId)) + 1 : 1;
+    const newSender = { PkPartyId: newId, PartyTypeId: partyTypeId, CustomerName: data.customerName, PhoneNo: data.phoneNo, EmailId: data.emailId || null, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, IsActive: 1, CreatedDate: new Date().toISOString() };
+    mockParties.push(newSender);
+    // Also seed the default address in mockPartyDetails
+    const newDetailId = mockPartyDetails.length > 0 ? Math.max(...mockPartyDetails.map(d => d.PkPartyDetailsId)) + 1 : 1;
+    mockPartyDetails.push({ PkPartyDetailsId: newDetailId, FkPartyId: newId, PartyName: data.customerName, PhoneNo: data.phoneNo, EmailId: data.emailId || null, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, Country: 'India', IsActive: 1, IsDefault: 1, CreatedDate: new Date().toISOString() });
+    return newSender;
+  }
+
+  /**
+   * Updates an existing Party record.
+   * @param {number|string} id - PkPartyId.
+   * @param {object} data - Fields to update.
+   * @param {number|string} adminId - PkEmployeeId of modifier.
+   * @param {number} partyTypeId - Type filter.
+   * @returns {Promise<object>} Updated record.
+   */
+  async update(id, data, adminId, partyTypeId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, partyTypeId, data.customerName, data.phoneNo, data.emailId || null, data.address, data.city, data.state, data.pincode, adminId, 1]
+      );
+      return rows?.[0]?.[0] || { PkPartyId: id, ...data };
+    }
+    const idx = mockParties.findIndex(s => s.PkPartyId === parseInt(id));
+    if (idx === -1) return null;
+    mockParties[idx] = { ...mockParties[idx], ...data };
+    return mockParties[idx];
+  }
+
+  /**
+   * Soft-deletes a Party record (IsActive=0).
+   * @param {number|string} id - PkPartyId.
+   * @param {number|string} adminId - PkEmployeeId of modifier.
+   * @param {number} partyTypeId - Type filter.
+   * @returns {Promise<object>} Deleted record summary.
+   */
+  async delete(id, adminId, partyTypeId) {
+    const existing = await this.findById(id, partyTypeId);
+    if (!existing) return null;
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, partyTypeId, existing.CustomerName, existing.PhoneNo, existing.EmailId, existing.Address, existing.City, existing.State, existing.Pincode, adminId, 0]
+      );
+      return rows?.[0]?.[0] || { ...existing, IsActive: 0 };
+    }
+    const idx = mockParties.findIndex(s => s.PkPartyId === parseInt(id));
+    mockParties[idx].IsActive = 0;
+    return mockParties[idx];
+  }
+
+  /**
+   * Retrieves unique names for autocomplete.
+   * @param {number|null} partyTypeId - Optional type filter.
+   * @returns {Promise<Array<string>>}
+   */
+  async findAllNames(partyTypeId = null) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // pAction=2: Fetch type-filtered parties, extract distinct names in JS
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [2, partyTypeId ?? null, 0]);
+      const results = rows?.[0] || [];
+      return [...new Set(results.map(r => r.CustomerName))];
+    }
+    let list = mockParties.filter(s => s.IsActive === 1);
+    if (partyTypeId) list = list.filter(s => s.PartyTypeId === partyTypeId);
+    return [...new Set(list.map(s => s.CustomerName))];
+  }
+
+  /**
+   * Retrieves unique phones for autocomplete.
+   * @param {number|null} partyTypeId - Optional type filter.
+   * @returns {Promise<Array<string>>}
+   */
+  async findAllPhones(partyTypeId = null) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // pAction=2: Fetch type-filtered parties, extract distinct phones in JS
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [2, partyTypeId ?? null, 0]);
+      const results = rows?.[0] || [];
+      return [...new Set(results.map(r => r.PhoneNo))];
+    }
+    let list = mockParties.filter(s => s.IsActive === 1);
+    if (partyTypeId) list = list.filter(s => s.PartyTypeId === partyTypeId);
+    return [...new Set(list.map(s => s.PhoneNo))];
+  }
+
+  /**
+   * Partial name match for search suggestions.
+   * @param {string} name - Partial query.
+   * @param {number|null} partyTypeId - Type filter.
+   * @returns {Promise<Array>}
+   */
+  async findByName(name, partyTypeId = null) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // pAction=2: Fetch type-filtered parties, filter by name in JS
+      // Signature: prc_Party_master_get(pAction, pFkPartyTypeId, pPkPartyId)
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [2, partyTypeId ?? null, 0]);
+      const results = rows?.[0] || [];
+      const q = name.toLowerCase();
+      return results.filter(s => s.CustomerName && s.CustomerName.toLowerCase().includes(q));
+    }
+    const q = name.toLowerCase();
+    let list = mockParties.filter(s => s.IsActive === 1 && s.CustomerName.toLowerCase().includes(q));
+    if (partyTypeId) list = list.filter(s => s.PartyTypeId === partyTypeId);
+    return list;
+  }
+
+  /**
+   * Retrieves address book for a specific party.
+   * @param {number|string} partyId - PkPartyId.
+   * @returns {Promise<Array>}
+   */
+  async findAddressesByPartyId(partyId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // pAction=1: Get all addresses filtered by FkPartyId
+      // Signature: prc_party_details_get(pAction, pLookupId)
+      const [rows] = await db.execute('CALL prc_party_details_get(?, ?)', [1, partyId]);
+      return rows?.[0] || [];
+    }
+    return mockPartyDetails.filter(d => d.FkPartyId === parseInt(partyId) && d.IsActive === 1);
+  }
+
+  /**
+   * Creates a detailed address record (Address Book).
+   * @param {number|string} partyId - Parent PkPartyId.
+   * @param {object} data - Address details.
+   * @param {object} user - Creator context.
+   * @returns {Promise<object>}
+   */
+  async createPartyDetail(partyId, data, user) {
+    const creator = user?.id || user?.employeeCode || null;
+    if (process.env.USE_MOCK_DB !== 'true') {
+      // Signature: prc_party_details_set(pPkPartyDetailsId, pFkPartyId, pEmailId, pAddress, pCity, pState, pPincode, pCountry, pIsDefault, pCreatedBy, pIsActive)
+      const [rows] = await db.execute('CALL prc_party_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [0, partyId, data.emailId, data.address, data.city, data.state, data.pincode, data.country, data.isDefault ? 1 : 0, creator, 1]);
+      return rows?.[0]?.[0] || null;
+    }
+    const newId = mockPartyDetails.length > 0 ? Math.max(...mockPartyDetails.map(d => d.PkPartyDetailsId)) + 1 : 1;
+    const newDet = { PkPartyDetailsId: newId, FkPartyId: parseInt(partyId), PartyName: data.partyName, PhoneNo: data.phoneNo, EmailId: data.emailId, Address: data.address, City: data.city, State: data.state, Pincode: data.pincode, Country: data.country || null, IsActive: 1, IsDefault: data.isDefault ? 1 : 0, CreatedDate: new Date().toISOString() };
+    mockPartyDetails.push(newDet);
+    return newDet;
+  }
+}
+
+export default new SenderRepository();
+````
+
+## File: src/modules/sender/sender.service.js
+````javascript
+// ============================================================================
+// File: src/modules/sender/sender.service.js
+// Description: Business logic layer for Senders (Parties).
+//
+// [INJECTION SITE] Service Dependencies:
+// - senderRepository: Handles all direct database / stored procedure interactions.
+// - partyTypeId: Enforced as 1 for Senders and 2 for Receivers.
+// ============================================================================
+
+import senderRepository from './sender.repository.js';
+
+class SenderService {
+  /**
+   * Internal mapper to standardize Party DB records to the camelCase API contract.
+   * @param {object} sender - Raw database record from Party_master.
+   * @returns {object} API-formatted sender object.
+   */
+  _mapToApi(sender) {
+    if (!sender) return null;
+    return {
+      id: sender.PkPartyId,
+      customerName: sender.CustomerName,
+      phoneNo: sender.PhoneNo,
+      emailId: sender.EmailId || null,
+      address: sender.Address || null,
+      city: sender.City || null,
+      state: sender.State || null,
+      pincode: sender.Pincode || null,
+      isActive: sender.IsActive === 1 || sender.IsActive === true,
+      createdAt: sender.CreatedDate
+    };
+  }
+
+  /**
+   * Internal mapper for Address Book entries.
+   * @param {object} detail - Raw database record from Party_Details.
+   * @returns {object} API-formatted address object.
+   */
+  _mapAddressToApi(detail) {
+    if (!detail) return null;
+    return {
+      id: detail.PkPartyDetailsId,
+      partyId: detail.FkPartyId,
+      customerName: detail.CustomerName || null,
+      emailId: detail.EmailId || null,
+      address: detail.Address,
+      city: detail.City,
+      state: detail.State,
+      pincode: detail.Pincode,
+      country: detail.Country || null,
+      isDefault: detail.IsDefault === 1 || detail.IsDefault === true,
+      isActive: detail.IsActive === 1 || detail.IsActive === true,
+      createdAt: detail.CreatedDate
+    };
+  }
+
+  /**
+   * Retrieves all active senders (PartyTypeId=1).
+   * @returns {Promise<Array<object>>} List of senders in API format.
+   */
+  async getSenders() {
+    const senders = await senderRepository.findAll(1);
+    return senders.map(s => this._mapToApi(s));
+  }
+
+  /**
+   * Retrieves a specific sender by ID.
+   * @param {number|string} id - PkPartyId.
+   * @returns {Promise<object>} API-formatted sender object.
+   * @throws {Error} 404 if sender not found or is not a sender type.
+   */
+  async getSenderById(id) {
+    const sender = await senderRepository.findById(id, 1);
+    if (!sender) {
+      const error = new Error('Sender not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    return this._mapToApi(sender);
+  }
+
+  /**
+   * Creates a new sender after uniqueness validation.
+   * @param {object} senderData - Payload from client.
+   * @param {object} user - Authenticated user context.
+   * @returns {Promise<object>} Created sender in API format.
+   * @throws {Error} 409 if phone number is duplicated.
+   */
+  async createSender(senderData, user) {
+    const count = await senderRepository.checkDuplicate(0, senderData.phoneNo);
+    if (count > 0) {
+      const error = new Error('Sender phone number already exists');
+      error.statusCode = 409;
+      throw error;
+    }
+    const adminId = user?.id || user?.employeeCode || 1;
+    const result = await senderRepository.create(senderData, adminId, 1);
+    return this._mapToApi(result);
+  }
+
+  /**
+   * Updates sender details with conditional duplicate checking.
+   * @param {number|string} id - PkPartyId.
+   * @param {object} senderData - Partial updates.
+   * @param {object} user - Authenticated user context.
+   * @returns {Promise<object>} Updated sender.
+   */
+  async updateSender(id, senderData, user) {
+    const existing = await this.getSenderById(id);
+    if (senderData.phoneNo && senderData.phoneNo !== existing.phoneNo) {
+      const count = await senderRepository.checkDuplicate(id, senderData.phoneNo);
+      if (count > 0) {
+        const error = new Error('Sender phone number already exists');
+        error.statusCode = 409;
+        throw error;
+      }
+    }
+    const adminId = user?.id || user?.employeeCode || 1;
+    const result = await senderRepository.update(id, { ...existing, ...senderData }, adminId, 1);
+    return this._mapToApi(result);
+  }
+
+  /**
+   * Performs soft-delete by deactivating the Party record.
+   * @param {number|string} id - PkPartyId.
+   * @param {object} user - Authenticated user context.
+   * @returns {Promise<boolean>} True on success.
+   */
+  async deleteSender(id, user) {
+    await this.getSenderById(id);
+    const adminId = user?.id || user?.employeeCode || 1;
+    await senderRepository.delete(id, adminId, 1);
+    return true;
+  }
+
+  /**
+   * Auto-fill lookup using phone number as unique key.
+   * @param {string} phone - Target phone number.
+   * @returns {Promise<object>} Matching sender.
+   */
+  async lookupByPhone(phone, partyTypeId) {
+    if (!phone) {
+      const error = new Error('Phone number is required for lookup');
+      error.statusCode = 400;
+      throw error;
+    }
+    const senders = await senderRepository.findAll(partyTypeId);
+    const sender = senders.find(s => s.PhoneNo === phone);
+    if (!sender) {
+      const error = new Error(`No sender found for phone: ${phone}`);
+      error.statusCode = 404;
+      throw error;
+    }
+    return this._mapToApi(sender);
+  }
+
+  /**
+   * Autocomplete lookup for party names.
+   * @param {number|null} [partyTypeId=null] - Optional filter.
+   * @returns {Promise<Array<string>>}
+   */
+  async getAllSenderNames(partyTypeId = null) {
+    const typeId = partyTypeId === 1 ? 1 : partyTypeId === 2 ? 2 : partyTypeId;
+    return await senderRepository.findAllNames(typeId);
+  }
+
+  /**
+   * Autocomplete lookup for phone numbers.
+   * @param {number|null} [partyTypeId=null] - Optional filter.
+   * @returns {Promise<Array<string>>}
+   */
+  async getAllPhoneNumbers(partyTypeId = null) {
+    const typeId = partyTypeId === 1 ? 1 : partyTypeId === 2 ? 2 : partyTypeId;
+    return await senderRepository.findAllPhones(typeId);
+  }
+
+  /**
+   * Search parties by name prefix/partial.
+   * @param {string} name - Partial name.
+   * @param {number|null} [partyTypeId=null] - Optional filter.
+   * @returns {Promise<Array<object>>}
+   */
+  async lookupByName(name, partyTypeId = null) {
+    if (!name) {
+      const error = new Error('Name query parameter is required for lookup');
+      error.statusCode = 400;
+      throw error;
+    }
+    const typeId = partyTypeId === 1 ? 1 : partyTypeId === 2 ? 2 : partyTypeId;
+    const parties = await senderRepository.findByName(name, typeId);
+    return parties.map((s) => this._mapToApi(s));
+  }
+
+  /**
+   * Retrieves all secondary addresses from the Address Book.
+   * @param {number|string} partyId - PkPartyId.
+   * @returns {Promise<Array<object>>} API-formatted addresses.
+   */
+  async getAddressesByPartyId(partyId) {
+    const addresses = await senderRepository.findAddressesByPartyId(partyId);
+    return addresses.map((d) => this._mapAddressToApi(d));
+  }
+
+  /**
+   * Adds a new entry to the Party's Address Book.
+   * @param {number|string} partyId - Parent Party ID.
+   * @param {object} data - Address fields.
+   * @param {object} user - Creator context.
+   * @returns {Promise<object>} Created address object.
+   */
+  async createAddress(partyId, data, user) {
+    const party = await senderRepository.findById(partyId, null);
+    if (!party) {
+      const error = new Error('Party not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    const payload = {
+      emailId: party.EmailId,
+      address: data.address, city: data.city, state: data.state, pincode: data.pincode,
+      country: data.country || 'India', isDefault: data.isDefault
+    };
+    const result = await senderRepository.createPartyDetail(partyId, payload, user);
+    return this._mapAddressToApi(result);
+  }
+}
+
+export default new SenderService();
 ````
 
 ## File: tests/e2e/mock_api.test.js

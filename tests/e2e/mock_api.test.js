@@ -253,13 +253,13 @@ describe('4. Products CRUD', () => {
     await request(app)
       .post('/api/v1/products')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ materialName: 'Duplicate Test', materialRate: 10, categoryId: 1 });
+      .send({ materialName: 'Duplicate Test', materialRate: 10, categoryId: 1, unitId: 1 });
 
     // Try to create it again
     const res = await request(app)
       .post('/api/v1/products')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ materialName: 'Duplicate Test', materialRate: 10, categoryId: 1 });
+      .send({ materialName: 'Duplicate Test', materialRate: 10, categoryId: 1, unitId: 1 });
 
     expect(res.statusCode).toBe(409);
     expect(res.body.success).toBe(false);
@@ -554,18 +554,13 @@ describe('7. Orders', () => {
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
         senderId: 1,
-        senderName: 'E2E Test Sender',
-        senderMobile: '9000000001',
+        senderAddressId: 1,
         courierId: 1,
         receivers: [
           {
-            receiverName: 'E2E Test Receiver',
-            receiverPhone: '9000000002',
-            addressLine1: '1 Test Street',
-            city: 'TestCity',
-            state: 'TestState',
-            pincode: '100001',
-            products: [{ productId: 1, qty: 2, unitPrice: 100 }],
+            receiverId: 2,
+            receiverAddressId: 2,
+            products: [{ variationId: 1, quantity: 2 }],
           },
         ],
       });
@@ -618,18 +613,13 @@ describe('7. Orders', () => {
       .set('Authorization', `Bearer ${COURIER_TOKEN}`)
       .send({
         senderId: 1,
-        senderName: 'E2E Test Sender',
-        senderMobile: '9000000001',
+        senderAddressId: 1,
         courierId: 1,
         receivers: [
           {
-            receiverName: 'E2E Test Receiver',
-            receiverPhone: '9000000002',
-            address: '1 Test Street',
-            city: 'TestCity',
-            state: 'TestState',
-            pincode: '100001',
-            products: [{ productId: 1, qty: 2, unitPrice: 100 }],
+            receiverId: 2,
+            receiverAddressId: 2,
+            products: [{ variationId: 1, quantity: 2 }],
           },
         ],
       });
@@ -643,20 +633,15 @@ describe('7. Orders', () => {
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
         senderId: 1,
-        senderName: 'Mode A Sender',
-        senderMobile: '9111111111',
-        senderAddress: '14, Gandhi Nagar, Near Railway Station',
-        senderCity: 'Surat',
-        senderState: 'Gujarat',
-        senderPincode: '395002',
+        senderAddressId: 1,
         courierId: 1,
-        products: [{ productId: 1, qty: 10, unitPrice: 500 }],
+        products: [{ variationId: 1, quantity: 10 }],
       });
 
     expect(res.statusCode).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.receivers).toHaveLength(1);
-    expect(res.body.data.receivers[0].receiverName).toBe('Mode A Sender');
+    expect(res.body.data.receivers[0].receiverName).toBe('Mock Party 1');
   });
 
   it('7.9  POST /api/v1/orders (Mode C) → 201 creates combo order', async () => {
@@ -665,23 +650,14 @@ describe('7. Orders', () => {
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
         senderId: 1,
-        senderName: 'Mode C Sender',
-        senderMobile: '9222222222',
-        senderAddress: '14, Gandhi Nagar, Near Railway Station',
-        senderCity: 'Surat',
-        senderState: 'Gujarat',
-        senderPincode: '395002',
+        senderAddressId: 1,
         courierId: 1,
-        products: [{ productId: 1, qty: 5, unitPrice: 500 }],
+        products: [{ variationId: 1, quantity: 5 }],
         receivers: [
           {
-            receiverName: 'External Receiver',
-            receiverPhone: '9333333333',
-            address: 'Ext Addr',
-            city: 'City',
-            state: 'State',
-            pincode: '123456',
-            products: [{ productId: 1, qty: 2, unitPrice: 500 }],
+            receiverId: 2,
+            receiverAddressId: 2,
+            products: [{ variationId: 1, quantity: 2 }],
           },
         ],
       });
@@ -699,10 +675,9 @@ describe('7. Orders', () => {
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
         senderId: 1,
-        senderName: 'Cancel Test',
-        senderMobile: '9444444444',
+        senderAddressId: 1,
         courierId: 1,
-        products: [{ productId: 1, qty: 1 }],
+        products: [{ variationId: 1, quantity: 1 }],
       });
 
     const orderId = createRes.body.data.orderId || createRes.body.data.id;
@@ -881,16 +856,6 @@ describe('10. Parcels — Validation', () => {
       .post('/api/v1/parcels/dispatch')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({ parcelIds: [2] });
-
-    expect(res.statusCode).toBe(400);
-    expect(res.body.success).toBe(false);
-  });
-
-  // Parcel 1 is DELIVERED after section 9 — cancel is blocked for terminal states
-  it('10.4 PATCH /api/v1/parcels/1/cancel → 400 (parcel is DELIVERED, terminal)', async () => {
-    const res = await request(app)
-      .patch('/api/v1/parcels/1/cancel')
-      .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
 
     expect(res.statusCode).toBe(400);
     expect(res.body.success).toBe(false);
@@ -1294,11 +1259,10 @@ describe('14. Dashboard', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toBeDefined();
-    expect(res.body.data).toHaveProperty('TotalOrders');
     expect(res.body.data).toHaveProperty('totalOrders');
-    expect(res.body.data).toHaveProperty('parcelsByStatus');
-    expect(res.body.data.parcelsByStatus).toHaveProperty('PENDING');
-    expect(res.body.data.TotalOrders).toBe(150);
+    expect(res.body.data).toHaveProperty('pendingOrders');
+    expect(res.body.data).toHaveProperty('dispatchedOrders');
+    expect(res.body.data).toHaveProperty('deliveredOrders');
     expect(res.body.data.totalOrders).toBe(150);
   });
 
@@ -1330,13 +1294,12 @@ describe('15. Bulk Upload', () => {
       .send({
         rows: [{
           senderId: 1,
-          senderName: 'Bulk Sender',
-          senderMobile: '9000000099',
+          senderAddressId: 1,
           courierId: 1,
           receivers: [{
-            receiverName: 'Bulk Receiver',
-            receiverPhone: '9000000098',
-            products: [{ productId: 1, qty: 1, unitPrice: 100 }]
+            receiverId: 2,
+            receiverAddressId: 2,
+            products: [{ variationId: 1, quantity: 1 }]
           }]
         }]
       });

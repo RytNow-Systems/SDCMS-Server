@@ -376,6 +376,52 @@ class OrderRepository {
     const p = { id: seedParcels.length + 1, fkReceiverDetailsId: recId, fkCourierId: courierId, parcel_id: `PDS-${uuidv4().split('-')[0].toUpperCase()}`, trackingNo: null, parcelStatusCode: 'PENDING', labelPrintCount: 0, dispatchDate: null, createdAt: new Date() };
     seedParcels.push(p); return p;
   }
+
+  // ============================================================================
+  // RESOLUTION OPERATIONS
+  // ============================================================================
+
+  async resolveParty(partyId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [1, null, partyId]);
+      return rows[0]?.[0] || null;
+    }
+    // Mock implementation
+    return {
+      PkPartyId: partyId,
+      CustomerName: `Mock Party ${partyId}`,
+      PhoneNo: `99900000${partyId % 10}`
+    };
+  }
+
+  async resolveAddress(partyId, addressId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_party_details_get(?, ?)', [1, partyId]);
+      const addresses = rows[0] || [];
+      return addresses.find(a => a.PkPartyDetailsId === addressId) || null;
+    }
+    // Mock implementation
+    return {
+      PkPartyDetailsId: addressId,
+      Address: `Mock Address ${addressId}`,
+      City: 'MockCity',
+      State: 'MockState',
+      Pincode: '000000'
+    };
+  }
+
+  async resolveVariation(variationId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_color_matrix_get(?, ?)', [1, variationId]);
+      return rows[0]?.[0] || null;
+    }
+    // Mock implementation
+    return {
+      PkProductColorId: variationId,
+      FkProductId: 1,
+      MaterialRate: 500
+    };
+  }
 }
 
 export default new OrderRepository();

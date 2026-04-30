@@ -13,12 +13,16 @@ class SenderService {
   /**
    * Internal mapper to standardize Party DB records to the camelCase API contract.
    * @param {object} sender - Raw database record from Party_master.
+   * @param {number|null} partyTypeId - 1 (Sender) or 2 (Receiver).
    * @returns {object} API-formatted sender object.
    */
-  _mapToApi(sender) {
+  _mapToApi(sender, partyTypeId = null) {
     if (!sender) return null;
+    const typeId = partyTypeId || sender.FkPartyTypeId || sender.PartyTypeId;
+    const idKey = typeId === 2 ? 'receiverId' : 'senderId';
+    
     return {
-      id: sender.PkPartyId,
+      [idKey]: sender.PkPartyId,
       customerName: sender.CustomerName,
       phoneNo: sender.PhoneNo,
       emailId: sender.EmailId || null,
@@ -34,13 +38,17 @@ class SenderService {
   /**
    * Internal mapper for Address Book entries.
    * @param {object} detail - Raw database record from Party_Details.
+   * @param {number|null} partyTypeId - 1 (Sender) or 2 (Receiver).
    * @returns {object} API-formatted address object.
    */
-  _mapAddressToApi(detail) {
+  _mapAddressToApi(detail, partyTypeId = null) {
     if (!detail) return null;
+    const addrIdKey = partyTypeId === 2 ? 'receiverAddressId' : 'senderAddressId';
+    const partyIdKey = partyTypeId === 2 ? 'receiverId' : 'senderId';
+
     return {
-      id: detail.PkPartyDetailsId,
-      partyId: detail.FkPartyId,
+      [addrIdKey]: detail.PkPartyDetailsId,
+      [partyIdKey]: detail.FkPartyId,
       customerName: detail.CustomerName || null,
       emailId: detail.EmailId || null,
       address: detail.Address,
@@ -60,7 +68,7 @@ class SenderService {
    */
   async getSenders() {
     const senders = await senderRepository.findAll(1);
-    return senders.map(s => this._mapToApi(s));
+    return senders.map(s => this._mapToApi(s, 1));
   }
 
   /**
@@ -76,7 +84,7 @@ class SenderService {
       error.statusCode = 404;
       throw error;
     }
-    return this._mapToApi(sender);
+    return this._mapToApi(sender, 1);
   }
 
   /**
@@ -95,7 +103,7 @@ class SenderService {
     }
     const adminId = user?.id || user?.employeeCode || 1;
     const result = await senderRepository.create(senderData, adminId, 1);
-    return this._mapToApi(result);
+    return this._mapToApi(result, 1);
   }
 
   /**
@@ -117,7 +125,7 @@ class SenderService {
     }
     const adminId = user?.id || user?.employeeCode || 1;
     const result = await senderRepository.update(id, { ...existing, ...senderData }, adminId, 1);
-    return this._mapToApi(result);
+    return this._mapToApi(result, 1);
   }
 
   /**
@@ -136,7 +144,8 @@ class SenderService {
   /**
    * Auto-fill lookup using phone number as unique key.
    * @param {string} phone - Target phone number.
-   * @returns {Promise<object>} Matching sender.
+   * @param {number} partyTypeId - 1 (Sender) or 2 (Receiver).
+   * @returns {Promise<object>} Matching sender/receiver.
    */
   async lookupByPhone(phone, partyTypeId) {
     if (!phone) {
@@ -144,14 +153,15 @@ class SenderService {
       error.statusCode = 400;
       throw error;
     }
-    const senders = await senderRepository.findAll(partyTypeId);
-    const sender = senders.find(s => s.PhoneNo === phone);
-    if (!sender) {
-      const error = new Error(`No sender found for phone: ${phone}`);
+    const parties = await senderRepository.findAll(partyTypeId);
+    const party = parties.find(s => s.PhoneNo === phone);
+    if (!party) {
+      const typeLabel = partyTypeId === 1 ? 'Sender' : 'Receiver';
+      const error = new Error(`No ${typeLabel} found for phone: ${phone}`);
       error.statusCode = 404;
       throw error;
     }
-    return this._mapToApi(sender);
+    return this._mapToApi(party, partyTypeId);
   }
 
   /**
@@ -188,17 +198,18 @@ class SenderService {
     }
     const typeId = partyTypeId === 1 ? 1 : partyTypeId === 2 ? 2 : partyTypeId;
     const parties = await senderRepository.findByName(name, typeId);
-    return parties.map((s) => this._mapToApi(s));
+    return parties.map((s) => this._mapToApi(s, typeId));
   }
 
   /**
    * Retrieves all secondary addresses from the Address Book.
    * @param {number|string} partyId - PkPartyId.
+   * @param {number|null} partyTypeId - Contextual type (1 for sender, 2 for receiver).
    * @returns {Promise<Array<object>>} API-formatted addresses.
    */
-  async getAddressesByPartyId(partyId) {
+  async getAddressesByPartyId(partyId, partyTypeId = null) {
     const addresses = await senderRepository.findAddressesByPartyId(partyId);
-    return addresses.map((d) => this._mapAddressToApi(d));
+    return addresses.map((d) => this._mapAddressToApi(d, partyTypeId));
   }
 
   /**
@@ -206,9 +217,10 @@ class SenderService {
    * @param {number|string} partyId - Parent Party ID.
    * @param {object} data - Address fields.
    * @param {object} user - Creator context.
+   * @param {number|null} partyTypeId - Contextual type (1 for sender, 2 for receiver).
    * @returns {Promise<object>} Created address object.
    */
-  async createAddress(partyId, data, user) {
+  async createAddress(partyId, data, user, partyTypeId = null) {
     const party = await senderRepository.findById(partyId, null);
     if (!party) {
       const error = new Error('Party not found');
@@ -221,7 +233,7 @@ class SenderService {
       country: data.country || 'India', isDefault: data.isDefault
     };
     const result = await senderRepository.createPartyDetail(partyId, payload, user);
-    return this._mapAddressToApi(result);
+    return this._mapAddressToApi(result, partyTypeId);
   }
 }
 
