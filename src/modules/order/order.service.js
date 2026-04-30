@@ -76,10 +76,19 @@ class OrderService {
         error.statusCode = 400;
         throw error;
       }
+      let unitId = variation.FkUnitId || variation.fkUnitId;
+      
+      // Fallback: If variation doesn't contain FkUnitId, fetch it directly from the product master
+      if (!unitId && variation.FkProductId) {
+        const product = await orderRepository.resolveProduct(variation.FkProductId);
+        unitId = product ? (product.FkUnitId || product.fkUnitId) : null;
+      }
+
       resolved.push({
         productId: variation.FkProductId,
         qty: p.quantity,
-        unitPrice: variation.MaterialRate
+        unitPrice: variation.MaterialRate,
+        unitId: unitId || null
       });
     }
     return resolved;
@@ -204,7 +213,7 @@ class OrderService {
       const items = [];
       // multiple items
       for (const prod of rec.products || []) {
-        items.push(await orderRepository.createOrderItem(recRecord.id, prod.productId, prod.qty, prod.unitPrice));
+        items.push(await orderRepository.createOrderItem(recRecord.id, prod.productId, prod.qty, prod.unitPrice, prod.unitId));
       }
       // 1 parcel execution unit (standard)
       const parcel = await orderRepository.createParcel(recRecord.id, courierId);
@@ -320,8 +329,9 @@ class OrderService {
       senderName: o.SenderName || o.senderName,
       senderMobile: o.SenderMobile || o.senderMobile,
       totalAmount: o.TotalAmount || o.totalAmount,
-      derivedStatus: o.DerivedStatus || o.derivedStatus || 'Created',
-      createdAt: o.CreatedAt || o.createdAt
+      derivedStatus: o.DynamicOrderStatus || o.DerivedStatus || o.derivedStatus || 'Created',
+      createdAt: o.OrderDate || o.CreatedAt || o.createdAt,
+      totalParcels: o.TotalParcels || o.totalParcels || 0
     };
   }
 

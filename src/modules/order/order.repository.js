@@ -53,7 +53,7 @@ class OrderRepository {
 
       // Step 1: Insert Order Header
       const orderResult = await this._executeOrderMaster(connection, orderData, adminId);
-      const orderId = orderResult.PkOrderId;
+      const orderId = orderResult.GeneratedOrderId || orderResult.UpdatedOrderId || orderResult.PkOrderId || orderResult.pkOrderId;
 
       // Step 2: Loop through receivers (Mode B/C)
       for (const rec of orderData.receivers) {
@@ -87,13 +87,13 @@ class OrderRepository {
       'CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         0, // pPkOrderId=0 for creation
-        data.senderId || null, 
-        data.senderName, 
-        data.senderMobile, 
-        data.senderAddress || null, 
+        data.senderId ?? null, 
+        data.senderName ?? null, 
+        data.senderMobile ?? null, 
+        data.senderAddress ?? null, 
         null, null, null, // pCity, pState, pPincode (inherited from Party)
-        data.totalAmount || 0, 
-        adminId, 
+        data.totalAmount ?? 0, 
+        adminId ?? null, 
         1 // pIsActive
       ]
     );
@@ -109,21 +109,21 @@ class OrderRepository {
       'CALL prc_receiver_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         0, // pPkReceiverDetailsId
-        orderId, 
-        rec.receiverId || null, 
-        rec.receiverName, 
-        rec.receiverPhone || null, 
-        rec.receiverEmail || null, 
-        rec.address || null, 
-        rec.city || null, 
-        rec.state || null, 
-        rec.pincode || null, 
-        rec.country || 'India', 
-        adminId, 
+        orderId ?? null, 
+        rec.receiverId ?? null, 
+        rec.receiverName ?? null, 
+        rec.receiverPhone ?? null, 
+        rec.receiverEmail ?? null, 
+        rec.address ?? null, 
+        rec.city ?? null, 
+        rec.state ?? null, 
+        rec.pincode ?? null, 
+        rec.country ?? 'India', 
+        adminId ?? null, 
         1 // pIsActive
       ]
     );
-    return rows[0][0].PkReceiverDetailsId;
+    return rows[0]?.[0]?.GeneratedReceiverId || rows[0]?.[0]?.UpdatedReceiverId || rows[0]?.[0]?.PkReceiverDetailsId || rows[0]?.[0]?.pkReceiverDetailsId;
   }
 
   /**
@@ -135,12 +135,12 @@ class OrderRepository {
       'CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)',
       [
         0, // pPkOrderItemId
-        receiverDetailsId, 
-        prod.productId, 
-        prod.qty, 
-        null, // pFkUnitId
-        prod.unitPrice || null, 
-        adminId, 
+        receiverDetailsId ?? null, 
+        prod.productId ?? null, 
+        prod.qty ?? null, 
+        prod.unitId ?? null, // pFkUnitId
+        prod.unitPrice ?? null, 
+        adminId ?? null, 
         1 // pIsActive
       ]
     );
@@ -154,12 +154,12 @@ class OrderRepository {
     await connection.execute(
       'CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)',
       [
-        0, // pTriggerType: 0 (CREATE)
         0, // pPkParcelDetailsId
-        receiverDetailsId, 
+        0, // pTriggerType: 0 (CREATE)
+        receiverDetailsId ?? null, 
         null, // pAWBNumber
-        courierId, 
-        adminId
+        courierId ?? null, 
+        adminId ?? null
       ]
     );
   }
@@ -177,11 +177,9 @@ class OrderRepository {
    */
   async findAllOrders(filters = {}) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_order_master_search(?, ?, ?, ?)', [
-        0, // pPkOrderId: 0 for list
-        0, // pFkPartyId: 0
-        filters.courierId || 0, 
-        filters.statusId || 0
+      const [rows] = await db.execute('CALL prc_order_master_get(?, ?)', [
+        0, // pAction: 0 for list
+        0  // pPkOrderId: 0
       ]);
       // Pagination is handled in-memory for this module's search results.
       return this._paginateData(rows[0] || [], filters);
@@ -220,8 +218,8 @@ class OrderRepository {
    */
   async findById(orderId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_order_master_search(?, ?, ?, ?)', [orderId, 0, 0, 0]);
-      return rows[0]?.[0] || null;
+      const [rows] = await db.execute('CALL prc_order_master_get(?, ?)', [1, orderId]);
+      return this._buildOrderAggregate(rows[0] || []);
     }
     return this._findByIdMock(orderId);
   }
@@ -229,6 +227,59 @@ class OrderRepository {
   // ============================================================================
   // UPDATE & CANCEL OPERATIONS
   // ============================================================================
+
+  /**
+   * Internal mapper to build nested order aggregate from flat rows.
+   * @private
+   */
+  _buildOrderAggregate(rows) {
+    if (!rows || rows.length === 0) return null;
+
+    const order = {
+      PkOrderId: rows[0].PkOrderId,
+      OrderCode: rows[0].OrderCode,
+      OrderDate: rows[0].OrderDate,
+      ExpectedDeliveryDate: rows[0].ExpectedDeliveryDate,
+      TotalAmount: rows[0].TotalAmount,
+      SenderName: rows[0].SenderName,
+      SenderMobile: rows[0].SenderPhone,
+      receivers: []
+    };
+
+    const receiversMap = new Map();
+
+    for (const row of rows) {
+      if (row.PkReceiverDetailsId) {
+        if (!receiversMap.has(row.PkReceiverDetailsId)) {
+          receiversMap.set(row.PkReceiverDetailsId, {
+            PkReceiverDetailsId: row.PkReceiverDetailsId,
+            ReceiverName: row.ReceiverName,
+            ReceiverPhone: row.ReceiverPhone,
+            City: row.City,
+            items: [],
+            parcel: row.PkParcelDetailsId ? {
+              PkParcelDetailsId: row.PkParcelDetailsId,
+              TrackingNo: row.TrackingNo,
+              ParcelStatus: row.FkParcelStatusId
+            } : null
+          });
+        }
+
+        const receiver = receiversMap.get(row.PkReceiverDetailsId);
+        if (row.PkOrderItemId && !receiver.items.some(i => i.PkOrderItemId === row.PkOrderItemId)) {
+          receiver.items.push({
+            PkOrderItemId: row.PkOrderItemId,
+            FkProductId: row.FkProductId,
+            OutwardQty: row.OutwardQty,
+            UnitPrice: row.UnitPrice
+          });
+        }
+      }
+    }
+
+    order.receivers = Array.from(receiversMap.values());
+    return order;
+  }
 
   /**
    * Update order master details.
@@ -368,8 +419,8 @@ class OrderRepository {
     const r = { id: seedReceivers.length + 1, fkOrderId: orderId, ...data, isActive: true };
     seedReceivers.push(r); return r;
   }
-  async createOrderItem(recId, prodId, qty, price) {
-    const i = { id: seedOrderItems.length + 1, fkReceiverDetailsId: recId, fkProductId: prodId, outwardQty: qty, unitPrice: price || 0 };
+  async createOrderItem(recId, prodId, qty, price, unitId) {
+    const i = { id: seedOrderItems.length + 1, fkReceiverDetailsId: recId, fkProductId: prodId, outwardQty: qty, fkUnitId: unitId || null, unitPrice: price || 0 };
     seedOrderItems.push(i); return i;
   }
   async createParcel(recId, courierId) {
@@ -410,6 +461,15 @@ class OrderRepository {
     };
   }
 
+  async resolveProduct(productId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [productId, 0, 0]);
+      return rows[0]?.[0] || null;
+    }
+    // Mock
+    return { PkProductId: productId, FkUnitId: 1 };
+  }
+
   async resolveVariation(variationId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_product_color_matrix_get(?, ?)', [1, variationId]);
@@ -419,6 +479,7 @@ class OrderRepository {
     return {
       PkProductColorId: variationId,
       FkProductId: 1,
+      FkUnitId: 1,
       MaterialRate: 500
     };
   }
