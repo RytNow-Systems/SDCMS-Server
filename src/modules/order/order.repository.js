@@ -218,8 +218,39 @@ class OrderRepository {
    */
   async findById(orderId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_order_master_get(?, ?)', [1, orderId]);
-      return this._buildOrderAggregate(rows[0] || []);
+      // Step 1: Get order header from prc_order_master_get (pAction=1)
+      const [orderRows] = await db.execute('CALL prc_order_master_get(?, ?)', [1, orderId]);
+      const orderHeader = orderRows[0]?.[0] || null;
+      if (!orderHeader) return null;
+
+      // Step 2: Get receivers from prc_receiver_details_get (pAction=0).
+      // Filter by FkOrderId in JS to isolate this order's receivers.
+      const [receiverRows] = await db.execute('CALL prc_receiver_details_get(?, ?)', [
+        0, // pAction: 0 = get all receivers
+        0  // pLookUpId: 0 (unused for pAction=0)
+      ]);
+      const allReceivers = receiverRows[0] || [];
+      const orderReceivers = allReceivers.filter(r =>
+        r.FkOrderId === parseInt(orderId)
+      );
+
+      // Step 3: Get parcels from prc_parcel_details_get (pAction=0).
+      // Match each parcel to its receiver via FkReceiverDetailsId.
+      const [parcelRows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
+        0, // pAction: 0 = get all parcels
+        0  // pLookUpId: 0 (unused for pAction=0)
+      ]);
+      const allParcels = parcelRows[0] || [];
+
+      // Step 4: Get order items from prc_order_items_get (pAction=0).
+      // Match each item to its receiver via FkReceiverDetailsId.
+      const [itemRows] = await db.execute('CALL prc_order_items_get(?, ?)', [
+        0, // pAction: 0 = get all order items
+        0  // pLookUpId: 0 (unused for pAction=0)
+      ]);
+      const allItems = itemRows[0] || [];
+
+      return this._buildOrderAggregate(orderHeader, orderReceivers, allParcels, allItems);
     }
     return this._findByIdMock(orderId);
   }
@@ -229,99 +260,257 @@ class OrderRepository {
   // ============================================================================
 
   /**
-   * Internal mapper to build nested order aggregate from flat rows.
+   * Build nested order aggregate from order header + receivers + parcels + items.
+   *
+   * Data Sources:
+   * - orderHeader: prc_order_master_get(pAction=1)   → order_master columns
+   * - receivers:   prc_receiver_details_get(pAction=0) filtered by FkOrderId
+   * - allParcels:  prc_parcel_details_get(pAction=0)   → matched by FkReceiverDetailsId
+   * - allItems:    prc_order_items_get(pAction=0)      → grouped by FkReceiverDetailsId
+   *
    * @private
+   * @param {object} orderHeader - Single row from prc_order_master_get.
+   * @param {Array}  receivers   - Rows from prc_receiver_details_get filtered by orderId.
+   * @param {Array}  allParcels  - All parcel rows from prc_parcel_details_get.
+   * @param {Array}  allItems    - All order item rows from prc_order_items_get.
    */
-  _buildOrderAggregate(rows) {
-    if (!rows || rows.length === 0) return null;
+  _buildOrderAggregate(orderHeader, receivers, allParcels, allItems) {
+    if (!orderHeader) return null;
 
     const order = {
-      PkOrderId: rows[0].PkOrderId,
-      OrderCode: rows[0].OrderCode,
-      FkSenderId: rows[0].FkSenderId,
-      OrderDate: rows[0].OrderDate,
-      ExpectedDeliveryDate: rows[0].ExpectedDeliveryDate,
-      TotalAmount: rows[0].TotalAmount,
-      SenderName: rows[0].SenderName,
-      SenderMobile: rows[0].SenderPhone,
+      PkOrderId: orderHeader.PkOrderId,
+      OrderCode: orderHeader.OrderCode,
+      FkSenderId: orderHeader.FkSenderId,
+      OrderDate: orderHeader.OrderDate,
+      ExpectedDeliveryDate: orderHeader.ExpectedDeliveryDate,
+      TotalAmount: orderHeader.TotalAmount,
+      SenderName: orderHeader.SenderName || orderHeader.CustomerName,
+      SenderMobile: orderHeader.SenderMobile || orderHeader.SenderPhone,
       receivers: []
     };
 
-    const receiversMap = new Map();
+    // Collect this order's receiver IDs for filtering parcels and items
+    const receiverIds = new Set(receivers.map(r => r.PkReceiverDetailsId));
 
-    for (const row of rows) {
-      if (row.PkReceiverDetailsId) {
-        if (!receiversMap.has(row.PkReceiverDetailsId)) {
-          receiversMap.set(row.PkReceiverDetailsId, {
-            PkReceiverDetailsId: row.PkReceiverDetailsId,
-            ReceiverName: row.ReceiverName,
-            ReceiverPhone: row.ReceiverPhone,
-            City: row.City,
-            items: [],
-            parcel: row.PkParcelDetailsId ? {
-              PkParcelDetailsId: row.PkParcelDetailsId,
-              TrackingNo: row.TrackingNo,
-              ParcelStatus: row.FkParcelStatusId
-            } : null
-          });
-        }
-
-        const receiver = receiversMap.get(row.PkReceiverDetailsId);
-        if (row.PkOrderItemId && !receiver.items.some(i => i.PkOrderItemId === row.PkOrderItemId)) {
-          receiver.items.push({
-            PkOrderItemId: row.PkOrderItemId,
-            FkProductId: row.FkProductId,
-            OutwardQty: row.OutwardQty,
-            UnitPrice: row.UnitPrice
-          });
-        }
+    // Index parcels by FkReceiverDetailsId for O(1) lookup
+    const parcelsByReceiver = new Map();
+    for (const p of allParcels) {
+      const recId = p.FkReceiverDetailsId;
+      if (!recId || !receiverIds.has(recId)) continue;
+      // One receiver → one parcel (1:1 per domain rule)
+      if (!parcelsByReceiver.has(recId)) {
+        parcelsByReceiver.set(recId, p);
       }
     }
 
-    order.receivers = Array.from(receiversMap.values());
+    // Group order items by FkReceiverDetailsId (one receiver → many items)
+    const itemsByReceiver = new Map();
+    for (const item of allItems) {
+      const recId = item.FkReceiverDetailsId;
+      if (!recId || !receiverIds.has(recId)) continue;
+      if (!itemsByReceiver.has(recId)) {
+        itemsByReceiver.set(recId, []);
+      }
+      itemsByReceiver.get(recId).push(item);
+    }
+
+    // Map each receiver row and attach its parcel + items
+    order.receivers = receivers.map(r => {
+      const recId = r.PkReceiverDetailsId;
+      const parcelRow = parcelsByReceiver.get(recId) || null;
+      const receiverItems = itemsByReceiver.get(recId) || [];
+
+      return {
+        PkReceiverDetailsId: recId,
+        FkPartyId: r.FkReceiverId,
+        ReceiverName: r.ReceiverName,
+        ReceiverPhone: r.ReceiverPhone,
+        Address: r.Address,
+        City: r.City,
+        State: r.State,
+        Pincode: r.Pincode,
+        items: receiverItems.map(i => ({
+          PkOrderItemId: i.PkOrderItemId,
+          FkProductId: i.FkProductId,
+          OutwardQty: i.OutwardQty,
+          UnitPrice: i.UnitPrice,
+          MaterialName: i.MaterialName,
+          MaterialCode: i.MaterialCode,
+          UnitTitle: i.UnitTitle
+        })),
+        parcel: parcelRow ? {
+          PkParcelDetailsId: parcelRow.PkParcelDetailsId,
+          ParcelID: parcelRow.QRCode,
+          TrackingNo: parcelRow.TrackingNo,
+          ParcelStatus: parcelRow.ParcelStatusName || parcelRow.StatusDescription || parcelRow.FkParcelStatusId
+        } : null
+      };
+    });
+
     return order;
   }
 
+  // ============================================================================
+  // FULL GRAPH UPDATE OPERATIONS (READ & WRITE)
+  // ============================================================================
+
   /**
-   * Update order master details.
-   * 
-   * @param {number|string} orderId
-   * @param {object} payload
-   * @param {number|string} adminId
-   * @returns {Promise<object|null>} Updated record.
+   * Get order header by ID (lightweight check for existence).
+   * Procedure: prc_order_master_get(pAction=1, pPkOrderId)
    */
-  async updateOrder(orderId, payload, adminId) {
+  async getOrderHeader(orderId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        orderId, 
-        null, // pSenderId: null (do not update FK)
-        payload.senderName || null, 
-        payload.senderMobile || null, 
-        payload.senderAddress || null, 
-        null, null, null, // Address components
-        null, // pTotalAmount
-        adminId, 
-        1 // pIsActive
-      ]);
+      const [rows] = await db.execute('CALL prc_order_master_get(?, ?)', [1, orderId]);
       return rows[0]?.[0] || null;
     }
-    return this._updateOrderMock(orderId, payload);
+    return seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive) || null;
+  }
+
+  /**
+   * Get all active receivers for a specific order.
+   * Procedure: prc_receiver_details_get(pAction=0, 0)
+   */
+  async getReceiversForOrder(orderId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_receiver_details_get(?, ?)', [0, 0]);
+      return (rows[0] || []).filter(r => r.FkOrderId === parseInt(orderId) && r.IsActive !== 'InActive');
+    }
+    return seedReceivers.filter((r) => r.fkOrderId === parseInt(orderId) && r.isActive !== false);
+  }
+
+  /**
+   * Get all active items for a set of receiver IDs.
+   * Procedure: prc_order_items_get(pAction=0, 0)
+   */
+  async getItemsForReceivers(receiverIds) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_order_items_get(?, ?)', [0, 0]);
+      const idSet = new Set(receiverIds.map(Number));
+      return (rows[0] || []).filter(i => idSet.has(i.FkReceiverDetailsId) && i.IsActive !== 'InActive');
+    }
+    const idSet = new Set(receiverIds.map(Number));
+    return seedOrderItems.filter((i) => idSet.has(i.fkReceiverDetailsId));
+  }
+
+  /**
+   * Get all parcels for a set of receiver IDs.
+   * Procedure: prc_parcel_details_get(pAction=0, 0)
+   */
+  async getParcelsForReceivers(receiverIds) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [0, 0]);
+      const idSet = new Set(receiverIds.map(Number));
+      return (rows[0] || []).filter(p => idSet.has(p.FkReceiverDetailsId));
+    }
+    const idSet = new Set(receiverIds.map(Number));
+    return seedParcels.filter((p) => idSet.has(p.fkReceiverDetailsId));
+  }
+
+  /**
+   * Full graph update within a managed transaction (LIVE mode).
+   * Applies diff-based changes: update/create/remove receivers, items, parcels.
+   *
+   * @param {number|string} orderId
+   * @param {object} header - Resolved sender snapshot.
+   * @param {object} diffs - { receivers: { toUpdate, toCreate, toRemove } }.
+   * @param {number|string} adminId - EmployeeCode of the actor.
+   */
+  async updateOrderGraph(orderId, header, diffs, adminId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      return this._updateOrderGraphLive(orderId, header, diffs, adminId);
+    }
+    return this._updateOrderGraphMock(orderId, header, diffs, adminId);
+  }
+
+  /**
+   * LIVE mode: Managed transaction for full graph update.
+   * @private
+   */
+  async _updateOrderGraphLive(orderId, header, diffs, adminId) {
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // Step 1: Update order header
+      await connection.execute(
+        'CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          orderId,
+          header.senderId ?? null,
+          header.senderName ?? null,
+          header.senderMobile ?? null,
+          header.senderAddress ?? null,
+          header.city ?? null,
+          header.state ?? null,
+          header.pincode ?? null,
+          header.totalAmount ?? 0,
+          adminId,
+          1
+        ]
+      );
+
+      // Step 2: Remove receivers (cancel parcel + soft-delete items + soft-delete receiver)
+      for (const rec of diffs.receivers.toRemove) {
+        if (rec.parcelId) {
+          await connection.execute('CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)', [rec.parcelId, 5, 0, null, 0, adminId]);
+        }
+        for (const item of rec.existingItems || []) {
+          const itemId = item.PkOrderItemId || item.id;
+          await connection.execute('CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)', [itemId, rec.receiverDetailsId, item.FkProductId, 0, null, 0, adminId, 0]);
+        }
+        await connection.execute('CALL prc_receiver_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [rec.receiverDetailsId, orderId, null, '', '', null, '', '', '', '', 'India', adminId, 0]);
+      }
+
+      // Step 3: Update existing receivers and their items
+      for (const rec of diffs.receivers.toUpdate) {
+        await connection.execute(
+          'CALL prc_receiver_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [rec.receiverDetailsId, orderId, rec.receiverId || null, rec.receiverName || null, rec.receiverPhone || null, rec.receiverEmail || null, rec.address || null, rec.city || null, rec.state || null, rec.pincode || null, 'India', adminId, 1]
+        );
+        for (const item of rec.itemDiffs.toRemove) {
+          const itemId = item.PkOrderItemId || item.id;
+          await connection.execute('CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)', [itemId, rec.receiverDetailsId, item.FkProductId, 0, null, 0, adminId, 0]);
+        }
+        for (const item of rec.itemDiffs.toUpdate) {
+          await connection.execute('CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)', [item.orderItemId, rec.receiverDetailsId, item.productId, item.qty, item.unitId, item.unitPrice, adminId, 1]);
+        }
+        for (const item of rec.itemDiffs.toCreate) {
+          await connection.execute('CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)', [0, rec.receiverDetailsId, item.productId, item.qty, item.unitId, item.unitPrice, adminId, 1]);
+        }
+      }
+
+      // Step 4: Create new receivers with items and parcels
+      for (const rec of diffs.receivers.toCreate) {
+        const [recRows] = await connection.execute(
+          'CALL prc_receiver_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [0, orderId, rec.receiverId || null, rec.receiverName || null, rec.receiverPhone || null, rec.receiverEmail || null, rec.address || null, rec.city || null, rec.state || null, rec.pincode || null, 'India', adminId, 1]
+        );
+        const newReceiverId = recRows[0]?.[0]?.GeneratedReceiverId || recRows[0]?.[0]?.PkReceiverDetailsId;
+        
+        for (const prod of rec.products) {
+          await connection.execute('CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)', [0, newReceiverId, prod.productId, prod.qty, prod.unitId, prod.unitPrice, adminId, 1]);
+        }
+        
+        // Trigger 0 = CREATE parcel
+        await connection.execute('CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)', [0, 0, newReceiverId, null, 0, adminId]);
+      }
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   /**
    * Logic for cancelling an order by setting IsActive=0.
-   * Cascaded logic for parcels is handled by DB triggers/procedures.
-   * 
-   * @param {number|string} orderId
-   * @param {number|string} adminId
    */
   async cancelOrder(orderId, adminId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        orderId, 
-        null, null, null, null, null, null, null, null,
-        adminId, 
-        0 // pIsActive=0 signifies cancellation
+        orderId, null, null, null, null, null, null, null, null, adminId, 0
       ]);
       return rows[0]?.[0] || null;
     }
@@ -363,12 +552,77 @@ class OrderRepository {
   }
 
   /** @private */
-  _updateOrderMock(orderId, payload) {
+  _updateOrderGraphMock(orderId, header, diffs, adminId) {
     const orderIndex = seedOrders.findIndex((o) => o.id === parseInt(orderId) && o.isActive);
-    if (orderIndex === -1) return null;
-    this._checkUpdateBlocked(orderId);
-    seedOrders[orderIndex] = { ...seedOrders[orderIndex], ...payload };
-    return seedOrders[orderIndex];
+    if (orderIndex === -1) return;
+
+    // Update order header
+    const order = seedOrders[orderIndex];
+    if (header.senderId) order.fkSenderId = header.senderId;
+    if (header.senderName) order.senderName = header.senderName;
+    if (header.senderMobile) order.senderMobile = header.senderMobile;
+    if (header.senderAddress) order.senderAddress = header.senderAddress;
+    if (header.totalAmount !== undefined) order.totalAmount = header.totalAmount;
+
+    // Remove receivers
+    for (const rec of diffs.receivers.toRemove) {
+      // Cancel parcel
+      const parcel = seedParcels.find((p) => p.fkReceiverDetailsId === rec.receiverDetailsId);
+      if (parcel) parcel.parcelStatusCode = 'CANCELLED';
+      // Soft-delete items
+      seedOrderItems.forEach((i) => {
+        if (i.fkReceiverDetailsId === rec.receiverDetailsId) i.isActive = false;
+      });
+      // Soft-delete receiver
+      const recIdx = seedReceivers.findIndex((r) => r.id === rec.receiverDetailsId);
+      if (recIdx !== -1) seedReceivers[recIdx].isActive = false;
+    }
+
+    // Update existing receivers
+    for (const rec of diffs.receivers.toUpdate) {
+      const recIdx = seedReceivers.findIndex((r) => r.id === rec.receiverDetailsId);
+      if (recIdx !== -1) {
+        seedReceivers[recIdx] = { ...seedReceivers[recIdx], ...rec, id: rec.receiverDetailsId };
+      }
+      // Remove items
+      for (const item of rec.itemDiffs.toRemove) {
+        const itemIdx = seedOrderItems.findIndex((i) => i.id === (item.PkOrderItemId || item.id));
+        if (itemIdx !== -1) seedOrderItems[itemIdx].isActive = false;
+      }
+      // Update items
+      for (const item of rec.itemDiffs.toUpdate) {
+        const itemIdx = seedOrderItems.findIndex((i) => i.id === item.orderItemId);
+        if (itemIdx !== -1) {
+          seedOrderItems[itemIdx].fkProductId = item.productId;
+          seedOrderItems[itemIdx].outwardQty = item.qty;
+          seedOrderItems[itemIdx].unitPrice = item.unitPrice;
+        }
+      }
+      // Create items
+      for (const item of rec.itemDiffs.toCreate) {
+        seedOrderItems.push({
+          id: seedOrderItems.length + 1, fkReceiverDetailsId: rec.receiverDetailsId,
+          fkProductId: item.productId, outwardQty: item.qty, fkUnitId: item.unitId, unitPrice: item.unitPrice
+        });
+      }
+    }
+
+    // Create new receivers
+    for (const rec of diffs.receivers.toCreate) {
+      const newRec = { id: seedReceivers.length + 1, fkOrderId: parseInt(orderId), ...rec, isActive: true };
+      seedReceivers.push(newRec);
+      for (const prod of rec.products) {
+        seedOrderItems.push({
+          id: seedOrderItems.length + 1, fkReceiverDetailsId: newRec.id,
+          fkProductId: prod.productId, outwardQty: prod.qty, fkUnitId: prod.unitId, unitPrice: prod.unitPrice
+        });
+      }
+      seedParcels.push({
+        id: seedParcels.length + 1, fkReceiverDetailsId: newRec.id, fkCourierId: null,
+        parcel_id: `PDS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`, trackingNo: null,
+        parcelStatusCode: 'PENDING', labelPrintCount: 0, dispatchDate: null, createdAt: new Date()
+      });
+    }
   }
 
   /** @private */

@@ -290,17 +290,197 @@ class OrderService {
   }
 
   /**
-   * Updates core order metadata before physical execution threshold.
+   * Updates full order graph (sender snapshot, receivers, items).
+   * Validates state threshold (no changes if any parcel is >= AWB_LINKED).
    */
   async updateOrder(orderId, payload, user) {
     const adminId = user?.employeeCode || null;
-    const result = await orderRepository.updateOrder(orderId, payload, adminId);
-    if (!result) {
+
+    // 1. Fetch existing order header
+    const existingHeader = await orderRepository.getOrderHeader(orderId);
+    if (!existingHeader) {
       const error = new Error('Order not found');
       error.statusCode = 404;
       throw error;
     }
-    return this._mapOrderSummary(result);
+
+    // 2. Fetch existing graph to diff against
+    const existingReceivers = await orderRepository.getReceiversForOrder(orderId);
+    const existingReceiverIds = existingReceivers.map(r => r.PkReceiverDetailsId || r.id);
+    const existingItems = await orderRepository.getItemsForReceivers(existingReceiverIds);
+    const existingParcels = await orderRepository.getParcelsForReceivers(existingReceiverIds);
+
+    // 3. Threshold guard: block if any parcel has reached physical execution
+    const blockStatuses = ['AWB_LINKED', 'DISPATCHED', 'DELIVERED'];
+    if (existingParcels.some(p => blockStatuses.includes(p.ParcelStatusName || p.StatusDescription || p.FkParcelStatusId || p.parcelStatusCode))) {
+      const error = new Error('Cannot update order: physical execution has begun on one or more parcels.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // 4. Resolve Sender Snapshot (if sender fields provided)
+    let headerPayload = {};
+    if (payload.senderId && payload.senderAddressId) {
+      const party = await orderRepository.resolveParty(payload.senderId);
+      const address = await orderRepository.resolveAddress(payload.senderId, payload.senderAddressId);
+      
+      if (!party || !address) {
+        const error = new Error('Invalid senderId or senderAddressId');
+        error.statusCode = 400;
+        throw error;
+      }
+      
+      headerPayload = {
+        senderId: payload.senderId,
+        senderName: party.CustomerName || party.customerName,
+        senderMobile: party.PhoneNo || party.phoneNo,
+        senderAddress: address.Address || address.addressLine1 || address.address,
+        city: address.City || address.city,
+        state: address.State || address.state,
+        pincode: address.Pincode || address.pincode
+      };
+    }
+
+    // 5. Build Diffs for Receivers & Items
+    let diffs = { receivers: { toUpdate: [], toCreate: [], toRemove: [] } };
+    
+    if (payload.receivers && Array.isArray(payload.receivers)) {
+      // Resolve incoming receivers (Party/Address/Products)
+      const resolvedReceivers = await this._resolveUpdateReceivers(payload.receivers);
+      
+      // Compute diffs
+      diffs.receivers = this._diffReceivers(existingReceivers, resolvedReceivers, existingItems, existingParcels);
+
+      // Recalculate total amount from the intended final state (toUpdate + toCreate)
+      headerPayload.totalAmount = this._calculateTotalAmount([...diffs.receivers.toUpdate, ...diffs.receivers.toCreate]);
+    } else {
+      // If no receivers in payload, we still need to calculate the current totalAmount
+      // by reconstructing the current receivers state so the repository update doesn't zero it out.
+      const currentResolved = existingReceivers.map(r => {
+        const rId = r.PkReceiverDetailsId || r.id;
+        return {
+          ...r,
+          products: existingItems.filter(i => (i.FkReceiverDetailsId || i.fkReceiverDetailsId) === rId)
+                                 .map(i => ({ unitPrice: i.UnitPrice || i.unitPrice, qty: i.OutwardQty || i.outwardQty }))
+        };
+      });
+      headerPayload.totalAmount = this._calculateTotalAmount(currentResolved);
+    }
+
+    // 6. Execute Transaction
+    await orderRepository.updateOrderGraph(orderId, headerPayload, diffs, adminId);
+
+    // 7. Re-fetch full aggregate
+    return await this.getOrderDetails(orderId);
+  }
+
+  // ============================================================================
+  // UPDATE DIFF HELPERS
+  // ============================================================================
+
+  /** @private */
+  async _resolveUpdateReceivers(receivers) {
+    const resolved = [];
+    for (const rec of receivers) {
+      const party = await orderRepository.resolveParty(rec.receiverId);
+      const address = await orderRepository.resolveAddress(rec.receiverId, rec.receiverAddressId);
+
+      if (!party || !address) {
+        const error = new Error(`Invalid receiverId or receiverAddressId for receiver ${rec.receiverId}`);
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const products = [];
+      for (const p of rec.products) {
+        const prodData = await orderRepository.resolveProduct(p.variationId);
+        if (!prodData) {
+          const error = new Error(`Invalid variationId: ${p.variationId}`);
+          error.statusCode = 400;
+          throw error;
+        }
+        products.push({
+          orderItemId: p.orderItemId, // may be undefined for new items
+          variationId: p.variationId,
+          productId: prodData.PkProductId || prodData.id,
+          unitId: prodData.FkUnitId || prodData.fkUnitId,
+          unitPrice: prodData.MaterialRate || prodData.materialRate || 0,
+          qty: p.quantity
+        });
+      }
+
+      resolved.push({
+        receiverDetailsId: rec.receiverDetailsId, // may be undefined
+        receiverId: rec.receiverId,
+        receiverName: party.CustomerName || party.customerName,
+        receiverPhone: party.PhoneNo || party.phoneNo,
+        receiverEmail: party.EmailId || party.email || '',
+        address: address.Address || address.addressLine1 || address.address,
+        city: address.City || address.city,
+        state: address.State || address.state,
+        pincode: address.Pincode || address.pincode,
+        products
+      });
+    }
+    return resolved;
+  }
+
+  /** @private */
+  _diffReceivers(existing, incoming, allExistingItems, allExistingParcels) {
+    const diffs = { toUpdate: [], toCreate: [], toRemove: [] };
+    const incomingMap = new Map();
+
+    for (const inc of incoming) {
+      if (inc.receiverDetailsId) {
+        incomingMap.set(inc.receiverDetailsId, inc);
+        // Compute item diffs for this receiver
+        const exItems = allExistingItems.filter(i => (i.FkReceiverDetailsId || i.fkReceiverDetailsId) === inc.receiverDetailsId);
+        inc.itemDiffs = this._diffItems(exItems, inc.products);
+        diffs.toUpdate.push(inc);
+      } else {
+        diffs.toCreate.push(inc);
+      }
+    }
+
+    for (const ex of existing) {
+      const exId = ex.PkReceiverDetailsId || ex.id;
+      if (!incomingMap.has(exId)) {
+        const parcel = allExistingParcels.find(p => (p.FkReceiverDetailsId || p.fkReceiverDetailsId) === exId);
+        const exItems = allExistingItems.filter(i => (i.FkReceiverDetailsId || i.fkReceiverDetailsId) === exId);
+        diffs.toRemove.push({
+          ...ex,
+          receiverDetailsId: exId,
+          parcelId: parcel ? (parcel.PkParcelDetailsId || parcel.id) : null,
+          existingItems: exItems
+        });
+      }
+    }
+
+    return diffs;
+  }
+
+  /** @private */
+  _diffItems(existingItems, incomingProducts) {
+    const diffs = { toUpdate: [], toCreate: [], toRemove: [] };
+    const incomingMap = new Map();
+
+    for (const inc of incomingProducts) {
+      if (inc.orderItemId) {
+        incomingMap.set(inc.orderItemId, inc);
+        diffs.toUpdate.push(inc);
+      } else {
+        diffs.toCreate.push(inc);
+      }
+    }
+
+    for (const ex of existingItems) {
+      const exId = ex.PkOrderItemId || ex.id;
+      if (!incomingMap.has(exId)) {
+        diffs.toRemove.push(ex);
+      }
+    }
+
+    return diffs;
   }
 
   /**
@@ -367,7 +547,10 @@ class OrderService {
         products: (r.items || []).map((i) => ({
           productId: i.FkProductId || i.fkProductId,
           quantity: i.OutwardQty || i.outwardQty,
-          unitPrice: i.UnitPrice || i.unitPrice
+          unitPrice: i.UnitPrice || i.unitPrice,
+          materialName: i.MaterialName || i.materialName || null,
+          materialCode: i.MaterialCode || i.materialCode || null,
+          unitTitle: i.UnitTitle || i.unitTitle || null
         }))
       }))
     };

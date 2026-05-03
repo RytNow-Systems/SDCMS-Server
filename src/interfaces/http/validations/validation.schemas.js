@@ -122,7 +122,7 @@ const productItemSchema = z.object({
 const baseOrderSchema = z.object({
   senderId: z.number().int().positive('Valid sender ID is required'),
   senderAddressId: z.number().int().positive('Valid sender address ID is required'),
-  courierId: z.number().int().positive('Valid courier ID is required'),
+  courierId: z.number().int().positive('Valid courier ID is required').optional().nullable(),
   // Root-level products: used in Mode A (sender-to-self) and Mode C (combo)
   products: z.array(productItemSchema).optional(),
   // Receivers array: used in Mode B (normal) and Mode C (combo)
@@ -149,7 +149,30 @@ export const createOrderSchema = baseOrderSchema.superRefine((data, ctx) => {
   }
 });
 
-export const updateOrderSchema = baseOrderSchema.partial();
+// Update receiver product item shape (diff strategy: orderItemId present = update, absent = insert)
+const updateReceiverProductSchema = z.object({
+  orderItemId: z.number().int().positive().optional(),  // present = update existing, absent = new
+  variationId: z.number().int().positive('Valid variation ID is required'),
+  quantity: z.number().int().positive('Quantity must be positive')
+});
+
+// Update receiver shape (diff strategy: receiverDetailsId present = update, absent = insert)
+const updateOrderReceiverSchema = z.object({
+  receiverDetailsId: z.number().int().positive().optional(), // present = update existing, absent = new
+  receiverId: z.number().int().positive('Valid receiver ID is required'),
+  receiverAddressId: z.number().int().positive('Valid receiver address ID is required'),
+  products: z.array(updateReceiverProductSchema)
+    .min(1, 'At least one product is required for each receiver')
+});
+
+export const updateOrderSchema = z.object({
+  senderId: z.number().int().positive('Valid sender ID is required').optional(),
+  senderAddressId: z.number().int().positive('Valid sender address ID is required').optional(),
+  receivers: z.array(updateOrderReceiverSchema).optional()
+}).refine(
+  (data) => Object.keys(data).length > 0,
+  { message: 'At least one field must be provided for update' }
+);
 
 // ----------------------------------------------------------------------------
 // SENDER (PARTY) SCHEMAS
@@ -165,6 +188,9 @@ export const createSenderSchema = z.object({
 });
 
 export const updateSenderSchema = createSenderSchema.partial();
+
+export const createReceiverSchema = createSenderSchema;
+export const updateReceiverSchema = updateSenderSchema;
 
 // ----------------------------------------------------------------------------
 // ADDRESS (PARTY_DETAILS) SCHEMAS
