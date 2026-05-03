@@ -290,28 +290,22 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/orders&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;senderName&quot;:&quot;Ramesh Textiles&quot;,&quot;senderMobile&quot;:&quot;9876543210&quot;,&quot;senderAddress&quot;:&quot;14, Gandhi Nagar, Surat&quot;,&quot;courierId&quot;:1,&quot;receivers&quot;:[{&quot;receiverName&quot;:&quot;Delhi Fabrics Ltd.&quot;,&quot;receiverPhone&quot;:&quot;9123456780&quot;,&quot;address&quot;:&quot;45, Karol Bagh&quot;,&quot;city&quot;:&quot;New Delhi&quot;,&quot;state&quot;:&quot;Delhi&quot;,&quot;pincode&quot;:&quot;110005&quot;,&quot;products&quot;:[{&quot;productId&quot;:1,&quot;qty&quot;:5,&quot;unitPrice&quot;:420}]}]}'</code></pre>
+  -d '{&quot;senderId&quot;:1,&quot;senderAddressId&quot;:1,&quot;courierId&quot;:1,&quot;receivers&quot;:[{&quot;receiverId&quot;:2,&quot;receiverAddressId&quot;:2,&quot;products&quot;:[{&quot;variationId&quot;:1,&quot;quantity&quot;:5}]}]}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;senderName&quot;: &quot;Ramesh Textiles&quot;,
-  &quot;senderMobile&quot;: &quot;9876543210&quot;,
-  &quot;senderAddress&quot;: &quot;14, Gandhi Nagar, Surat&quot;,
+  &quot;senderId&quot;: <span class="json-number">1</span>,
+  &quot;senderAddressId&quot;: <span class="json-number">1</span>,
   &quot;courierId&quot;: <span class="json-number">1</span>,
   &quot;receivers&quot;: [
     {
-      &quot;receiverName&quot;: &quot;Delhi Fabrics Ltd.&quot;,
-      &quot;receiverPhone&quot;: &quot;9123456780&quot;,
-      &quot;address&quot;: &quot;45, Karol Bagh&quot;,
-      &quot;city&quot;: &quot;New Delhi&quot;,
-      &quot;state&quot;: &quot;Delhi&quot;,
-      &quot;pincode&quot;: &quot;110005&quot;,
+      &quot;receiverId&quot;: <span class="json-number">2</span>,
+      &quot;receiverAddressId&quot;: <span class="json-number">2</span>,
       &quot;products&quot;: [
         {
-          &quot;productId&quot;: <span class="json-number">1</span>,
-          &quot;qty&quot;: <span class="json-number">5</span>,
-          &quot;unitPrice&quot;: <span class="json-number">420</span>
+          &quot;variationId&quot;: <span class="json-number">1</span>,
+          &quot;quantity&quot;: <span class="json-number">5</span>
         }
       ]
     }
@@ -353,20 +347,18 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/orders&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;senderName&quot;:&quot;Ramesh Textiles&quot;,&quot;senderMobile&quot;:&quot;9876543210&quot;,&quot;senderAddress&quot;:&quot;14, Gandhi Nagar&quot;,&quot;courierId&quot;:1,&quot;products&quot;:[{&quot;productId&quot;:1,&quot;qty&quot;:10,&quot;unitPrice&quot;:500}]}'</code></pre>
+  -d '{&quot;senderId&quot;:1,&quot;senderAddressId&quot;:1,&quot;courierId&quot;:1,&quot;products&quot;:[{&quot;variationId&quot;:1,&quot;quantity&quot;:10}]}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;senderName&quot;: &quot;Ramesh Textiles&quot;,
-  &quot;senderMobile&quot;: &quot;9876543210&quot;,
-  &quot;senderAddress&quot;: &quot;14, Gandhi Nagar&quot;,
+  &quot;senderId&quot;: <span class="json-number">1</span>,
+  &quot;senderAddressId&quot;: <span class="json-number">1</span>,
   &quot;courierId&quot;: <span class="json-number">1</span>,
   &quot;products&quot;: [
     {
-      &quot;productId&quot;: <span class="json-number">1</span>,
-      &quot;qty&quot;: <span class="json-number">10</span>,
-      &quot;unitPrice&quot;: <span class="json-number">500</span>
+      &quot;variationId&quot;: <span class="json-number">1</span>,
+      &quot;quantity&quot;: <span class="json-number">10</span>
     }
   ]
 }</code></pre>
@@ -528,7 +520,7 @@
       </div>
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.0.0 — 2026-04-28
+        Generated from api-manifest.yaml — v1.0.0 — 2026-04-30
       </footer>
     </main>
   </div>

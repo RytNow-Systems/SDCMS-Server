@@ -76,8 +76,7 @@ const luDetailsByCategory = {
     { LuDetails: 'AWB Linked',    LuDetails_1: 'AWB_LINKED',    LuDetails_2: 'AWB and QR linked together',                   LuDetails_3: '3' },
     { LuDetails: 'Dispatched',    LuDetails_1: 'DISPATCHED',    LuDetails_2: 'Parcel out for delivery',                      LuDetails_3: '4' },
     { LuDetails: 'Delivered',     LuDetails_1: 'DELIVERED',     LuDetails_2: 'Parcel delivered successfully',                LuDetails_3: '5' },
-    { LuDetails: 'Cancelled',     LuDetails_1: 'CANCELLED',     LuDetails_2: 'Parcel cancelled before dispatch',             LuDetails_3: '6' },
-    { LuDetails: 'Returned',      LuDetails_1: 'RETURNED',      LuDetails_2: 'Parcel returned after dispatch/delivery attempt', LuDetails_3: '7' }
+    { LuDetails: 'Cancelled',     LuDetails_1: 'CANCELLED',     LuDetails_2: 'Parcel cancelled before dispatch',             LuDetails_3: '6' }
   ],
   'NOTIFICATION_STATUS': [
     { LuDetails: 'Not Sent', LuDetails_1: 'NOT_SENT', LuDetails_2: 'Notification queued but not yet sent',              LuDetails_3: '1' },
