@@ -7,7 +7,10 @@
 //   - USE_MOCK_DB=false → Live MySQL stored procedures
 //
 // SP Convention (api_procedure_spec_v2.md):
-//   - prc_parcel_details_search: List and detail
+//   - prc_parcel_details_get(pAction, pPkParcelDetailsId):
+//       pAction=0 → List all parcels
+//       pAction=1 → Get single parcel by ID
+//       pAction=2 → Get label data (parcel + receiver join)
 //   - prc_parcel_details_search_by_qr: Lookup by QR
 //   - prc_parcel_details_search_by_awb: Lookup by AWB
 //   - prc_parcel_details_set: Upsert/Update state
@@ -42,31 +45,27 @@ class ParcelRepository {
 
   /**
    * Get all parcels with pagination and optional filtering.
-   * Procedure: CALL prc_parcel_details_search(id, receiverId, courierId, statusId)
-   * Passing 0 for unused filters.
+   * Procedure: CALL prc_parcel_details_get(pAction, pPkParcelDetailsId)
+   * pAction=0 returns all parcels ordered by PkParcelDetailsId DESC.
    *
    * @param {object} filters - { page, limit, search, sortBy, sortOrder, status }
    * @returns {Promise<object>} { data: [...], total: number }
    */
   async findAll(filters = {}) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      // Note: prc_parcel_details_search in v2 spec takes (id, receiverId, courierId, statusId)
-      // For listing with search/pagination, we might need a more specialized SP or handle in service.
-      // The user request says: "Maps to CALL prc_parcel_details_search(id, ...) passing 0 for unused filters."
-      const [rows] = await db.execute('CALL prc_parcel_details_search(?, ?, ?, ?)', [
-        0, // pPkParcelDetailsId
-        0, // pFkReceiverDetailsId
-        0, // pFkCourierId
-        filters.statusId || 0  // pFkParcelStatusId
+      // pAction=0: List all parcels, pPkParcelDetailsId=0 (unused for list)
+      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
+        0, // pAction: list all
+        0  // pPkParcelDetailsId: unused for pAction=0
       ]);
-      
-      // Handle pagination and search in JS if SP doesn't support it yet, 
-      // but usually we prefer SP-side. For now, following user's mapping.
+
       let data = rows[0] || [];
+
+      // Client-side search filtering (SP does not support text search)
       if (filters.search) {
         const q = filters.search.toLowerCase();
-        data = data.filter(p => 
-          (p.QRCode && p.QRCode.toLowerCase().includes(q)) || 
+        data = data.filter(p =>
+          (p.QRCode && p.QRCode.toLowerCase().includes(q)) ||
           (p.TrackingNo && p.TrackingNo.toLowerCase().includes(q))
         );
       }
@@ -95,15 +94,17 @@ class ParcelRepository {
 
   /**
    * Get a single parcel by ID.
-   * Procedure: CALL prc_parcel_details_search(id, 0, 0, 0)
+   * Procedure: CALL prc_parcel_details_get(pAction, pPkParcelDetailsId)
+   * pAction=1 returns a single parcel matching the given ID.
    *
    * @param {number|string} id - PkParcelDetailsId.
    * @returns {Promise<object|null>} Parcel detail, or null if not found.
    */
   async findById(id) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_parcel_details_search(?, ?, ?, ?)', [
-        id, 0, 0, 0
+      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
+        1, // pAction: get by ID
+        id // pPkParcelDetailsId
       ]);
       return rows[0]?.[0] || null;
     }
@@ -143,21 +144,28 @@ class ParcelRepository {
   }
 
   /**
-   * Get label data for a parcel.
-   * Since there is no specific SP for label data in the user request, 
-   * we use findById and map it in the service layer.
+   * Get label data for a parcel (parcel + receiver details join).
+   * Procedure: CALL prc_parcel_details_get(pAction, pPkParcelDetailsId)
+   * pAction=2 returns parcel fields joined with receiver address data:
+   *   PkParcelDetailsId, TrackingNo, QRCode,
+   *   ReceiverName, ReceiverPhone, Address, City, Pincode
    *
-   * @param {number|string} id
+   * @param {number|string} id - PkParcelDetailsId
    * @returns {Promise<object|null>}
    */
   async getLabelData(id) {
-    // In v2, findById should return enough info for label
-    const parcel = await this.findById(id);
-    if (!parcel) return null;
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
+        2, // pAction: label data (parcel + receiver join)
+        id // pPkParcelDetailsId
+      ]);
+      return rows[0]?.[0] || null;
+    }
 
-    // In LIVE mode, the search SP should join enough tables.
-    // If not, we might need a separate SP, but following the "integrate inside existing" rule.
-    return parcel;
+    // MOCK MODE — stitch from seeds
+    const parcel = seedParcels.find((p) => p.id === parseInt(id));
+    if (!parcel) return null;
+    return this._mapMockParcel(parcel);
   }
 
   /**
@@ -189,7 +197,7 @@ class ParcelRepository {
    * Procedure: CALL prc_parcel_details_set(triggerType, parcelId, 0, awbNumber, courierId, adminId)
    *
    * @param {number} parcelId
-   * @param {number} triggerType - 1=PRINT, 2=SCAN, 3=DISPATCH, 4=DELIVERED, 5=RETURNED
+   * @param {number} triggerType - 1=PRINT, 2=SCAN, 3=DISPATCH, 4=DELIVERED, 5=CANCELLED
    * @param {string|null} awbNumber
    * @param {number|null} courierId
    * @param {string} adminId - EmployeeCode
@@ -234,8 +242,8 @@ class ParcelRepository {
       case 4: // DELIVERED
         parcel.parcelStatusCode = 'DELIVERED';
         break;
-      case 5: // RETURNED
-        parcel.parcelStatusCode = 'RETURNED';
+      case 5: // CANCELLED
+        parcel.parcelStatusCode = 'CANCELLED';
         break;
     }
 

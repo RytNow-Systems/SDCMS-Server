@@ -3,7 +3,7 @@
 // Description: Business logic layer for the Parcel module.
 // Enforces the strict parcel status flow:
 //   Created → Label Printed → AWB Linked → Dispatched → Delivered
-// and terminal states (Cancelled, Returned).
+// and terminal state (Cancelled).
 // ============================================================================
 
 import parcelRepository from './parcel.repository.js';
@@ -16,19 +16,17 @@ const STATUS = {
   AWB_LINKED: 'AWB_LINKED',
   DISPATCHED: 'DISPATCHED',
   DELIVERED: 'DELIVERED',
-  CANCELLED: 'CANCELLED',
-  RETURNED: 'RETURNED'
+  CANCELLED: 'CANCELLED'
 };
 
-// Valid transitions (v2.2 System Flow)
+// Valid transitions (v2.3 System Flow — RETURNED removed, trigger 5 = CANCELLED)
 const VALID_TRANSITIONS = {
   [STATUS.PENDING]:       [STATUS.LABEL_PRINTED, STATUS.CANCELLED],
   [STATUS.LABEL_PRINTED]: [STATUS.AWB_LINKED, STATUS.DISPATCHED, STATUS.CANCELLED],
   [STATUS.AWB_LINKED]:    [STATUS.DISPATCHED, STATUS.CANCELLED],
-  [STATUS.DISPATCHED]:    [STATUS.DELIVERED, STATUS.RETURNED],
-  [STATUS.DELIVERED]:     [STATUS.RETURNED],
-  [STATUS.CANCELLED]:     [],
-  [STATUS.RETURNED]:      []
+  [STATUS.DISPATCHED]:    [STATUS.DELIVERED],
+  [STATUS.DELIVERED]:     [],
+  [STATUS.CANCELLED]:     []
 };
 
 /**
@@ -48,29 +46,34 @@ class ParcelService {
   // INTERNAL MAPPERS
   // ============================================================================
 
-  _mapParcel(parcel) {
+  async _mapParcel(parcel) {
     if (!parcel) return null;
+
+    const id = parcel.PkParcelDetailsId || parcel.id;
+    const receiverDetailsId = parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId;
+
     return {
-      id: parcel.PkParcelDetailsId || parcel.id,
+      id,
       parcelId: parcel.QRCode || parcel.parcelId || parcel.parcel_id,
-      trackingNo: parcel.TrackingNo || parcel.trackingNo,
-      status: parcel.StatusDescription || parcel.status || parcel.parcelStatusCode || STATUS.PENDING,
+      trackingNo: parcel.TrackingNo || parcel.trackingNo || null,
+      status: parcel.ParcelStatusName || parcel.StatusDescription || parcel.status || parcel.parcelStatusCode || STATUS.PENDING,
       labelPrintCount: parcel.LabelPrintCount !== undefined ? parcel.LabelPrintCount : parcel.labelPrintCount,
-      dispatchDate: parcel.DispatchDate || parcel.dispatchDate,
-      receiverName: parcel.ReceiverName || parcel.receiverName,
-      receiverPhone: parcel.ReceiverPhone || parcel.receiverPhone,
-      address: parcel.Address || parcel.address,
-      city: parcel.City || parcel.city,
-      state: parcel.State || parcel.state,
-      pincode: parcel.Pincode || parcel.pincode,
-      orderCode: parcel.OrderCode || parcel.orderCode,
+      dispatchDate: parcel.DispatchDate || parcel.dispatchDate || null,
+      receiverName: parcel.ReceiverName || parcel.receiverName || null,
+      receiverPhone: parcel.ReceiverPhone || parcel.receiverPhone || null,
+      address: parcel.Address || parcel.address || null,
+      city: parcel.ReceiverCity || parcel.City || parcel.city || null,
+      state: parcel.ReceiverState || parcel.State || parcel.state || null,
+      pincode: parcel.ReceiverPincode || parcel.Pincode || parcel.pincode || null,
+      orderCode: parcel.OrderCode || parcel.orderCode || null,
       orderId: parcel.FkOrderId || parcel.orderId,
-      receiverDetailsId: parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId,
+      receiverDetailsId,
       createdAt: parcel.CreatedDate || parcel.createdAt,
-      parcelCode: ParcelCodeService.generateCode(
-        parcel.FkOrderId || parcel.orderId,
-        parcel.PkParcelDetailsId || parcel.id
-      )
+      parcelCode: await ParcelCodeService.generateCodeAsync({
+        orderId: parcel.FkOrderId || parcel.orderId,
+        parcelId: id,
+        receiverDetailsId
+      })
     };
   }
 
@@ -95,7 +98,7 @@ class ParcelService {
 
   async getParcelList(filters) {
     const { data, total } = await parcelRepository.findAll(filters);
-    return { data: data.map(p => this._mapParcel(p)), total };
+    return { data: await Promise.all(data.map(p => this._mapParcel(p))), total };
   }
 
   async getParcelDetails(id) {
@@ -105,7 +108,7 @@ class ParcelService {
       error.statusCode = 404;
       throw error;
     }
-    return this._mapParcel(parcel);
+    return await this._mapParcel(parcel);
   }
 
   async getLabelData(id) {
@@ -115,7 +118,7 @@ class ParcelService {
       error.statusCode = 404;
       throw error;
     }
-    return this._mapParcel(data);
+    return await this._mapParcel(data);
   }
 
   async getTimeline(id) {
@@ -149,7 +152,7 @@ class ParcelService {
     // Update State (Trigger 1 = PRINT_LABEL)
     const result = await parcelRepository.updateParcelState(id, 1, null, 0, employeeCode);
 
-    return this._mapParcel(result);
+    return await this._mapParcel(result);
   }
 
   /**
@@ -177,7 +180,7 @@ class ParcelService {
       // 3. Perform linking based on role (Auto-dispatch for Couriers)
       const result = await this._executeLinkingFlow(parcel, awbNumber, role, employeeCode);
 
-      return this._mapParcel(result);
+      return await this._mapParcel(result);
     } catch (error) {
       // Service layer error handling (AGENTS.md §3D)
       throw error;
@@ -198,7 +201,7 @@ class ParcelService {
       }
 
       const result = await parcelRepository.updateParcelState(id, 3, parcel.trackingNo, 0, employeeCode);
-      dispatched.push(this._mapParcel(result));
+      dispatched.push(await this._mapParcel(result));
     }
 
     return { dispatched: dispatched.length, parcels: dispatched };
@@ -208,8 +211,8 @@ class ParcelService {
     return await this._transition(id, 4, STATUS.DELIVERED, user);
   }
 
-  async returnParcel(id, user) {
-    return await this._transition(id, 5, STATUS.RETURNED, user);
+  async cancelParcel(id, user) {
+    return await this._transition(id, 5, STATUS.CANCELLED, user);
   }
 
   // ============================================================================
@@ -238,7 +241,7 @@ class ParcelService {
 
     const result = await parcelRepository.updateParcelState(id, triggerType, parcel.trackingNo, 0, employeeCode);
     
-    return this._mapParcel(result);
+    return await this._mapParcel(result);
   }
 
   /**
@@ -252,7 +255,7 @@ class ParcelService {
       error.statusCode = 404;
       throw error;
     }
-    const parcel = this._mapParcel(parcelRaw);
+    const parcel = await this._mapParcel(parcelRaw);
     if (parcel.status !== STATUS.LABEL_PRINTED) {
       const error = new Error(`Cannot link AWB: parcel is '${parcel.status}', must be '${STATUS.LABEL_PRINTED}'`);
       error.statusCode = 400;

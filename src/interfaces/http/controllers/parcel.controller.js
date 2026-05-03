@@ -117,12 +117,12 @@ export const deliverParcel = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/v1/parcels/:id/return
- * Marks parcel as RETURNED.
- * Maps to: prc_parcel_details_set
- * Business rule: only after dispatch (DISPATCHED, DELIVERED).
+ * PATCH /api/v1/parcels/:id/cancel
+ * Marks parcel as CANCELLED.
+ * Maps to: prc_parcel_details_set (trigger 5)
+ * Business rule: only from PENDING, LABEL_PRINTED, or AWB_LINKED.
  */
-export const returnParcel = asyncHandler(async (req, res) => {
-  const data = await parcelService.returnParcel(req.params.id, req.user);
+export const cancelParcel = asyncHandler(async (req, res) => {
+  const data = await parcelService.cancelParcel(req.params.id, req.user);
   res.json({ success: true, data });
 });
