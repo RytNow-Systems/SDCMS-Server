@@ -295,6 +295,32 @@ class SenderRepository {
     mockPartyDetails.push(newDet);
     return newDet;
   }
+
+  /**
+   * Resolves the orderId from a receiverDetailsId by querying receiver_details.
+   * Procedure: CALL prc_receiver_details_get(pAction=1, pPkReceiverDetailsId)
+   *
+   * Used by ParcelCodeService when orderId is not directly available.
+   *
+   * @param {number|string} receiverDetailsId - PkReceiverDetailsId to resolve.
+   * @returns {Promise<number|null>} FkOrderId or null.
+   */
+  async resolveReceiverOrderId(receiverDetailsId) {
+    if (process.env.USE_MOCK_DB === 'true') {
+      return null;
+    }
+
+    try {
+      const [rows] = await db.execute('CALL prc_receiver_details_get(?, ?)', [
+        1,
+        receiverDetailsId
+      ]);
+      const receiver = rows[0]?.[0] || null;
+      return receiver?.FkOrderId || null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export default new SenderRepository();

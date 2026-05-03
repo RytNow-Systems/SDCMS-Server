@@ -4,13 +4,12 @@
 // the PCL prefix code for Parcels based on the Order and Parcel primary keys.
 //
 // INJECTION SITE:
-// This service depends on 'db' (MySQL2) for resolving orderId from
-// receiverDetailsId when the caller does not have orderId available.
-// The resolution uses prc_receiver_details_get(pAction=1, pPkReceiverDetailsId)
-// to traverse the parcel → receiver → order FK chain.
+// This service delegates orderId resolution from receiverDetailsId to
+// senderRepository.resolveReceiverOrderId(), which traverses the
+// parcel → receiver → order FK chain via prc_receiver_details_get.
 // ============================================================================
 
-import db from '../../infrastructure/database/db.js';
+import senderRepository from '../sender/sender.repository.js';
 
 class ParcelCodeService {
   /**
@@ -93,21 +92,7 @@ class ParcelCodeService {
    * @returns {Promise<number|null>} FkOrderId or null
    */
   async _resolveOrderId(receiverDetailsId) {
-    if (process.env.USE_MOCK_DB === 'true') {
-      return null;
-    }
-
-    try {
-      const [rows] = await db.execute('CALL prc_receiver_details_get(?, ?)', [
-        1, // pAction: get by specific ID
-        receiverDetailsId
-      ]);
-      const receiver = rows[0]?.[0] || null;
-      return receiver?.FkOrderId || null;
-    } catch {
-      // Graceful degradation: parcelCode will be null if resolution fails
-      return null;
-    }
+    return senderRepository.resolveReceiverOrderId(receiverDetailsId);
   }
 }
 
