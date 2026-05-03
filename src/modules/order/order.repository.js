@@ -13,6 +13,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import db from '../../infrastructure/database/db.js';
+import logger from '../../shared/utils/logger.js';
 
 import {
   seedOrderItems,
@@ -72,6 +73,7 @@ class OrderRepository {
       return { orderId, orderCode: orderResult.OrderCode };
     } catch (error) {
       await connection.rollback();
+      logger.error('OrderRepository._createOrderLive', `Failed to create order: ${error.message}`, { adminId });
       throw error;
     } finally {
       connection.release();
@@ -498,6 +500,7 @@ class OrderRepository {
       await connection.commit();
     } catch (error) {
       await connection.rollback();
+      logger.error('OrderRepository._updateOrderGraphLive', `Failed to update order graph: ${error.message}`, { orderId, adminId });
       throw error;
     } finally {
       connection.release();
