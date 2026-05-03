@@ -393,18 +393,23 @@ class OrderService {
 
       const products = [];
       for (const p of rec.products) {
-        const prodData = await orderRepository.resolveProduct(p.variationId);
-        if (!prodData) {
+        const variation = await orderRepository.resolveVariation(p.variationId);
+        if (!variation) {
           const error = new Error(`Invalid variationId: ${p.variationId}`);
           error.statusCode = 400;
           throw error;
         }
+        let unitId = variation.FkUnitId || variation.fkUnitId;
+        if (!unitId && variation.FkProductId) {
+          const product = await orderRepository.resolveProduct(variation.FkProductId);
+          unitId = product ? (product.FkUnitId || product.fkUnitId) : null;
+        }
         products.push({
-          orderItemId: p.orderItemId, // may be undefined for new items
+          orderItemId: p.orderItemId,
           variationId: p.variationId,
-          productId: prodData.PkProductId || prodData.id,
-          unitId: prodData.FkUnitId || prodData.fkUnitId,
-          unitPrice: prodData.MaterialRate || prodData.materialRate || 0,
+          productId: variation.FkProductId,
+          unitId: unitId || null,
+          unitPrice: variation.MaterialRate || 0,
           qty: p.quantity
         });
       }
