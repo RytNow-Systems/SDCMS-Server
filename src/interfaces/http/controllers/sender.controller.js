@@ -19,7 +19,7 @@ class SenderController {
    * @desc  Retrieves all active senders.
    */
   getSenders = asyncHandler(async (req, res) => {
-    const senders = await senderService.getSenders();
+    const senders = await senderService.getParties(1);
     res.json({ success: true, data: senders });
   });
 
@@ -28,7 +28,7 @@ class SenderController {
    * @desc  Retrieves a specific sender by ID.
    */
   getSenderById = asyncHandler(async (req, res) => {
-    const sender = await senderService.getSenderById(req.params.id);
+    const sender = await senderService.getPartyById(req.params.id, 1);
     res.json({ success: true, data: sender });
   });
 
@@ -37,7 +37,7 @@ class SenderController {
    * @desc  Creates a new sender (PartyTypeId=1).
    */
   createSender = asyncHandler(async (req, res) => {
-    const sender = await senderService.createSender(req.body, req.user);
+    const sender = await senderService.createParty(req.body, req.user, 1);
     res.status(201).json({ success: true, data: sender });
   });
 
@@ -46,7 +46,7 @@ class SenderController {
    * @desc  Updates an existing sender.
    */
   updateSender = asyncHandler(async (req, res) => {
-    const sender = await senderService.updateSender(req.params.id, req.body, req.user);
+    const sender = await senderService.updateParty(req.params.id, req.body, req.user, 1);
     res.json({ success: true, data: sender });
   });
 
@@ -55,7 +55,7 @@ class SenderController {
    * @desc  Soft-deletes a sender.
    */
   deleteSender = asyncHandler(async (req, res) => {
-    await senderService.deleteSender(req.params.id, req.user);
+    await senderService.deleteParty(req.params.id, req.user, 1);
     res.json({ success: true, message: 'Sender deleted successfully' });
   });
 

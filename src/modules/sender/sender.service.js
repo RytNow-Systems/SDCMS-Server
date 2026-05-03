@@ -63,81 +63,92 @@ class SenderService {
   }
 
   /**
-   * Retrieves all active senders (PartyTypeId=1).
-   * @returns {Promise<Array<object>>} List of senders in API format.
+   * Retrieves all active parties (Senders or Receivers).
+   * @param {number} partyTypeId - 1 (Sender) or 2 (Receiver).
+   * @returns {Promise<Array<object>>} List of parties in API format.
    */
-  async getSenders() {
-    const senders = await senderRepository.findAll(1);
-    return senders.map(s => this._mapToApi(s, 1));
+  async getParties(partyTypeId) {
+    const parties = await senderRepository.findAll(partyTypeId);
+    return parties.map(p => this._mapToApi(p, partyTypeId));
   }
 
   /**
-   * Retrieves a specific sender by ID.
+   * Retrieves a specific party by ID.
    * @param {number|string} id - PkPartyId.
-   * @returns {Promise<object>} API-formatted sender object.
-   * @throws {Error} 404 if sender not found or is not a sender type.
+   * @param {number} partyTypeId - 1 (Sender) or 2 (Receiver).
+   * @returns {Promise<object>} API-formatted party object.
+   * @throws {Error} 404 if party not found.
    */
-  async getSenderById(id) {
-    const sender = await senderRepository.findById(id, 1);
-    if (!sender) {
-      const error = new Error('Sender not found');
+  async getPartyById(id, partyTypeId) {
+    const party = await senderRepository.findById(id, partyTypeId);
+    if (!party) {
+      const typeLabel = partyTypeId === 1 ? 'Sender' : 'Receiver';
+      const error = new Error(`${typeLabel} not found`);
       error.statusCode = 404;
       throw error;
     }
-    return this._mapToApi(sender, 1);
+    return this._mapToApi(party, partyTypeId);
   }
 
   /**
-   * Creates a new sender after uniqueness validation.
-   * @param {object} senderData - Payload from client.
+   * Creates a new party after uniqueness validation (phone/email).
+   * @param {object} partyData - Payload from client.
    * @param {object} user - Authenticated user context.
-   * @returns {Promise<object>} Created sender in API format.
-   * @throws {Error} 409 if phone number is duplicated.
+   * @param {number} partyTypeId - 1 (Sender) or 2 (Receiver).
+   * @returns {Promise<object>} Created party in API format.
+   * @throws {Error} 409 if phone number or email is duplicated.
    */
-  async createSender(senderData, user) {
-    const count = await senderRepository.checkDuplicate(0, senderData.phoneNo);
+  async createParty(partyData, user, partyTypeId) {
+    const count = await senderRepository.checkDuplicate(0, partyData.phoneNo, partyData.emailId);
     if (count > 0) {
-      const error = new Error('Sender phone number already exists');
+      const typeLabel = partyTypeId === 1 ? 'Sender' : 'Receiver';
+      const error = new Error(`${typeLabel} phone number or email already exists`);
       error.statusCode = 409;
       throw error;
     }
     const adminId = user?.id || user?.employeeCode || 1;
-    const result = await senderRepository.create(senderData, adminId, 1);
-    return this._mapToApi(result, 1);
+    const result = await senderRepository.create(partyData, adminId, partyTypeId);
+    return this._mapToApi(result, partyTypeId);
   }
 
   /**
-   * Updates sender details with conditional duplicate checking.
+   * Updates party details with conditional duplicate checking.
    * @param {number|string} id - PkPartyId.
-   * @param {object} senderData - Partial updates.
+   * @param {object} partyData - Partial updates.
    * @param {object} user - Authenticated user context.
-   * @returns {Promise<object>} Updated sender.
+   * @param {number} partyTypeId - 1 (Sender) or 2 (Receiver).
+   * @returns {Promise<object>} Updated party.
    */
-  async updateSender(id, senderData, user) {
-    const existing = await this.getSenderById(id);
-    if (senderData.phoneNo && senderData.phoneNo !== existing.phoneNo) {
-      const count = await senderRepository.checkDuplicate(id, senderData.phoneNo);
+  async updateParty(id, partyData, user, partyTypeId) {
+    const existing = await this.getPartyById(id, partyTypeId);
+    const phoneChanged = partyData.phoneNo && partyData.phoneNo !== existing.phoneNo;
+    const emailChanged = partyData.emailId && partyData.emailId !== existing.emailId;
+    
+    if (phoneChanged || emailChanged) {
+      const count = await senderRepository.checkDuplicate(id, partyData.phoneNo || existing.phoneNo, partyData.emailId || existing.emailId);
       if (count > 0) {
-        const error = new Error('Sender phone number already exists');
+        const typeLabel = partyTypeId === 1 ? 'Sender' : 'Receiver';
+        const error = new Error(`${typeLabel} phone number or email already exists`);
         error.statusCode = 409;
         throw error;
       }
     }
     const adminId = user?.id || user?.employeeCode || 1;
-    const result = await senderRepository.update(id, { ...existing, ...senderData }, adminId, 1);
-    return this._mapToApi(result, 1);
+    const result = await senderRepository.update(id, { ...existing, ...partyData }, adminId, partyTypeId);
+    return this._mapToApi(result, partyTypeId);
   }
 
   /**
    * Performs soft-delete by deactivating the Party record.
    * @param {number|string} id - PkPartyId.
    * @param {object} user - Authenticated user context.
+   * @param {number} partyTypeId - 1 (Sender) or 2 (Receiver).
    * @returns {Promise<boolean>} True on success.
    */
-  async deleteSender(id, user) {
-    await this.getSenderById(id);
+  async deleteParty(id, user, partyTypeId) {
+    await this.getPartyById(id, partyTypeId);
     const adminId = user?.id || user?.employeeCode || 1;
-    await senderRepository.delete(id, adminId, 1);
+    await senderRepository.delete(id, adminId, partyTypeId);
     return true;
   }
 

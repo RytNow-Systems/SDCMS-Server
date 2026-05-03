@@ -1106,7 +1106,7 @@ describe('11. Senders', () => {
 
     expect(res.statusCode).toBe(409);
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toContain('Sender phone number already exists');
+    expect(res.body.error).toContain('Sender phone number or email already exists');
   });
 
   it('11.13 PUT /api/v1/senders/2 → 409 when updating to an existing phone number', async () => {
@@ -1119,7 +1119,7 @@ describe('11. Senders', () => {
 
     expect(res.statusCode).toBe(409);
     expect(res.body.success).toBe(false);
-    expect(res.body.error).toContain('Sender phone number already exists');
+    expect(res.body.error).toContain('Sender phone number or email already exists');
   });
 
   it('11.14 DELETE /api/v1/senders/2 → 200 deletes sender', async () => {

@@ -62,17 +62,22 @@ let mockPartyDetails = [
 
 class SenderRepository {
   /**
-   * Checks if a phone number already exists for a different party.
+   * Checks if a phone number or email already exists for a different party.
    * @param {number|string} id - Current PkPartyId (0 for new).
    * @param {string} phone - Phone number to check.
+   * @param {string} [email] - Email address to check.
    * @returns {Promise<number>} Count of duplicates found.
    */
-  async checkDuplicate(id, phone) {
+  async checkDuplicate(id, phone, email = null) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_check_duplicate_Party_master(?, ?)', [id, phone]);
+      const [rows] = await db.execute('CALL prc_check_duplicate_Party_master(?, ?, ?)', [id, phone, email]);
       return (rows?.[0]?.[0] ? Object.values(rows[0][0])[0] : 0);
     }
-    return mockParties.filter(s => s.PhoneNo === phone && s.PkPartyId !== parseInt(id) && s.IsActive === 1).length;
+    return mockParties.filter(s => 
+      (s.PhoneNo === phone || (email && s.EmailId === email)) && 
+      s.PkPartyId !== parseInt(id) && 
+      s.IsActive === 1
+    ).length;
   }
 
   /**
