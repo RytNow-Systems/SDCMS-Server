@@ -394,68 +394,21 @@ const generateCollectionHtml = (collection, info) => {
 </html>`;
 };
 
-// ============================================================================
-// TEST DATA GENERATOR
-// ============================================================================
 
-const generateTestData = (collection) => {
-  const sep = '='.repeat(50);
-  const lines = [sep, `${collection.name.toUpperCase()} — Test Data`, `Generated from api-manifest.yaml`, sep, ''];
 
-  collection.endpoints.forEach((ep, i) => {
-    lines.push(`--- TEST ${i + 1}: ${ep.name} ---`);
-    lines.push(`Method: ${ep.method}`);
-    lines.push(`URL: /api/v1${ep.path}`);
-    lines.push(`Auth: ${ep.auth === 'none' ? 'None' : 'Bearer <TOKEN>'}`);
-    if (ep.roles) lines.push(`Roles: ${ep.roles.join(', ')}`);
-    if (ep.headers) {
-      lines.push(`Headers:`);
-      Object.entries(ep.headers).forEach(([k, v]) => lines.push(`  ${k}: ${v}`));
-    }
-    if (ep.body) lines.push(`\nBody:\n${prettyJson(ep.body)}`);
-    lines.push(`\nExpected Status: ${ep.responseStatus || 200}\n`);
-  });
 
-  return lines.join('\n');
-};
-
-const testDataFilename = (slug, name) => {
-  const map = {
-    'authentication': 'Auth_Test_Data.txt',
-    'product-catalog': 'Product_Test_Data.txt',
-    'employee-management': 'Employee_Test_Data.txt',
-    'courier-partners': 'Courier_Test_Data.txt',
-    'senders': 'Sender_Test_Data.txt',
-    'receivers': 'ReceiverLookup_Test_Data.txt',
-    'order-pipeline': 'Order_Test_Data.txt',
-    'parcels-retrieval': 'Parcel_Test_Data.txt',
-    'label-print': 'LabelPrint_Test_Data.txt',
-    'scan-operations': 'Scan_Test_Data.txt',
-    'dispatch-terminal': 'Dispatch_Test_Data.txt',
-    'parcel-events': 'ParcelEvents_Test_Data.txt',
-    'dashboard': 'Dashboard_Test_Data.txt',
-    'bulk-upload': 'BulkUpload_Test_Data.txt',
-    'notification': 'Notification_Test_Data.txt',
-  };
-  return map[slug] || `${name.replace(/\s+/g, '_')}_Test_Data.txt`;
-};
 
 // ============================================================================
 // MAIN
 // ============================================================================
 
 const docsDir = path.join(ROOT, 'docs', 'api');
-const testDataDir = path.join(ROOT, 'test_data');
 
 fs.mkdirSync(docsDir, { recursive: true });
-fs.mkdirSync(testDataDir, { recursive: true });
 
 for (const collection of manifest.collections) {
   const htmlPath = path.join(docsDir, `${collection.slug}-documentation.html`);
   fs.writeFileSync(htmlPath, generateCollectionHtml(collection, manifest.info), 'utf8');
-
-  const txtPath = path.join(testDataDir, testDataFilename(collection.slug, collection.name));
-  fs.writeFileSync(txtPath, generateTestData(collection), 'utf8');
 }
 
-console.log(`\n✅ API Documentation & Test Data Generated Successfully\n`);
+console.log(`\n✅ API Documentation Generated Successfully\n`);

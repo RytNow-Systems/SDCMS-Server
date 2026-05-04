@@ -64,7 +64,7 @@ Use these exact terms in code, comments, and variables:
 
 ## 6. Testing & Validation Standards
 - **Bruno Desktop Workflow:** We test APIs using the Bruno Desktop app. Do NOT create native `.bru` files directly.
-- **Test Data Format:** Every time a new endpoint is implemented, create a plain-text file (e.g., `[FeatureName]_Test_Data.txt`) containing the exact HTTP Method, full URL (`/api/v1/...`), required Headers, Query Params, Zod-validated JSON payload, **post-request scripts, and required assertions**.
+- **API Documentation as Reference:** The official API documentation in `docs/api/` (generated from `scripts/api-manifest.yaml`) is the single source of truth for endpoint contracts, payloads, and expected responses. When implementing or testing a new endpoint, update the `api-manifest.yaml` and regenerate docs via `node scripts/generate-api-docs.js`.
 
 ## 7. Agent Workflow & Explicit Permissions (CRITICAL)
 
