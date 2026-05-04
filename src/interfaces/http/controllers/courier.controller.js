@@ -43,9 +43,10 @@ export const getCourierById = asyncHandler(async (req, res) => {
 
 // @desc    Create new courier partner
 // @route   POST /api/v1/courier-partners
-// @access  Private/Admin,Operator
+// @access  Private/Admin
 export const createCourier = asyncHandler(async (req, res) => {
-  const courier = await courierService.createCourier(req.body);
+  const adminId = req.user.id;
+  const courier = await courierService.createCourier(req.body, adminId);
   
   res.status(201).json({
     success: true,
@@ -55,9 +56,10 @@ export const createCourier = asyncHandler(async (req, res) => {
 
 // @desc    Update courier partner
 // @route   PUT /api/v1/courier-partners/:id
-// @access  Private/Admin,Operator
+// @access  Private/Admin
 export const updateCourier = asyncHandler(async (req, res) => {
-  const courier = await courierService.updateCourier(req.params.id, req.body);
+  const adminId = req.user.id;
+  const courier = await courierService.updateCourier(req.params.id, req.body, adminId);
   
   res.status(200).json({
     success: true,
@@ -67,9 +69,10 @@ export const updateCourier = asyncHandler(async (req, res) => {
 
 // @desc    Delete courier partner
 // @route   DELETE /api/v1/courier-partners/:id
-// @access  Private/Admin,Operator
+// @access  Private/Admin
 export const deleteCourier = asyncHandler(async (req, res) => {
-  await courierService.deleteCourier(req.params.id);
+  const adminId = req.user.id;
+  await courierService.deleteCourier(req.params.id, adminId);
   
   res.status(200).json({
     success: true,

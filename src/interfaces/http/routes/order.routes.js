@@ -22,7 +22,7 @@ router.get('/:id', protect, authorizeRoles('ADMIN', 'OPERATOR'), getOrderById);
 // PUT    /api/v1/orders/:id       → Update order before dispatch (ADMIN, OPERATOR)
 router.put('/:id', protect, authorizeRoles('ADMIN', 'OPERATOR'), validate(updateOrderSchema), updateOrder);
 
-// PATCH  /api/v1/orders/:id/cancel → Cancel entire order (ADMIN, OPERATOR)
-router.patch('/:id/cancel', protect, authorizeRoles('ADMIN', 'OPERATOR'), cancelOrder);
+// DELETE /api/v1/orders/:id/cancel → Cancel entire order (ADMIN, OPERATOR)
+router.delete('/:id/cancel', protect, authorizeRoles('ADMIN', 'OPERATOR'), cancelOrder);
 
 export default router;

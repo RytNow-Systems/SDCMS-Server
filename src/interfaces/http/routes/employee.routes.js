@@ -10,6 +10,7 @@ import {
   getEmployeeById,
   createEmployee,
   updateEmployee,
+  deleteEmployee,
   toggleAccess
 } from '../controllers/employee.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
@@ -29,7 +30,8 @@ router.route('/')
 
 router.route('/:id')
   .get(getEmployeeById)
-  .put(validate(updateEmployeeSchema), updateEmployee);
+  .put(validate(updateEmployeeSchema), updateEmployee)
+  .delete(deleteEmployee);
 
 router.patch('/:id/toggle-access', validate(toggleAccessSchema), toggleAccess);
 

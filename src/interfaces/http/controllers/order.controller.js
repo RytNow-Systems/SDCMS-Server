@@ -12,7 +12,6 @@ import orderService from '../../../modules/order/order.service.js';
 /**
  * POST /api/v1/orders
  * Creates a complex order (sender → order → receivers → items → parcels).
- * Maps to: prc_CreateComplexOrder
  */
 export const createOrder = asyncHandler(async (req, res) => {
   const result = await orderService.createOrder(req.body, req.user);
@@ -64,12 +63,12 @@ export const getOrderById = asyncHandler(async (req, res) => {
  * ❗ Fails if any parcel status ≥ AWB_LINKED
  */
 export const updateOrder = asyncHandler(async (req, res) => {
-  const result = await orderService.updateOrder(req.params.id, req.body);
+  const result = await orderService.updateOrder(req.params.id, req.body, req.user);
   res.json({ success: true, data: result });
 });
 
 /**
- * PATCH /api/v1/orders/:id/cancel
+ * DELETE /api/v1/orders/:id/cancel
  * Cancels entire order and cascades to all parcels.
  * Maps to: prc_CancelOrder
  * ❌ Cannot cancel if any parcel is DISPATCHED or DELIVERED

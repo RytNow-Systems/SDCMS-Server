@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Order Pipeline — SDCMS API</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --sidebar-bg: #11141d;
+      --card-bg: #161a23;
+      --border: #232834;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.15);
+      --code-bg: #0d1117;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); line-height: 1.6; }
+    
+    /* Layout */
+    .container { display: flex; min-height: 100vh; }
+    
+    /* Sidebar */
+    .sidebar { 
+      width: 300px; 
+      background: var(--sidebar-bg); 
+      border-right: 1px solid var(--border); 
+      padding: 32px 16px; 
+      position: fixed; 
+      height: 100vh; 
+      overflow-y: auto; 
+    }
+    .sidebar-header { margin-bottom: 32px; padding: 0 12px; }
+    .sidebar-header h1 { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 8px; }
+    .sidebar-header h2 { font-size: 20px; font-weight: 700; color: white; }
+    
+    .toc-list { display: flex; flex-direction: column; gap: 4px; }
+    .toc-item { 
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px; 
+      border-radius: 8px; font-size: 13px; color: var(--text-muted); 
+      text-decoration: none; transition: all 0.2s; 
+    }
+    .toc-item:hover { background: var(--card-bg); color: white; }
+    .toc-item.active { background: var(--accent-glow); color: var(--accent); border-left: 2px solid var(--accent); }
+
+    /* Main Content */
+    .main { margin-left: 300px; padding: 64px 48px; width: 100%; max-width: 1400px; }
+    .main-header { margin-bottom: 48px; max-width: 800px; }
+    .main-header h2 { font-size: 32px; font-weight: 700; margin-bottom: 12px; color: white; }
+    .main-header p { font-size: 16px; color: var(--text-muted); margin-bottom: 24px; }
+
+    /* Guide Box */
+    .guide-box { 
+      background: var(--card-bg); border: 1px solid var(--accent); 
+      border-radius: 12px; padding: 24px; margin-bottom: 48px; 
+      max-width: 800px; position: relative; overflow: hidden;
+    }
+    .guide-box::before { 
+      content: ''; position: absolute; top: 0; left: 0; width: 4px; 
+      height: 100%; background: var(--accent); 
+    }
+    .guide-box h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 12px; }
+    .guide-box p { font-size: 14px; color: var(--text-main); margin-bottom: 0; }
+
+    /* Note Box */
+    .note-box { 
+      background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.3); 
+      border-radius: 8px; padding: 16px; margin-bottom: 24px; 
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .note-icon { font-size: 18px; }
+    .note-content { font-size: 13px; color: #fbbf24; }
+    .note-content strong { color: #fcd34d; display: block; margin-bottom: 2px; }
+
+    /* Endpoint Cards */
+    .endpoint-card { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 40px; 
+      padding: 48px 0; 
+      border-bottom: 1px solid var(--border); 
+    }
+    .endpoint-card:last-child { border-bottom: none; }
+    
+    .endpoint-info { max-width: 600px; }
+    .endpoint-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .method-badge { 
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; 
+      font-family: 'JetBrains Mono', monospace; border: 1px solid; 
+    }
+    .method-badge-sm { width: 45px; text-align: center; font-size: 9px; font-weight: 800; padding: 2px 4px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+    .method-badge-sm.get { background: #064e3b; color: #34d399; }
+    .method-badge-sm.post { background: #1e3a5f; color: #60a5fa; }
+    .method-badge-sm.put { background: #78350f; color: #fbbf24; }
+    .method-badge-sm.patch { background: #4c1d95; color: #a78bfa; }
+    .method-badge-sm.delete { background: #7f1d1d; color: #f87171; }
+
+    .endpoint-path { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 13px; }
+    .endpoint-name { font-size: 22px; font-weight: 600; margin-bottom: 8px; color: white; }
+    .endpoint-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+
+    /* Meta Grid */
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+    .meta-item { background: var(--card-bg); padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); }
+    .meta-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px; }
+    .meta-value { font-size: 13px; font-weight: 600; color: var(--text-main); }
+
+    /* Tables */
+    .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; margin-top: 24px; }
+    .params-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .params-table th { text-align: left; padding: 12px; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    .params-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .type-tag { font-size: 10px; background: var(--border); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+
+    /* Code Blocks */
+    .endpoint-example { align-self: start; }
+    .code-block { background: var(--code-bg); border-radius: 12px; border: 1px solid var(--border); padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .curl-block { color: #818cf8; }
+    .json-key { color: #93c5fd; }
+    .json-string { color: #86efac; }
+    .json-number { color: #fbbf24; }
+    .json-bool { color: #c084fc; }
+    .json-null { color: #f87171; }
+    .status-badge { background: #059669; color: white; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; margin-left: 8px; }
+
+    /* Sidebar Toggle Button */
+    .sidebar-toggle {
+      display: none; position: fixed; top: 16px; left: 16px; z-index: 1001;
+      background: var(--accent); color: white; border: none; border-radius: 8px;
+      width: 40px; height: 40px; font-size: 20px; cursor: pointer;
+      align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999;
+    }
+
+    @media (max-width: 1100px) {
+      .sidebar { display: none; position: fixed; z-index: 1000; }
+      .sidebar.open { display: block; }
+      .sidebar-toggle { display: flex; }
+      .sidebar-overlay.open { display: block; }
+      .main { margin-left: 0; padding: 32px 20px; }
+      .endpoint-card { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">&#9776;</button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="container">
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h1>SDCMS Backend API</h1>
+        <h2>Order Pipeline</h2>
+      </div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Orders</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode B (Sender → Receivers)</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode A (Sender-to-Self)</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Get Order Aggregate</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Order (Full Graph)</a><a href="#ep-4-cases" class="toc-item sub-item" style="padding-left: 36px; font-size: 11px; margin-top: -2px; margin-bottom: 4px; color: var(--accent);">↳ Use Cases</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Cancel Order</a></div>
+    </nav>
+    <main class="main">
+      <header class="main-header">
+        <h2>Order Pipeline</h2>
+        <p>Order CRUD with Mode A/B/C support</p>
+      </header>
+
+      
+        <div class="guide-box">
+          <h4>Integration Guide</h4>
+          <div class="guide-text">
+            <div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique dynamic Parcel ID (PCL-&lt;orderId&gt;-&lt;parcelDetailsId&gt;).</p></div>
+          </div>
+        </div>
+      
+
+      
+    <div class="endpoint-card" id="ep-0">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/orders?page=1&amp;limit=20</code>
+        </div>
+        <h3 class="endpoint-name">List Orders</h3>
+        <p class="endpoint-desc">Paginated order list with derived status.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR, COURIER</span>
+            </div>
+          </div>
+
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>page</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Current page number</td>
+                </tr>
+              
+                <tr>
+                  <td><code>limit</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Number of items per page</td>
+                </tr>
+              
+                <tr>
+                  <td><code>status</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Filter by derived status (PENDING, DISPATCHED, etc.)</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/orders?page=1&amp;limit=20&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;id&quot;: <span class="json-number">1</span>,
+      &quot;orderCode&quot;: &quot;ORD-2026-001&quot;,
+      &quot;senderName&quot;: &quot;Ramesh Textiles&quot;,
+      &quot;senderMobile&quot;: &quot;9876543210&quot;,
+      &quot;totalAmount&quot;: <span class="json-number">2100</span>,
+      &quot;derivedStatus&quot;: &quot;PENDING&quot;,
+      &quot;createdAt&quot;: &quot;2026-04-24T10: <span class="json-number">00</span>: <span class="json-number">00</span>Z&quot;
+    }
+  ],
+  &quot;meta&quot;: {
+    &quot;page&quot;: <span class="json-number">1</span>,
+    &quot;limit&quot;: <span class="json-number">20</span>,
+    &quot;totalRows&quot;: <span class="json-number">1</span>,
+    &quot;totalPages&quot;: <span class="json-number">1</span>
+  }
+}</code></pre>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-1">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
+          <code class="endpoint-path">/orders</code>
+        </div>
+        <h3 class="endpoint-name">Create Order — Mode B (Sender → Receivers)</h3>
+        <p class="endpoint-desc">Creates an order with sender and multiple receivers. Each receiver generates a parcel.</p>
+        
+        
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> This is Mode B. Ensure each object in the 'receivers' array has its own 'products' array. The 'courierId' is mandatory to determine the shipping partner.
+        </div>
+      </div>
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/orders&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;senderId&quot;:1,&quot;senderAddressId&quot;:1,&quot;courierId&quot;:1,&quot;receivers&quot;:[{&quot;receiverId&quot;:2,&quot;receiverAddressId&quot;:2,&quot;products&quot;:[{&quot;variationId&quot;:1,&quot;quantity&quot;:5}]}]}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;senderId&quot;: <span class="json-number">1</span>,
+  &quot;senderAddressId&quot;: <span class="json-number">1</span>,
+  &quot;courierId&quot;: <span class="json-number">1</span>,
+  &quot;receivers&quot;: [
+    {
+      &quot;receiverId&quot;: <span class="json-number">2</span>,
+      &quot;receiverAddressId&quot;: <span class="json-number">2</span>,
+      &quot;products&quot;: [
+        {
+          &quot;variationId&quot;: <span class="json-number">1</span>,
+          &quot;quantity&quot;: <span class="json-number">5</span>
+        }
+      ]
+    }
+  ]
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">201</span></div>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-2">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
+          <code class="endpoint-path">/orders</code>
+        </div>
+        <h3 class="endpoint-name">Create Order — Mode A (Sender-to-Self)</h3>
+        <p class="endpoint-desc">Sender-to-self order using top-level products array.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/orders&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;senderId&quot;:1,&quot;senderAddressId&quot;:1,&quot;courierId&quot;:1,&quot;products&quot;:[{&quot;variationId&quot;:1,&quot;quantity&quot;:10}]}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;senderId&quot;: <span class="json-number">1</span>,
+  &quot;senderAddressId&quot;: <span class="json-number">1</span>,
+  &quot;courierId&quot;: <span class="json-number">1</span>,
+  &quot;products&quot;: [
+    {
+      &quot;variationId&quot;: <span class="json-number">1</span>,
+      &quot;quantity&quot;: <span class="json-number">10</span>
+    }
+  ]
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">201</span></div>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-3">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/orders/:id</code>
+        </div>
+        <h3 class="endpoint-name">Get Order Aggregate</h3>
+        <p class="endpoint-desc">Full order with nested receivers, items, and parcels.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR, COURIER</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/orders/:id&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: {
+    &quot;id&quot;: <span class="json-number">1</span>,
+    &quot;orderCode&quot;: &quot;ORD-2026-001&quot;,
+    &quot;senderName&quot;: &quot;Ramesh Textiles&quot;,
+    &quot;senderMobile&quot;: &quot;9876543210&quot;,
+    &quot;totalAmount&quot;: <span class="json-number">2100</span>,
+    &quot;derivedStatus&quot;: &quot;PENDING&quot;,
+    &quot;senderAddress&quot;: &quot;14, Gandhi Nagar, Surat&quot;,
+    &quot;courierId&quot;: <span class="json-number">1</span>,
+    &quot;receivers&quot;: [
+      {
+        &quot;id&quot;: <span class="json-number">1</span>,
+        &quot;receiverName&quot;: &quot;Delhi Fabrics Ltd.&quot;,
+        &quot;receiverPhone&quot;: &quot;9123456780&quot;,
+        &quot;address&quot;: &quot;45, Karol Bagh&quot;,
+        &quot;city&quot;: &quot;New Delhi&quot;,
+        &quot;state&quot;: &quot;Delhi&quot;,
+        &quot;pincode&quot;: &quot;110005&quot;,
+        &quot;parcel&quot;: {
+          &quot;parcelDetailsId&quot;: <span class="json-number">1</span>,
+          &quot;parcelId&quot;: &quot;PCL-1-1&quot;,
+          &quot;status&quot;: &quot;PENDING&quot;
+        },
+        &quot;products&quot;: [
+          {
+            &quot;productId&quot;: <span class="json-number">1</span>,
+            &quot;qty&quot;: <span class="json-number">5</span>,
+            &quot;unitPrice&quot;: <span class="json-number">420</span>
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-4">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#78350f;color:#fbbf24;border-color:#92400e">PUT</span>
+          <code class="endpoint-path">/orders/:id</code>
+        </div>
+        <h3 class="endpoint-name">Update Order (Full Graph)</h3>
+        <p class="endpoint-desc">Atomic full-graph update. Accepts sender, receivers, and products. Blocked if any parcel &gt;= AWB_LINKED. Removed receivers are soft-deleted and their parcels cancelled.</p>
+        
+        
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> Uses a diff-based strategy: receivers with receiverDetailsId are updated, without it are added, any existing receivers missing from the payload are soft-deleted. Products follow the same pattern with orderItemId.
+        </div>
+      </div>
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/orders/:id&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;senderId&quot;:2,&quot;senderAddressId&quot;:2,&quot;receivers&quot;:[{&quot;receiverDetailsId&quot;:1,&quot;receiverId&quot;:1,&quot;receiverAddressId&quot;:1,&quot;products&quot;:[{&quot;orderItemId&quot;:1,&quot;variationId&quot;:1,&quot;quantity&quot;:5},{&quot;variationId&quot;:2,&quot;quantity&quot;:10}]},{&quot;receiverId&quot;:2,&quot;receiverAddressId&quot;:2,&quot;products&quot;:[{&quot;variationId&quot;:1,&quot;quantity&quot;:1}]}]}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;senderId&quot;: <span class="json-number">2</span>,
+  &quot;senderAddressId&quot;: <span class="json-number">2</span>,
+  &quot;receivers&quot;: [
+    {
+      &quot;receiverDetailsId&quot;: <span class="json-number">1</span>,
+      &quot;receiverId&quot;: <span class="json-number">1</span>,
+      &quot;receiverAddressId&quot;: <span class="json-number">1</span>,
+      &quot;products&quot;: [
+        {
+          &quot;orderItemId&quot;: <span class="json-number">1</span>,
+          &quot;variationId&quot;: <span class="json-number">1</span>,
+          &quot;quantity&quot;: <span class="json-number">5</span>
+        },
+        {
+          &quot;variationId&quot;: <span class="json-number">2</span>,
+          &quot;quantity&quot;: <span class="json-number">10</span>
+        }
+      ]
+    },
+    {
+      &quot;receiverId&quot;: <span class="json-number">2</span>,
+      &quot;receiverAddressId&quot;: <span class="json-number">2</span>,
+      &quot;products&quot;: [
+        {
+          &quot;variationId&quot;: <span class="json-number">1</span>,
+          &quot;quantity&quot;: <span class="json-number">1</span>
+        }
+      ]
+    }
+  ]
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+      
+      
+      <div id="ep-4-cases" style="grid-column: 1 / -1; margin-top: 24px; padding-top: 32px; border-top: 1px dashed var(--border);">
+        <h4 style="color: var(--accent); margin-bottom: 16px; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Use Cases
+        </h4>
+        <div class="guide-text" style="background: rgba(99, 102, 241, 0.03); border: 1px solid rgba(99, 102, 241, 0.1); border-radius: 12px; padding: 24px;">
+          <div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Imagine the frontend has fetched the order and the user is on the Order Details edit page. When the user clicks &quot;Save Changes&quot;, the frontend sends a single PUT request with the final state of the order.</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Here is how specific actions translate into the JSON payload:</p></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">1. Editing the Sender:</h5><p style="margin-bottom:4px; font-size:14px;"><strong>Action:</strong> <span style="color:var(--text-muted);"> The user selects a different sender or a different address for the sender.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Payload:</strong> <span style="color:var(--text-muted);"> You pass the new senderId and senderAddressId at the root level. The backend automatically fetches the fresh name, phone, and address from the Party Master and updates the order snapshot.</span></p></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">2. Editing a Receiver (Parcel Destination):</h5><p style="margin-bottom:4px; font-size:14px;"><strong>Action:</strong> <span style="color:var(--text-muted);"> The user changes the delivery address for an existing parcel.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Payload:</strong> <span style="color:var(--text-muted);"> You include the existing receiverDetailsId, but change the receiverAddressId to the new selection.</span></p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">```json</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">{</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">&quot;receiverDetailsId&quot;: 105, // Tells backend: &quot;Update this existing receiver&quot;</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">&quot;receiverId&quot;: 4,</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">&quot;receiverAddressId&quot;: 12 // Changed to a new address ID</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">}</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">```</p></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">3. Adding/Removing/Editing Products:</h5><p style="margin-bottom:4px; font-size:14px;"><strong>Edit Quantity:</strong> <span style="color:var(--text-muted);"> Pass the product with its existing orderItemId and the new quantity.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Add Product:</strong> <span style="color:var(--text-muted);"> Pass the new product without an orderItemId. The backend sees no ID and creates it.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Remove Product:</strong> <span style="color:var(--text-muted);"> Simply omit the product from the array. The backend sees it's missing compared to the database and soft-deletes it.</span></p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">```json</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">{</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">&quot;products&quot;: [</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">{ &quot;orderItemId&quot;: 50, &quot;variationId&quot;: 1, &quot;quantity&quot;: 10 }, // UPDATE qty to 10</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">{ &quot;variationId&quot;: 2, &quot;quantity&quot;: 5 } // INSERT new product (No orderItemId)</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">// Omitted orderItemId 51 -&gt; Backend will DELETE it</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">]</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">}</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">```</p></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">4. Deleting a Parcel:</h5><p style="margin-bottom:4px; font-size:14px;"><strong>Action:</strong> <span style="color:var(--text-muted);"> The user clicks the &quot;Trash&quot; icon on a parcel/receiver card.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Payload:</strong> <span style="color:var(--text-muted);"> The frontend simply removes that receiver object from the receivers array before sending the payload.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Backend Response:</strong> <span style="color:var(--text-muted);"> The diff engine notices the receiverDetailsId is missing, so it soft-deletes the receiver, soft-deletes all attached items, and automatically sets the Parcel Status to CANCELLED (Trigger 5).</span></p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Evaluation: Is the Diff Strategy Suitable?</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Yes, it is highly suitable and represents the industry standard for complex form edits.</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">If we didn't use a diff strategy, the frontend would have to make 5 different API calls when the user clicks &quot;Save&quot; (e.g., DELETE /items/3, POST /items, PUT /receivers/2, PATCH /orders/1).</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Why this is great for your UI:</p><li style="margin-left: 20px; margin-bottom: 8px; font-size:14px;">Dumb Frontend, Smart Backend: The React/Vue frontend doesn't need to track a list of &quot;deleted items&quot; or &quot;new items&quot;. It just maintains a single state object. Whatever the state object looks like when the user clicks &quot;Save&quot; is exactly what is sent to the backend.</li><li style="margin-left: 20px; margin-bottom: 8px; font-size:14px;">Atomicity: Because the backend calculates the diffs and wraps them in a single SQL Transaction, if anything fails (e.g., a product variation doesn't exist), the entire update rolls back. You never end up with a half-updated order.</li><li style="margin-left: 20px; margin-bottom: 8px; font-size:14px;">Automatic Cleanup: Deleting a receiver automatically cleans up the items and cancels the parcel without the frontend needing to explicitly request a parcel cancellation.</li></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">⚠️ Caveats to Keep in Mind for the UI:</h5><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">There are two important constraints this API enforces that the UI must respect:</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Strict ID Resolution (No Free-Text):</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Currently, the API contract strictly requires senderId, receiverId, and addressId. It pulls the text (Names, Phones, Addresses) directly from the Party Master.</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">If your UI allows users to arbitrarily type a new name or phone number into a text box just for this specific order, the current API will ignore it. To change a phone number, the user must update the Party Master first, or the API needs to be relaxed to accept raw string overrides.</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">The &quot;All-or-Nothing&quot; Threshold:</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">If any parcel in the order has reached AWB_LINKED or DISPATCHED, the API will block the entire update with a 400 Bad Request. The UI should check the parcel statuses on load, and if physical execution has started, the &quot;Edit Order&quot; button should be disabled with a tooltip explaining why.</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Full Array Required:</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">If an order has 3 receivers and the user only wants to edit 1, the frontend must send all 3 receivers in the payload. If it only sends 1, the diff strategy will assume the user deleted the other 2.</p></div>
+        </div>
+      </div>
+    
+    </div>
+    <div class="endpoint-card" id="ep-5">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#7f1d1d;color:#f87171;border-color:#991b1b">DELETE</span>
+          <code class="endpoint-path">/orders/:id/cancel</code>
+        </div>
+        <h3 class="endpoint-name">Cancel Order</h3>
+        <p class="endpoint-desc">Cancels order and all non-dispatched parcels.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X DELETE &quot;{{base_url}}/orders/:id/cancel&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+      
+      
+    </div>
+      <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-04
+      </footer>
+    </main>
+  </div>
+  <script>
+    // Sidebar toggle (mobile)
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const closeSidebar = () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); };
+    toggle.addEventListener('click', () => {
+      const isOpen = sidebar.classList.toggle('open');
+      overlay.classList.toggle('open', isOpen);
+    });
+    overlay.addEventListener('click', closeSidebar);
+
+    // TOC active state via IntersectionObserver
+    const tocLinks = document.querySelectorAll('.toc-item');
+    const cards = document.querySelectorAll('.endpoint-card');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          tocLinks.forEach((l) => l.classList.remove('active'));
+          const link = document.querySelector('.toc-item[href="#' + entry.target.id + '"]');
+          if (link) link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -60% 0px', threshold: 0 });
+    cards.forEach((card) => observer.observe(card));
+
+    // Close sidebar on TOC link click (mobile)
+    tocLinks.forEach((l) => l.addEventListener('click', closeSidebar));
+  </script>
+</body>
+</html>

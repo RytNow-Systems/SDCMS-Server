@@ -170,8 +170,11 @@ Order status is **strictly computed from parcels** (not stored):
 |Get Profile|✅|✅|✅|
 |Employee Management (CRUD)|✅|❌|❌|
 |Products (CRUD)|✅|✅|❌|
+|Product Dropdown (+ categories)|✅|✅|❌|
 |Courier Partners (CRUD)|✅|❌|❌|
 |Senders (Parties CRUD)|✅|✅|❌|
+|Sender Lookups (names/phones/name-search)|✅|✅|❌|
+|Address Book (Party_Details)|✅|✅|❌|
 |Create / Edit / Cancel Order|✅|✅|❌|
 |List Orders|✅|✅|✅ (read-only)|
 |Get Order Detail|✅|✅|❌|
@@ -213,6 +216,11 @@ Order status is **strictly computed from parcels** (not stored):
 |21|PUT|/api/v1/senders/:id|6.2|
 |22|DELETE|/api/v1/senders/:id|6.2|
 |23|GET|/api/v1/senders/lookup|6.3|
+|49|GET|/api/v1/senders/names|6.4|
+|50|GET|/api/v1/senders/phones|6.4|
+|51|GET|/api/v1/senders/lookup-by-name|6.4|
+|52|GET|/api/v1/senders/:id/addresses|6.5|
+|53|POST|/api/v1/senders/:id/addresses|6.5|
 |24|POST|/api/v1/orders|7.2|
 |25|GET|/api/v1/orders|7.3|
 |26|GET|/api/v1/orders/:id|7.4|
@@ -238,3 +246,4 @@ Order status is **strictly computed from parcels** (not stored):
 |46|GET|/api/v1/parcel-events/export|11.2|
 |47|GET|/api/v1/dashboard/metrics|12.1|
 |48|POST|/api/v1/notifications/webhook|9.1|
+|54|GET|/api/v1/products/dropdown|4.3|

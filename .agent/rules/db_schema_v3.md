@@ -1,5 +1,6 @@
 ---
 trigger: model_decision
+description: Primary reference for the v3 database physical schema (tables, columns, types, and FKs). Use for data structure context. For logic and stored procedures, refer to api_procedure_spec document.
 ---
 
 ## 🔷 MASTER TABLES
@@ -10,27 +11,54 @@ trigger: model_decision
 - CustomerName
 - PhoneNo
 - EmailId
-- AddressLine1
-- AddressLine2
+- Address (varchar 255 — replaces AddressLine1/AddressLine2)
 - City
 - State
 - Pincode
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - CreatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 - UpdatedDate
 - IsActive
+
+> ⚠️ v2 CHANGE: `AddressLine1` + `AddressLine2` consolidated into single `Address` field.
+
+---
+
+### Party_Details (Address Book)
+- PkPartyDetailsId (PK)
+- FkPartyId (FK → Party_master)
+- PartyName
+- PhoneNo
+- EmailId
+- Address
+- City
+- State
+- Pincode
+- Country
+- IsActive
+- IsDefault (boolean — marks default address for a party)
+- CreatedBy (INT FK → employee_master)
+- CreatedDate
+- UpdatedBy (INT FK → employee_master)
+- UpdatedDate
+
+> ✅ NEW in v2: Per-party address book. A party can have multiple shipping addresses.
+> Convention: `FkPartyId` links back to `Party_master.PkPartyId`.
 
 ---
 
 ### product_category
 - PkProductCategoryId (PK)
-- CategoryName
+- CategoryName (DEFAULT NULL)
 - IsActive
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - UpdatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
+
+> ⚠️ v3 CHANGE: `CategoryName` constraint relaxed from NOT NULL to DEFAULT NULL.
+> ⚠️ v3 FIX: `CreatedBy` / `UpdatedBy` corrected from VARCHAR(20) to INT (matches employee_master.EmployeeCode).
 
 ---
 
@@ -43,11 +71,40 @@ trigger: model_decision
 - cu_item_code
 - MaterialRate
 - MaterialDescription
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - CreatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 - UpdatedDate
 - IsActive
+
+---
+
+### lu_color_code
+- PkLuColorId (PK, AUTO_INCREMENT)
+- ColorName (varchar 50)
+- ColorCode (varchar 20)
+- CreatedBy (INT FK → employee_master)
+- CreatedDate
+- IsActive (default 1)
+
+> ✅ NEW in v3: Master lookup table for available product colors.
+
+---
+
+### product_color_matrix
+- PkProductColorId (PK, AUTO_INCREMENT)
+- FkProductId (FK → product_master)
+- FkLuColorId (FK → lu_color_code)
+- MaterialRate (decimal 10,2 — catalogue/list price for this specific color+size combination)
+- Size (varchar 50)
+- CreatedBy (INT FK → employee_master)
+- CreatedDate (DEFAULT CURRENT_TIMESTAMP)
+- UpdatedBy (INT FK → employee_master)
+- UpdatedDate (ON UPDATE CURRENT_TIMESTAMP)
+- IsActive (tinyint, default 1)
+
+> ✅ NEW in v3: Maps a product to a color and size, allowing unique pricing per combination.
+> 🔑 Pricing Hierarchy: `product_color_matrix.MaterialRate` (specific) > `product_master.MaterialRate` (catalog fallback).
 
 ---
 
@@ -57,7 +114,7 @@ trigger: model_decision
 - UnitCode
 - ConversionFactor
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - IsActive
 
 ---
@@ -71,7 +128,7 @@ trigger: model_decision
 ---
 
 ### employee_master
-- EmployeeCode (PK)
+- EmployeeCode (INT PK AUTO_INCREMENT)
 - FullName
 - ContactNumber
 - EmailAddress
@@ -81,9 +138,9 @@ trigger: model_decision
 - AllowLogin
 - IsActive
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - UpdatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 
 ---
 
@@ -119,18 +176,19 @@ trigger: model_decision
 
 ### order_master
 - PkOrderId (PK)
-- OrderCode
+- OrderCode (DEFAULT NULL)
 - FkSenderId (FK → Party_master)
 - OrderDate
 - ExpectedDeliveryDate
 - TotalAmount
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 - CreatedDate
-- UpdatedBy
+- UpdatedBy (INT FK → employee_master)
 - UpdatedDate
 - IsActive
 
 > ⚠️ Order status is DERIVED (NOT stored)
+> ⚠️ v3 CHANGE: `OrderCode` constraint relaxed from NOT NULL to DEFAULT NULL.
 
 ---
 
@@ -141,13 +199,14 @@ trigger: model_decision
 - ReceiverName
 - ReceiverPhone
 - ReceiverEmail
-- AddressLine1
-- AddressLine2
+- Address (varchar 255 — replaces AddressLine1/AddressLine2)
 - City
 - State
 - Pincode
 - Country
 - IsActive
+
+> ⚠️ v2 CHANGE: `AddressLine1` + `AddressLine2` consolidated into single `Address` field.
 
 ---
 
@@ -161,7 +220,7 @@ trigger: model_decision
 - TransactionDate
 - IsActive
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 
 ---
 
@@ -175,7 +234,7 @@ trigger: model_decision
 - LabelPrintCount
 - DispatchDate
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 
 > ✅ Constraint:
 UNIQUE (FkCourierId, TrackingNo)
@@ -192,7 +251,7 @@ UNIQUE (FkCourierId, TrackingNo)
 - AWBNumber (nullable)
 - PreviousStatus (nullable)
 - CreatedDate
-- CreatedBy
+- CreatedBy (INT FK → employee_master)
 
 > ⚠️ Append-only audit + scan log
 
@@ -214,7 +273,7 @@ UNIQUE (FkCourierId, TrackingNo)
 - LastNotificationTime
 - LastNotificationLevel
 - IsActive
-- RequestedBy
+- RequestedBy (INT FK → employee_master)
 - IsPaymentCheck
 
 ---
