@@ -119,6 +119,7 @@ class OrderService {
         receiverId: r.receiverId,
         receiverName: party.CustomerName,
         receiverPhone: party.PhoneNo,
+        receiverEmail: party.EmailId || party.emailId || '',
         address: address.Address,
         city: address.City,
         state: address.State,
@@ -161,7 +162,10 @@ class OrderService {
     };
 
     // Repository handles the atomic transaction across 4 tables
-    return orderRepository.createOrder(orderPayload, ctx.createdBy);
+    const result = await orderRepository.createOrder(orderPayload, ctx.createdBy);
+    
+    const fullOrder = await orderRepository.findById(result.orderId);
+    return this._mapOrderAggregate(fullOrder);
   }
 
   /**
@@ -197,7 +201,8 @@ class OrderService {
     const aggregatedReceivers = await this._processMockReceivers(order.id, receiversList, ctx.courierId);
 
     return {
-      ...order,
+      orderId: order.id,
+      orderCode: order.orderCode,
       receivers: aggregatedReceivers
     };
   }
