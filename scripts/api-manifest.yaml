@@ -173,7 +173,7 @@ collections:
           { "materialName": "Heavy Equipment", "categoryId": 1, "unitId": 1, "materialRate": 500, "variations": [{ "colorId": 1, "size": "M", "materialRate": 550 }, { "colorId": 2, "size": "L", "materialRate": 600 }] }
         responseStatus: 201
         responseBody: |
-          { "success": true, "data": { "id": 2, "materialName": "Heavy Equipment", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "id": 1, "colorId": 1, "size": "M", "materialRate": 550 }, { "id": 2, "colorId": 2, "size": "L", "materialRate": 600 }] } }
+          { "success": true, "data": { "id": 2, "materialName": "Heavy Equipment", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "variationId": 1, "colorId": 1, "size": "M", "materialRate": 550 }, { "variationId": 2, "colorId": 2, "size": "L", "materialRate": 600 }] } }
         notes: "categoryId and unitId are required. materialRate is optional (defaults to 0). The variations array is optional — omit it to create a product without variations."
         assertions:
           - "res.status equals 201"
@@ -189,7 +189,7 @@ collections:
           id: { type: 'number', description: 'Unique identifier of the product' }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "id": 1, "colorId": 1, "colorName": "Red", "size": "M", "materialRate": 550 }] } }
+          { "success": true, "data": { "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "variationId": 1, "colorId": 1, "colorName": "Red", "size": "M", "materialRate": 550 }] } }
 
       - name: Update Product
         method: PUT
@@ -234,7 +234,7 @@ collections:
           { "fkLuColorId": 1, "materialRate": 550, "size": "M" }
         responseStatus: 201
         responseBody: |
-          { "success": true, "data": { "id": 3, "productId": 1, "colorId": 1, "materialRate": 550, "size": "M" } }
+          { "success": true, "data": { "variationId": 3, "productId": 1, "colorId": 1, "materialRate": 550, "size": "M" } }
         notes: "Pass matrixId in body for updates. Omit matrixId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations."
         assertions:
           - "res.status equals 201"

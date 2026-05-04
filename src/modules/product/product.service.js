@@ -62,7 +62,7 @@ class ProductService {
   _mapMatrixToApi(row) {
     if (!row) return null;
     return {
-      id: row.PkProductColorId || row.id,
+      variationId: row.PkProductColorId || row.id,
       productId: row.FkProductId || row.productId,
       colorId: row.FkLuColorId || row.colorId,
       colorName: row.ColorName || row.colorName || null,
