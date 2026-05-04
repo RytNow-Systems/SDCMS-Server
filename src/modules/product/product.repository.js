@@ -570,6 +570,22 @@ class ProductRepository {
     const current = await this.findById(id);
     if (!current) return false;
 
+    // Cascade soft-delete to color matrix variations
+    const variations = await this.getColorMatrix(id);
+    for (const v of variations) {
+      await this.setColorMatrix(
+        v.PkProductColorId,
+        id,
+        {
+          FkLuColorId: v.FkLuColorId,
+          MaterialRate: v.MaterialRate,
+          Size: v.Size
+        },
+        adminId,
+        0 // IsActive = 0
+      );
+    }
+
     if (process.env.USE_MOCK_DB !== 'true') {
       await db.execute('CALL prc_product_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
         id,
