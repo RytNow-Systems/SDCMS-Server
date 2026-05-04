@@ -171,17 +171,16 @@ class ProductService {
       if (item.CategoryName) {
         labelParts.push(`(${item.CategoryName})`);
       }
+      if (item.cu_item_code) {
+        labelParts.push(`[${item.cu_item_code}]`);
+      }
       
       return {
-        productId: item.PkProductId,
-        variationId: item.PkProductColorId || null,
-        materialName: item.MaterialName,
-        colorName: item.ColorName,
-        size: item.Size,
-        materialRate: item.MaterialRate,
-        cuItemCode: item.cu_item_code,
-        categoryName: item.CategoryName,
-        unitTitle: item.UnitTitle,
+        value: {
+          productId: item.PkProductId,
+          variationId: item.PkProductColorId || null,
+          materialRate: item.MaterialRate
+        },
         label: labelParts.join(' ')
       };
     });

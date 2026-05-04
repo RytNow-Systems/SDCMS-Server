@@ -219,7 +219,7 @@ collections:
         description: Combined product + category flat dropdown list for order forms.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "productId": 1, "variationId": 1, "materialName": "Cotton Roll", "colorName": "Red", "size": "M", "materialRate": 550, "categoryName": "Textiles", "label": "Cotton Roll — Red / M (Textiles)" }] }
+          { "success": true, "data": [{ "value": { "productId": 1, "variationId": 1, "materialRate": 550 }, "label": "Cotton Roll — Red / M (Textiles) [CU-001]" }] }
         assertions:
           - "res.status equals 200"
           - "res.body.data is Array"
