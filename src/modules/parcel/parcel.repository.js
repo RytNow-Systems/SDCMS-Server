@@ -65,7 +65,7 @@ class ParcelRepository {
       if (filters.search) {
         const q = filters.search.toLowerCase();
         data = data.filter(p =>
-          (p.QRCode && p.QRCode.toLowerCase().includes(q)) ||
+          (p.PkParcelDetailsId && p.PkParcelDetailsId.toString().includes(q)) ||
           (p.TrackingNo && p.TrackingNo.toLowerCase().includes(q))
         );
       }
@@ -111,21 +111,6 @@ class ParcelRepository {
 
     const parcel = seedParcels.find((p) => p.id === parseInt(id));
     return parcel ? this._mapMockParcel(parcel) : null;
-  }
-
-  /**
-   * Find a parcel by its QR code (parcel_id).
-   * Procedure: CALL prc_parcel_details_search_by_qr(?)
-   *
-   * @param {string} qrCode
-   * @returns {Promise<object|null>}
-   */
-  async findByQR(qrCode) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_parcel_details_search_by_qr(?)', [qrCode]);
-      return rows[0]?.[0] || null;
-    }
-    return seedParcels.find((p) => p.parcel_id === qrCode) || null;
   }
 
   /**
@@ -346,7 +331,7 @@ class ParcelRepository {
 
     return {
       ...parcel,
-      parcelId: parcel.parcel_id,
+      parcelDetailsId: parcel.id,
       status: parcel.parcelStatusCode,
       receiverName: receiver?.receiverName || null,
       receiverPhone: receiver?.receiverPhone || null,
@@ -372,7 +357,7 @@ class ParcelRepository {
       const q = filters.search.toLowerCase();
       filtered = filtered.filter(
         (p) =>
-          p.parcel_id.toLowerCase().includes(q) ||
+          p.id.toString().includes(q) ||
           (p.trackingNo && p.trackingNo.toLowerCase().includes(q))
       );
     }

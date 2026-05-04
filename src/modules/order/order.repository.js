@@ -14,6 +14,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import db from '../../infrastructure/database/db.js';
 import logger from '../../shared/utils/logger.js';
+import ParcelCodeService from '../parcel/parcel-code.service.js';
 
 import {
   seedOrderItems,
@@ -341,10 +342,10 @@ class OrderRepository {
           UnitTitle: i.UnitTitle
         })),
         parcel: parcelRow ? {
-          PkParcelDetailsId: parcelRow.PkParcelDetailsId,
-          ParcelID: parcelRow.QRCode,
-          TrackingNo: parcelRow.TrackingNo,
-          ParcelStatus: parcelRow.ParcelStatusName || parcelRow.StatusDescription || parcelRow.FkParcelStatusId
+          parcelDetailsId: parcelRow.PkParcelDetailsId,
+          parcelId: ParcelCodeService.generateCode(order.PkOrderId, parcelRow.PkParcelDetailsId),
+          trackingNo: parcelRow.TrackingNo,
+          status: parcelRow.ParcelStatusName || parcelRow.StatusDescription || parcelRow.FkParcelStatusId
         } : null
       };
     });
@@ -697,7 +698,7 @@ class OrderRepository {
       }
       seedParcels.push({
         id: seedParcels.length + 1, fkReceiverDetailsId: newRec.id, fkCourierId: null,
-        parcel_id: `PDS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`, trackingNo: null,
+        trackingNo: null,
         parcelStatusCode: 'PENDING', labelPrintCount: 0, dispatchDate: null, createdAt: new Date()
       });
     }
@@ -761,7 +762,7 @@ class OrderRepository {
     seedOrderItems.push(i); return i;
   }
   async createParcel(recId, courierId) {
-    const p = { id: seedParcels.length + 1, fkReceiverDetailsId: recId, fkCourierId: courierId, parcel_id: `PDS-${uuidv4().split('-')[0].toUpperCase()}`, trackingNo: null, parcelStatusCode: 'PENDING', labelPrintCount: 0, dispatchDate: null, createdAt: new Date() };
+    const p = { id: seedParcels.length + 1, fkReceiverDetailsId: recId, fkCourierId: courierId, trackingNo: null, parcelStatusCode: 'PENDING', labelPrintCount: 0, dispatchDate: null, createdAt: new Date() };
     seedParcels.push(p); return p;
   }
 

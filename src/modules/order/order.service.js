@@ -564,13 +564,12 @@ class OrderService {
         state: r.State || r.state,
         pincode: r.Pincode || r.pincode,
         parcel: r.parcel ? {
-          id: r.parcel.PkParcelDetailsId || r.parcel.id,
-          parcelId: r.parcel.ParcelID || r.parcel.parcel_id,
-          status: r.parcel.ParcelStatus || r.parcel.parcelStatusCode || 'PENDING',
-          parcelCode: ParcelCodeService.generateCode(
+          parcelDetailsId: r.parcel.PkParcelDetailsId || r.parcel.id || r.parcel.parcelDetailsId,
+          parcelId: ParcelCodeService.generateCode(
             o.PkOrderId || o.id,
-            r.parcel.PkParcelDetailsId || r.parcel.id
-          )
+            r.parcel.PkParcelDetailsId || r.parcel.id || r.parcel.parcelDetailsId
+          ),
+          status: r.parcel.ParcelStatus || r.parcel.parcelStatusCode || r.parcel.status || 'PENDING'
         } : null,
         products: (r.items || []).map((i) => ({
           productId: i.FkProductId || i.fkProductId,

@@ -49,12 +49,16 @@ class ParcelService {
   async _mapParcel(parcel) {
     if (!parcel) return null;
 
-    const id = parcel.PkParcelDetailsId || parcel.id;
+    const parcelDetailsId = parcel.PkParcelDetailsId || parcel.id || parcel.parcelDetailsId;
     const receiverDetailsId = parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId;
 
     return {
-      id,
-      parcelId: parcel.QRCode || parcel.parcelId || parcel.parcel_id,
+      parcelDetailsId,
+      parcelId: await ParcelCodeService.generateCodeAsync({
+        orderId: parcel.FkOrderId || parcel.orderId,
+        parcelId: parcelDetailsId,
+        receiverDetailsId
+      }),
       trackingNo: parcel.TrackingNo || parcel.trackingNo || null,
       status: parcel.ParcelStatusName || parcel.StatusDescription || parcel.status || parcel.parcelStatusCode || STATUS.PENDING,
       labelPrintCount: parcel.LabelPrintCount !== undefined ? parcel.LabelPrintCount : parcel.labelPrintCount,
@@ -68,20 +72,15 @@ class ParcelService {
       orderCode: parcel.OrderCode || parcel.orderCode || null,
       orderId: parcel.FkOrderId || parcel.orderId,
       receiverDetailsId,
-      createdAt: parcel.CreatedDate || parcel.createdAt,
-      parcelCode: await ParcelCodeService.generateCodeAsync({
-        orderId: parcel.FkOrderId || parcel.orderId,
-        parcelId: id,
-        receiverDetailsId
-      })
+      createdAt: parcel.CreatedDate || parcel.createdAt
     };
   }
 
   _mapEvent(event) {
     if (!event) return null;
     return {
-      id: event.PkReceiverStatusDetailsId || event.id,
-      parcelId: event.QRCode || event.parcelId,
+      receiverStatusDetailsId: event.PkReceiverStatusDetailsId || event.id || event.receiverStatusDetailsId,
+      parcelId: event.QRCode || event.parcelId, // Still uses QRCode from event log if available, but we'll transition this too if needed.
       orderCode: event.OrderCode || event.orderCode,
       actionType: event.ActionType || event.actionType,
       awbNumber: event.AwbNumber || event.awbNumber,
@@ -167,12 +166,12 @@ class ParcelService {
    */
   async scanAndLinkAWB(payload, user) {
     try {
-      const { qrCode, awbNumber } = payload;
+      const { parcelId, awbNumber } = payload;
       const employeeCode = user?.employeeCode || 'SYSTEM';
       const role = user?.role || 'OPERATOR';
 
       // 1. Find and Validate Parcel
-      const parcel = await this._getAndValidateForLinking(qrCode);
+      const parcel = await this._getAndValidateForLinking(parcelId);
 
       // 2. Check for Duplicate AWB
       await this._ensureUniqueAWB(awbNumber);
@@ -187,11 +186,11 @@ class ParcelService {
     }
   }
 
-  async dispatchParcels(parcelIds, user) {
+  async dispatchParcels(parcelDetailsIds, user) {
     const employeeCode = user?.employeeCode || 'SYSTEM';
     const dispatched = [];
 
-    for (const id of parcelIds) {
+    for (const id of parcelDetailsIds) {
       const parcel = await this.getParcelDetails(id);
       
       if (parcel.status !== STATUS.AWB_LINKED) {
@@ -246,15 +245,28 @@ class ParcelService {
 
   /**
    * Internal helper to find and validate a parcel for the linking flow.
+   * Uses deconstruction to resolve the numeric ID from the dynamic PCL code.
    * @private
    */
-  async _getAndValidateForLinking(qrCode) {
-    const parcelRaw = await parcelRepository.findByQR(qrCode);
+  async _getAndValidateForLinking(parcelId) {
+    // 1. Deconstruct PCL code
+    const deconstructed = ParcelCodeService.deconstructCode(parcelId);
+    if (!deconstructed) {
+      const error = new Error(`Invalid parcel identifier format: ${parcelId}`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const { parcelId: parcelDetailsId } = deconstructed;
+
+    // 2. Fetch by PK
+    const parcelRaw = await parcelRepository.findById(parcelDetailsId);
     if (!parcelRaw) {
-      const error = new Error(`Parcel not found for QR: ${qrCode}`);
+      const error = new Error(`Parcel not found for ID: ${parcelDetailsId}`);
       error.statusCode = 404;
       throw error;
     }
+
     const parcel = await this._mapParcel(parcelRaw);
     if (parcel.status !== STATUS.LABEL_PRINTED) {
       const error = new Error(`Cannot link AWB: parcel is '${parcel.status}', must be '${STATUS.LABEL_PRINTED}'`);
@@ -282,13 +294,14 @@ class ParcelService {
    * @private
    */
   async _executeLinkingFlow(parcel, awbNumber, role, employeeCode) {
+    const id = parcel.parcelDetailsId;
     if (role === 'COURIER') {
       // Auto-dispatch for couriers (Trigger 3)
-      return await parcelRepository.updateParcelState(parcel.id, 3, awbNumber, 0, employeeCode);
+      return await parcelRepository.updateParcelState(id, 3, awbNumber, 0, employeeCode);
     } 
     
     // Normal linking (Trigger 2)
-    return await parcelRepository.updateParcelState(parcel.id, 2, awbNumber, 0, employeeCode);
+    return await parcelRepository.updateParcelState(id, 2, awbNumber, 0, employeeCode);
   }
 }
 

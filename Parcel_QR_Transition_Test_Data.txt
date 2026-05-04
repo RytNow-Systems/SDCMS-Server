@@ -1,0 +1,59 @@
+# Parcel QR Transition — API Test Data
+
+This file contains the updated API contracts for the Parcel module after the transition to dynamic parcel identification (PCL-ORD-PCL).
+
+## 1. GET Parcel List
+**Method**: GET
+**URL**: `/api/v1/parcels`
+**Expected Response**:
+Each parcel object should now contain:
+- `parcelDetailsId`: <number> (Primary Key)
+- `parcelId`: "PCL-<orderId>-<parcelDetailsId>" (Dynamic Code)
+- `parcelCode`: [REMOVED]
+
+---
+
+## 2. Scan & Link AWB (Atomic)
+**Method**: POST
+**URL**: `/api/v1/parcels/scan`
+**Payload**:
+```json
+{
+  "parcelId": "PCL-1-1", // Scanned from the dynamic QR code
+  "awbNumber": "TRACK123456"
+}
+```
+**Assertion**:
+- `success` is `true`
+- `data.parcelId` matches `PCL-1-1`
+- `data.status` becomes `AWB_LINKED` (or `DISPATCHED` if user is COURIER)
+
+---
+
+## 3. Bulk Dispatch
+**Method**: POST
+**URL**: `/api/v1/parcels/dispatch`
+**Payload**:
+```json
+{
+  "parcelDetailsIds": [1, 2, 3] // Use the PKs from the 'parcelDetailsId' field
+}
+```
+
+---
+
+## 4. Get Label Data
+**Method**: GET
+**URL**: `/api/v1/parcels/:id/label-data`
+**Expected Response**:
+- `parcelDetailsId`: <number>
+- `parcelId`: "PCL-..."
+- Contains stitched receiver address for label printing.
+
+---
+
+## 5. Get Timeline
+**Method**: GET
+**URL**: `/api/v1/parcels/:id/timeline`
+**Expected Response**:
+- Events contain `receiverStatusDetailsId` instead of `id`.

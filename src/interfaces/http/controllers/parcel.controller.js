@@ -101,7 +101,7 @@ export const scanParcel = asyncHandler(async (req, res) => {
  * Updates status to DISPATCHED, stamps DispatchDate.
  */
 export const dispatchParcels = asyncHandler(async (req, res) => {
-  const data = await parcelService.dispatchParcels(req.body.parcelIds, req.user);
+  const data = await parcelService.dispatchParcels(req.body.parcelDetailsIds, req.user);
   res.json({ success: true, data });
 });
 

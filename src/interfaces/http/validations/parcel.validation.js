@@ -7,10 +7,10 @@
 import { z } from 'zod';
 
 // ----------------------------------------------------------------------------
-// POST /parcels/scan — Atomic QR scan + AWB link (API Contract §8.4)
+// POST /parcels/scan — Atomic Scan + AWB link (API Contract §8.4)
 // ----------------------------------------------------------------------------
 export const scanParcelSchema = z.object({
-  qrCode: z.string().min(1, 'QR code (parcel_id) is required'),
+  parcelId: z.string().min(1, 'Parcel ID (PCL-ORD-PCL) is required'),
   awbNumber: z.string().min(1, 'AWB number is required')
 });
 
@@ -18,7 +18,7 @@ export const scanParcelSchema = z.object({
 // POST /parcels/dispatch — Bulk dispatch (API Contract §8.5)
 // ----------------------------------------------------------------------------
 export const dispatchParcelsSchema = z.object({
-  parcelIds: z
-    .array(z.number().int().positive('Each parcel ID must be a positive integer'))
-    .min(1, 'At least one parcel ID is required')
+  parcelDetailsIds: z
+    .array(z.number().int().positive('Each parcel details ID must be a positive integer'))
+    .min(1, 'At least one parcel details ID is required')
 });
