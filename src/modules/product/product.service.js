@@ -383,19 +383,21 @@ class ProductService {
    * @returns {Promise<Array>} API-friendly variation records.
    */
   async _processCreateVariations(variations, productId, adminId) {
-    const results = [];
+    // Create all variations first
     for (const v of variations) {
       const internalData = {
         FkLuColorId: v.colorId,
         MaterialRate: v.materialRate,
         Size: v.size
       };
-      const result = await productRepository.setColorMatrix(
+      await productRepository.setColorMatrix(
         0, productId, internalData, adminId, 1
       );
-      results.push(this._mapMatrixToApi(result));
     }
-    return results;
+
+    // Re-fetch all variations for this product to get complete data
+    const savedVariations = await productRepository.getColorMatrix(productId);
+    return savedVariations.map(v => this._mapMatrixToApi(v));
   }
 
   /**
