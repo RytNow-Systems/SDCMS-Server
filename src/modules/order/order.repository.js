@@ -509,15 +509,90 @@ class OrderRepository {
 
   /**
    * Logic for cancelling an order by setting IsActive=0.
+   * Cascades to all receivers, items, and parcels.
    */
   async cancelOrder(orderId, adminId) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        orderId, null, null, null, null, null, null, null, null, adminId, 0
-      ]);
-      return rows[0]?.[0] || null;
+      return this._cancelOrderLive(orderId, adminId);
     }
     return this._cancelOrderMock(orderId);
+  }
+
+  /**
+   * Managed transaction for full cascading cancellation.
+   * @private
+   */
+  async _cancelOrderLive(orderId, adminId) {
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // 1. Fetch all associated data to cascade
+      const receivers = await this.getReceiversForOrder(orderId);
+      const receiverIds = receivers.map(r => r.PkReceiverDetailsId || r.id);
+      
+      const parcels = await this.getParcelsForReceivers(receiverIds);
+      const items = await this.getItemsForReceivers(receiverIds);
+
+      // 2. Cascade Parcel Cancellation (Trigger 5)
+      for (const p of parcels) {
+        await connection.execute('CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)', [
+          p.PkParcelDetailsId || p.id,
+          5, // pTriggerType: 5 (CANCELLED)
+          0, // pFkReceiverDetailsId
+          null, // pAWBNumber
+          0, // pFkCourierId
+          adminId
+        ]);
+      }
+
+      // 3. Cascade Item Soft-Delete
+      for (const item of items) {
+        await connection.execute('CALL prc_order_items_set(?, ?, ?, ?, ?, ?, ?, ?)', [
+          item.PkOrderItemId || item.id,
+          item.FkReceiverDetailsId || item.fkReceiverDetailsId,
+          item.FkProductId || item.fkProductId,
+          0, // pOutwardQty
+          null, // pFkUnitId
+          0, // pUnitPrice
+          adminId,
+          0 // pIsActive
+        ]);
+      }
+
+      // 4. Cascade Receiver Soft-Delete
+      for (const r of receivers) {
+        await connection.execute('CALL prc_receiver_details_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+          r.PkReceiverDetailsId || r.id,
+          orderId,
+          null, // pReceiverId
+          '', // pReceiverName
+          '', // pReceiverPhone
+          null, // pReceiverEmail
+          '', // pAddress
+          '', // pCity
+          '', // pState
+          '', // pPincode
+          'India', // pCountry
+          adminId,
+          0 // pIsActive
+        ]);
+      }
+
+      // 5. Order Header Soft-Delete
+      const [orderRows] = await connection.execute('CALL prc_order_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        orderId, null, null, null, null, null, null, null, null, adminId, 0
+      ]);
+
+      await connection.commit();
+      return orderRows[0]?.[0] || { orderId, success: true };
+    } catch (error) {
+      await connection.rollback();
+      logger.error('OrderRepository._cancelOrderLive', `Failed to cancel order: ${error.message}`, { orderId, adminId });
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   // ============================================================================
@@ -644,14 +719,18 @@ class OrderRepository {
   _cancelOrderMock(orderId) {
     const order = seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive);
     if (!order) return null;
+
     const receivers = seedReceivers.filter((r) => r.fkOrderId === parseInt(orderId));
-    const parcels = seedParcels.filter((p) => receivers.some((r) => r.id === p.fkReceiverDetailsId));
-    if (parcels.some((p) => ['DISPATCHED', 'DELIVERED'].includes(p.parcelStatusCode))) {
-      const error = new Error('Cannot cancel order: already dispatched.');
-      error.statusCode = 400;
-      throw error;
-    }
+    const receiverIds = receivers.map(r => r.id);
+    const parcels = seedParcels.filter((p) => receiverIds.includes(p.fkReceiverDetailsId));
+    const items = seedOrderItems.filter((i) => receiverIds.includes(i.fkReceiverDetailsId));
+
+    // Cascade Updates
     parcels.forEach(p => { p.parcelStatusCode = 'CANCELLED'; });
+    items.forEach(i => { i.isActive = false; });
+    receivers.forEach(r => { r.isActive = false; });
+    order.isActive = false;
+
     return { orderId: order.id, cancelledCount: parcels.length };
   }
 

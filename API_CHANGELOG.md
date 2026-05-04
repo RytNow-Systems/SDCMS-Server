@@ -4,6 +4,20 @@ This document tracks all API changes and provides a checklist for keeping Bruno 
 
 ---
 
+## 🚀 Version 2.4: Order Cancellation Safety & Consistency
+**Date:** May 4, 2026
+**Status:** Implementation Complete
+
+### 📦 Module-Specific Changes
+
+#### 1. Order Pipeline ❌ Cancellation Refactoring
+- **Cascading Soft-Deletes**: The `PATCH /orders/:id/cancel` endpoint now atomically soft-deletes all associated `receiver_details` and `order_items` (`IsActive=0`) and marks all associated parcels as `CANCELLED`.
+- **Physical Execution Threshold**: Cancellation is now strictly blocked if any parcel in the order has reached the `AWB_LINKED`, `DISPATCHED`, or `DELIVERED` state.
+- **Error Handling**: Returns `400 Bad Request` with a clear explanation if the threshold is breached.
+- **Audit Logging**: Every cancelled parcel automatically appends a "CANCELLED" event to the `receiver_status_details` timeline.
+
+---
+
 ## 🚀 Version 2.3: Name-to-ID Abstraction & Pricing Hierarchy
 **Date:** Apr 28, 2026
 **Status:** Implementation Complete

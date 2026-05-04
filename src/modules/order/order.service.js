@@ -311,12 +311,7 @@ class OrderService {
     const existingParcels = await orderRepository.getParcelsForReceivers(existingReceiverIds);
 
     // 3. Threshold guard: block if any parcel has reached physical execution
-    const blockStatuses = ['AWB_LINKED', 'DISPATCHED', 'DELIVERED'];
-    if (existingParcels.some(p => blockStatuses.includes(p.ParcelStatusName || p.StatusDescription || p.FkParcelStatusId || p.parcelStatusCode))) {
-      const error = new Error('Cannot update order: physical execution has begun on one or more parcels.');
-      error.statusCode = 400;
-      throw error;
-    }
+    this._checkPhysicalExecutionBegun(existingParcels, 'update');
 
     // 4. Resolve Sender Snapshot (if sender fields provided)
     let headerPayload = {};
@@ -489,16 +484,44 @@ class OrderService {
   }
 
   /**
+   * Domain Logic: Validates if physical execution has begun on any parcel.
+   * Shared by updateOrder and cancelOrder.
+   * @private
+   */
+  _checkPhysicalExecutionBegun(parcels, action = 'update') {
+    const blockStatuses = ['AWB_LINKED', 'DISPATCHED', 'DELIVERED'];
+    if (parcels.some(p => blockStatuses.includes(p.ParcelStatusName || p.StatusDescription || p.FkParcelStatusId || p.parcelStatusCode))) {
+      const error = new Error(`Cannot ${action} order: physical execution has begun on one or more parcels.`);
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  /**
    * Cancels entire order flow.
+   * Enforces threshold guard and cascades soft-deletes.
    */
   async cancelOrder(orderId, user) {
     const adminId = user?.employeeCode || null;
-    const result = await orderRepository.cancelOrder(orderId, adminId);
-    if (!result) {
+
+    // 1. Fetch existing order to verify existence
+    const existingHeader = await orderRepository.getOrderHeader(orderId);
+    if (!existingHeader) {
       const error = new Error('Order not found');
       error.statusCode = 404;
       throw error;
     }
+
+    // 2. Fetch associated parcels to check threshold
+    const existingReceivers = await orderRepository.getReceiversForOrder(orderId);
+    const existingReceiverIds = existingReceivers.map(r => r.PkReceiverDetailsId || r.id);
+    const existingParcels = await orderRepository.getParcelsForReceivers(existingReceiverIds);
+
+    // 3. Threshold guard
+    this._checkPhysicalExecutionBegun(existingParcels, 'cancel');
+
+    // 4. Atomic cascading cancellation
+    const result = await orderRepository.cancelOrder(orderId, adminId);
     return result;
   }
 
