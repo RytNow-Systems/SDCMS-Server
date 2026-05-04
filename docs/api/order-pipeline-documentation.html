@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Order Pipeline</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Orders</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode B (Sender → Receivers)</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode A (Sender-to-Self)</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Get Order Aggregate</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Order (Full Graph)</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Cancel Order</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Orders</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode B (Sender → Receivers)</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode A (Sender-to-Self)</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Get Order Aggregate</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Order (Full Graph)</a><a href="#ep-4-cases" class="toc-item sub-item" style="padding-left: 36px; font-size: 11px; margin-top: -2px; margin-bottom: 4px; color: var(--accent);">↳ Use Cases</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Cancel Order</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -167,7 +167,9 @@
       
         <div class="guide-box">
           <h4>Integration Guide</h4>
-          <p>Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique dynamic Parcel ID (PCL-&lt;orderId&gt;-&lt;parcelDetailsId&gt;).</p>
+          <div class="guide-text">
+            <div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique dynamic Parcel ID (PCL-&lt;orderId&gt;-&lt;parcelDetailsId&gt;).</p></div>
+          </div>
         </div>
       
 
@@ -254,6 +256,8 @@
 }</code></pre>
       </div>
       </div>
+      
+      
     </div>
     <div class="endpoint-card" id="ep-1">
       <div class="endpoint-info">
@@ -317,6 +321,8 @@
         <div class="section-label">Expected Status <span class="status-badge">201</span></div>
       </div>
       </div>
+      
+      
     </div>
     <div class="endpoint-card" id="ep-2">
       <div class="endpoint-info">
@@ -368,6 +374,8 @@
         <div class="section-label">Expected Status <span class="status-badge">201</span></div>
       </div>
       </div>
+      
+      
     </div>
     <div class="endpoint-card" id="ep-3">
       <div class="endpoint-info">
@@ -439,6 +447,8 @@
 }</code></pre>
       </div>
       </div>
+      
+      
     </div>
     <div class="endpoint-card" id="ep-4">
       <div class="endpoint-info">
@@ -517,6 +527,18 @@
         <div class="section-label">Expected Status <span class="status-badge">200</span></div>
       </div>
       </div>
+      
+      
+      <div id="ep-4-cases" style="grid-column: 1 / -1; margin-top: 24px; padding-top: 32px; border-top: 1px dashed var(--border);">
+        <h4 style="color: var(--accent); margin-bottom: 16px; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Use Cases
+        </h4>
+        <div class="guide-text" style="background: rgba(99, 102, 241, 0.03); border: 1px solid rgba(99, 102, 241, 0.1); border-radius: 12px; padding: 24px;">
+          <div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Imagine the frontend has fetched the order and the user is on the Order Details edit page. When the user clicks &quot;Save Changes&quot;, the frontend sends a single PUT request with the final state of the order.</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Here is how specific actions translate into the JSON payload:</p></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">1. Editing the Sender:</h5><p style="margin-bottom:4px; font-size:14px;"><strong>Action:</strong> <span style="color:var(--text-muted);"> The user selects a different sender or a different address for the sender.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Payload:</strong> <span style="color:var(--text-muted);"> You pass the new senderId and senderAddressId at the root level. The backend automatically fetches the fresh name, phone, and address from the Party Master and updates the order snapshot.</span></p></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">2. Editing a Receiver (Parcel Destination):</h5><p style="margin-bottom:4px; font-size:14px;"><strong>Action:</strong> <span style="color:var(--text-muted);"> The user changes the delivery address for an existing parcel.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Payload:</strong> <span style="color:var(--text-muted);"> You include the existing receiverDetailsId, but change the receiverAddressId to the new selection.</span></p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">```json</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">{</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">&quot;receiverDetailsId&quot;: 105, // Tells backend: &quot;Update this existing receiver&quot;</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">&quot;receiverId&quot;: 4,</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">&quot;receiverAddressId&quot;: 12 // Changed to a new address ID</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">}</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">```</p></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">3. Adding/Removing/Editing Products:</h5><p style="margin-bottom:4px; font-size:14px;"><strong>Edit Quantity:</strong> <span style="color:var(--text-muted);"> Pass the product with its existing orderItemId and the new quantity.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Add Product:</strong> <span style="color:var(--text-muted);"> Pass the new product without an orderItemId. The backend sees no ID and creates it.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Remove Product:</strong> <span style="color:var(--text-muted);"> Simply omit the product from the array. The backend sees it's missing compared to the database and soft-deletes it.</span></p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">```json</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">{</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">&quot;products&quot;: [</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">{ &quot;orderItemId&quot;: 50, &quot;variationId&quot;: 1, &quot;quantity&quot;: 10 }, // UPDATE qty to 10</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">{ &quot;variationId&quot;: 2, &quot;quantity&quot;: 5 } // INSERT new product (No orderItemId)</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">// Omitted orderItemId 51 -&gt; Backend will DELETE it</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">]</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">}</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">```</p></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">4. Deleting a Parcel:</h5><p style="margin-bottom:4px; font-size:14px;"><strong>Action:</strong> <span style="color:var(--text-muted);"> The user clicks the &quot;Trash&quot; icon on a parcel/receiver card.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Payload:</strong> <span style="color:var(--text-muted);"> The frontend simply removes that receiver object from the receivers array before sending the payload.</span></p><p style="margin-bottom:4px; font-size:14px;"><strong>Backend Response:</strong> <span style="color:var(--text-muted);"> The diff engine notices the receiverDetailsId is missing, so it soft-deletes the receiver, soft-deletes all attached items, and automatically sets the Parcel Status to CANCELLED (Trigger 5).</span></p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Evaluation: Is the Diff Strategy Suitable?</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Yes, it is highly suitable and represents the industry standard for complex form edits.</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">If we didn't use a diff strategy, the frontend would have to make 5 different API calls when the user clicks &quot;Save&quot; (e.g., DELETE /items/3, POST /items, PUT /receivers/2, PATCH /orders/1).</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Why this is great for your UI:</p><li style="margin-left: 20px; margin-bottom: 8px; font-size:14px;">Dumb Frontend, Smart Backend: The React/Vue frontend doesn't need to track a list of &quot;deleted items&quot; or &quot;new items&quot;. It just maintains a single state object. Whatever the state object looks like when the user clicks &quot;Save&quot; is exactly what is sent to the backend.</li><li style="margin-left: 20px; margin-bottom: 8px; font-size:14px;">Atomicity: Because the backend calculates the diffs and wraps them in a single SQL Transaction, if anything fails (e.g., a product variation doesn't exist), the entire update rolls back. You never end up with a half-updated order.</li><li style="margin-left: 20px; margin-bottom: 8px; font-size:14px;">Automatic Cleanup: Deleting a receiver automatically cleans up the items and cancels the parcel without the frontend needing to explicitly request a parcel cancellation.</li></div><div style="margin-bottom: 16px;"><h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">⚠️ Caveats to Keep in Mind for the UI:</h5><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">There are two important constraints this API enforces that the UI must respect:</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Strict ID Resolution (No Free-Text):</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Currently, the API contract strictly requires senderId, receiverId, and addressId. It pulls the text (Names, Phones, Addresses) directly from the Party Master.</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">If your UI allows users to arbitrarily type a new name or phone number into a text box just for this specific order, the current API will ignore it. To change a phone number, the user must update the Party Master first, or the API needs to be relaxed to accept raw string overrides.</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">The &quot;All-or-Nothing&quot; Threshold:</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">If any parcel in the order has reached AWB_LINKED or DISPATCHED, the API will block the entire update with a 400 Bad Request. The UI should check the parcel statuses on load, and if physical execution has started, the &quot;Edit Order&quot; button should be disabled with a tooltip explaining why.</p></div><div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Full Array Required:</p><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">If an order has 3 receivers and the user only wants to edit 1, the frontend must send all 3 receivers in the payload. If it only sends 1, the diff strategy will assume the user deleted the other 2.</p></div>
+        </div>
+      </div>
+    
     </div>
     <div class="endpoint-card" id="ep-5">
       <div class="endpoint-info">
@@ -552,6 +574,8 @@
         <div class="section-label">Expected Status <span class="status-badge">200</span></div>
       </div>
       </div>
+      
+      
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
         Generated from api-manifest.yaml — v1.1.0 — 2026-05-04

@@ -595,6 +595,66 @@ collections:
         roles: [ADMIN, OPERATOR]
         description: "Atomic full-graph update. Accepts sender, receivers, and products. Blocked if any parcel >= AWB_LINKED. Removed receivers are soft-deleted and their parcels cancelled."
         notes: "Uses a diff-based strategy: receivers with receiverDetailsId are updated, without it are added, any existing receivers missing from the payload are soft-deleted. Products follow the same pattern with orderItemId."
+        useCases: |
+          Imagine the frontend has fetched the order and the user is on the Order Details edit page. When the user clicks "Save Changes", the frontend sends a single PUT request with the final state of the order.
+
+          Here is how specific actions translate into the JSON payload:
+
+          1. Editing the Sender:
+          Action: The user selects a different sender or a different address for the sender.
+          Payload: You pass the new senderId and senderAddressId at the root level. The backend automatically fetches the fresh name, phone, and address from the Party Master and updates the order snapshot.
+
+          2. Editing a Receiver (Parcel Destination):
+          Action: The user changes the delivery address for an existing parcel.
+          Payload: You include the existing receiverDetailsId, but change the receiverAddressId to the new selection.
+          ```json
+          {
+            "receiverDetailsId": 105, // Tells backend: "Update this existing receiver"
+            "receiverId": 4,
+            "receiverAddressId": 12 // Changed to a new address ID
+          }
+          ```
+
+          3. Adding/Removing/Editing Products:
+          Edit Quantity: Pass the product with its existing orderItemId and the new quantity.
+          Add Product: Pass the new product without an orderItemId. The backend sees no ID and creates it.
+          Remove Product: Simply omit the product from the array. The backend sees it's missing compared to the database and soft-deletes it.
+          ```json
+          {
+            "products": [
+              { "orderItemId": 50, "variationId": 1, "quantity": 10 }, // UPDATE qty to 10
+              { "variationId": 2, "quantity": 5 } // INSERT new product (No orderItemId)
+              // Omitted orderItemId 51 -> Backend will DELETE it
+            ]
+          }
+          ```
+
+          4. Deleting a Parcel:
+          Action: The user clicks the "Trash" icon on a parcel/receiver card.
+          Payload: The frontend simply removes that receiver object from the receivers array before sending the payload.
+          Backend Response: The diff engine notices the receiverDetailsId is missing, so it soft-deletes the receiver, soft-deletes all attached items, and automatically sets the Parcel Status to CANCELLED (Trigger 5).
+
+          Evaluation: Is the Diff Strategy Suitable?
+          Yes, it is highly suitable and represents the industry standard for complex form edits.
+          If we didn't use a diff strategy, the frontend would have to make 5 different API calls when the user clicks "Save" (e.g., DELETE /items/3, POST /items, PUT /receivers/2, PATCH /orders/1).
+
+          Why this is great for your UI:
+          - Dumb Frontend, Smart Backend: The React/Vue frontend doesn't need to track a list of "deleted items" or "new items". It just maintains a single state object. Whatever the state object looks like when the user clicks "Save" is exactly what is sent to the backend.
+          - Atomicity: Because the backend calculates the diffs and wraps them in a single SQL Transaction, if anything fails (e.g., a product variation doesn't exist), the entire update rolls back. You never end up with a half-updated order.
+          - Automatic Cleanup: Deleting a receiver automatically cleans up the items and cancels the parcel without the frontend needing to explicitly request a parcel cancellation.
+
+          ⚠️ Caveats to Keep in Mind for the UI:
+          There are two important constraints this API enforces that the UI must respect:
+
+          Strict ID Resolution (No Free-Text):
+          Currently, the API contract strictly requires senderId, receiverId, and addressId. It pulls the text (Names, Phones, Addresses) directly from the Party Master.
+          If your UI allows users to arbitrarily type a new name or phone number into a text box just for this specific order, the current API will ignore it. To change a phone number, the user must update the Party Master first, or the API needs to be relaxed to accept raw string overrides.
+
+          The "All-or-Nothing" Threshold:
+          If any parcel in the order has reached AWB_LINKED or DISPATCHED, the API will block the entire update with a 400 Bad Request. The UI should check the parcel statuses on load, and if physical execution has started, the "Edit Order" button should be disabled with a tooltip explaining why.
+
+          Full Array Required:
+          If an order has 3 receivers and the user only wants to edit 1, the frontend must send all 3 receivers in the payload. If it only sends 1, the diff strategy will assume the user deleted the other 2.
         headers: { Content-Type: application/json }
         body: |
           { "senderId": 2, "senderAddressId": 2, "receivers": [{ "receiverDetailsId": 1, "receiverId": 1, "receiverAddressId": 1, "products": [{ "orderItemId": 1, "variationId": 1, "quantity": 5 }, { "variationId": 2, "quantity": 10 }] }, { "receiverId": 2, "receiverAddressId": 2, "products": [{ "variationId": 1, "quantity": 1 }] }] }

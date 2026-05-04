@@ -123,6 +123,21 @@ const renderEndpoint = (ep, idx, baseUrl) => {
         </div>
       </div>`;
   }
+  
+  let useCasesHtml = '';
+  if (ep.useCases) {
+    useCasesHtml = `
+      <div id="ep-${idx}-cases" style="grid-column: 1 / -1; margin-top: 24px; padding-top: 32px; border-top: 1px dashed var(--border);">
+        <h4 style="color: var(--accent); margin-bottom: 16px; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Use Cases
+        </h4>
+        <div class="guide-text" style="background: rgba(99, 102, 241, 0.03); border: 1px solid rgba(99, 102, 241, 0.1); border-radius: 12px; padding: 24px;">
+          ${renderGuide(ep.useCases)}
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div class="endpoint-card" id="ep-${idx}">
@@ -171,12 +186,55 @@ const renderEndpoint = (ep, idx, baseUrl) => {
         ${bodyHtml}
         ${responseHtml}
       </div>
+      
+      ${useCasesHtml}
     </div>`;
+};
+
+const renderGuide = (guideText) => {
+  if (!guideText) return '';
+  const blocks = guideText.split(/\n\n+/);
+  return blocks.map(block => {
+    block = block.trim();
+    if (block.startsWith('```')) {
+      const lines = block.split('\n');
+      const content = lines.slice(1).filter(l => !l.startsWith('```')).join('\n');
+      try {
+        const pretty = JSON.stringify(JSON.parse(content), null, 2);
+        return `<pre class="code-block" style="margin-bottom: 24px;"><code>${highlightJson(pretty)}</code></pre>`;
+      } catch {
+        return `<pre class="code-block" style="margin-bottom: 24px;"><code>${escapeHtml(content)}</code></pre>`;
+      }
+    }
+    
+    const lines = block.split('\n');
+    let html = '';
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      if (/^\d+\./.test(line) || line.startsWith('⚠️')) {
+         html += `<h5 style="color:var(--accent); margin-top:24px; margin-bottom:8px; font-size:15px; font-weight:600;">${escapeHtml(line)}</h5>`;
+      } else if (line.startsWith('- ')) {
+         html += `<li style="margin-left: 20px; margin-bottom: 8px; font-size:14px;">${escapeHtml(line.substring(2))}</li>`;
+      } else if (line.startsWith('Action:') || line.startsWith('Payload:') || line.startsWith('Backend Response:') || line.startsWith('Edit Quantity:') || line.startsWith('Add Product:') || line.startsWith('Remove Product:')) {
+         html += `<p style="margin-bottom:4px; font-size:14px;"><strong>${escapeHtml(line.split(':')[0])}:</strong> <span style="color:var(--text-muted);">${escapeHtml(line.split(':').slice(1).join(':'))}</span></p>`;
+      } else {
+         html += `<p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">${escapeHtml(line)}</p>`;
+      }
+    }
+    return `<div style="margin-bottom: 16px;">${html}</div>`;
+  }).join('');
 };
 
 const generateCollectionHtml = (collection, info) => {
   const toc = collection.endpoints
-    .map((ep, i) => `<a href="#ep-${i}" class="toc-item"><span class="method-badge-sm ${ep.method.toLowerCase()}">${ep.method}</span>${escapeHtml(ep.name)}</a>`)
+    .map((ep, i) => {
+      let link = `<a href="#ep-${i}" class="toc-item"><span class="method-badge-sm ${ep.method.toLowerCase()}">${ep.method}</span>${escapeHtml(ep.name)}</a>`;
+      if (ep.useCases) {
+        link += `<a href="#ep-${i}-cases" class="toc-item sub-item" style="padding-left: 36px; font-size: 11px; margin-top: -2px; margin-bottom: 4px; color: var(--accent);">↳ Use Cases</a>`;
+      }
+      return link;
+    })
     .join('');
 
   const baseUrl = info.baseUrl || 'http://localhost:5000/api/v1';
@@ -351,7 +409,9 @@ const generateCollectionHtml = (collection, info) => {
       ${collection.guide ? `
         <div class="guide-box">
           <h4>Integration Guide</h4>
-          <p>${escapeHtml(collection.guide)}</p>
+          <div class="guide-text">
+            ${renderGuide(collection.guide)}
+          </div>
         </div>
       ` : ''}
 
