@@ -1,5 +1,0 @@
-### Get Product Dropdown
-GET /api/v1/products/dropdown
-
-### Get Product Dropdown with Search
-GET /api/v1/products/dropdown?search=Cotton
