@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Order Pipeline</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Orders</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode B (Sender → Receivers)</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode A (Sender-to-Self)</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Get Order Aggregate</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Order</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Cancel Order</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Orders</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode B (Sender → Receivers)</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm post">POST</span>Create Order — Mode A (Sender-to-Self)</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Get Order Aggregate</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Order (Full Graph)</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Cancel Order</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -167,7 +167,7 @@
       
         <div class="guide-box">
           <h4>Integration Guide</h4>
-          <p>Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique Parcel ID (PDS-XXX).</p>
+          <p>Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique dynamic Parcel ID (PCL-&lt;orderId&gt;-&lt;parcelDetailsId&gt;).</p>
         </div>
       
 
@@ -422,8 +422,8 @@
         &quot;state&quot;: &quot;Delhi&quot;,
         &quot;pincode&quot;: &quot;110005&quot;,
         &quot;parcel&quot;: {
-          &quot;id&quot;: <span class="json-number">1</span>,
-          &quot;parcelId&quot;: &quot;PDS-A1B2C3&quot;,
+          &quot;parcelDetailsId&quot;: <span class="json-number">1</span>,
+          &quot;parcelId&quot;: &quot;PCL-1-1&quot;,
           &quot;status&quot;: &quot;PENDING&quot;
         },
         &quot;products&quot;: [
@@ -446,10 +446,16 @@
           <span class="method-badge" style="background:#78350f;color:#fbbf24;border-color:#92400e">PUT</span>
           <code class="endpoint-path">/orders/:id</code>
         </div>
-        <h3 class="endpoint-name">Update Order</h3>
-        <p class="endpoint-desc">Updates order details (blocked if any parcel &gt;= AWB_LINKED).</p>
+        <h3 class="endpoint-name">Update Order (Full Graph)</h3>
+        <p class="endpoint-desc">Atomic full-graph update. Accepts sender, receivers, and products. Blocked if any parcel &gt;= AWB_LINKED. Removed receivers are soft-deleted and their parcels cancelled.</p>
         
         
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> Uses a diff-based strategy: receivers with receiverDetailsId are updated, without it are added, any existing receivers missing from the payload are soft-deleted. Products follow the same pattern with orderItemId.
+        </div>
+      </div>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
@@ -469,13 +475,41 @@
         <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/orders/:id&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;senderName&quot;:&quot;Ramesh Textiles Updated&quot;,&quot;courierId&quot;:2}'</code></pre>
+  -d '{&quot;senderId&quot;:2,&quot;senderAddressId&quot;:2,&quot;receivers&quot;:[{&quot;receiverDetailsId&quot;:1,&quot;receiverId&quot;:1,&quot;receiverAddressId&quot;:1,&quot;products&quot;:[{&quot;orderItemId&quot;:1,&quot;variationId&quot;:1,&quot;quantity&quot;:5},{&quot;variationId&quot;:2,&quot;quantity&quot;:10}]},{&quot;receiverId&quot;:2,&quot;receiverAddressId&quot;:2,&quot;products&quot;:[{&quot;variationId&quot;:1,&quot;quantity&quot;:1}]}]}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;senderName&quot;: &quot;Ramesh Textiles Updated&quot;,
-  &quot;courierId&quot;: <span class="json-number">2</span>
+  &quot;senderId&quot;: <span class="json-number">2</span>,
+  &quot;senderAddressId&quot;: <span class="json-number">2</span>,
+  &quot;receivers&quot;: [
+    {
+      &quot;receiverDetailsId&quot;: <span class="json-number">1</span>,
+      &quot;receiverId&quot;: <span class="json-number">1</span>,
+      &quot;receiverAddressId&quot;: <span class="json-number">1</span>,
+      &quot;products&quot;: [
+        {
+          &quot;orderItemId&quot;: <span class="json-number">1</span>,
+          &quot;variationId&quot;: <span class="json-number">1</span>,
+          &quot;quantity&quot;: <span class="json-number">5</span>
+        },
+        {
+          &quot;variationId&quot;: <span class="json-number">2</span>,
+          &quot;quantity&quot;: <span class="json-number">10</span>
+        }
+      ]
+    },
+    {
+      &quot;receiverId&quot;: <span class="json-number">2</span>,
+      &quot;receiverAddressId&quot;: <span class="json-number">2</span>,
+      &quot;products&quot;: [
+        {
+          &quot;variationId&quot;: <span class="json-number">1</span>,
+          &quot;quantity&quot;: <span class="json-number">1</span>
+        }
+      ]
+    }
+  ]
 }</code></pre>
       </div>
         
@@ -487,7 +521,7 @@
     <div class="endpoint-card" id="ep-5">
       <div class="endpoint-info">
         <div class="endpoint-header">
-          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
+          <span class="method-badge" style="background:#7f1d1d;color:#f87171;border-color:#991b1b">DELETE</span>
           <code class="endpoint-path">/orders/:id/cancel</code>
         </div>
         <h3 class="endpoint-name">Cancel Order</h3>
@@ -510,7 +544,7 @@
 
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/orders/:id/cancel&quot; \
+        <pre class="code-block curl-block"><code>curl -X DELETE &quot;{{base_url}}/orders/:id/cancel&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
         
         
@@ -520,7 +554,7 @@
       </div>
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.0.0 — 2026-04-30
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-04
       </footer>
     </main>
   </div>

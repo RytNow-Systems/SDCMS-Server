@@ -217,7 +217,7 @@
                 <tr>
                   <td><code>parcelId</code></td>
                   <td><span class="type-tag">string</span></td>
-                  <td>Search by QR code/Parcel ID</td>
+                  <td>Search by dynamic Parcel ID (PCL-X-Y)</td>
                 </tr>
               
             </tbody>
@@ -287,8 +287,8 @@
         <pre class="code-block"><code>{
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: {
-    &quot;id&quot;: <span class="json-number">1</span>,
-    &quot;parcelId&quot;: &quot;PDS-A1B2C3&quot;,
+    &quot;parcelDetailsId&quot;: <span class="json-number">1</span>,
+    &quot;parcelId&quot;: &quot;PCL-1-1&quot;,
     &quot;trackingNo&quot;: <span class="json-null">null</span>,
     &quot;status&quot;: &quot;PENDING&quot;,
     &quot;labelPrintCount&quot;: <span class="json-number">0</span>,
@@ -339,8 +339,8 @@
         <pre class="code-block"><code>{
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: {
-    &quot;id&quot;: <span class="json-number">1</span>,
-    &quot;parcelId&quot;: &quot;PDS-A1B2C3&quot;,
+    &quot;parcelDetailsId&quot;: <span class="json-number">1</span>,
+    &quot;parcelId&quot;: &quot;PCL-1-1&quot;,
     &quot;trackingNo&quot;: <span class="json-null">null</span>,
     &quot;status&quot;: &quot;PENDING&quot;,
     &quot;labelPrintCount&quot;: <span class="json-number">0</span>,
@@ -392,8 +392,8 @@
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: [
     {
-      &quot;id&quot;: <span class="json-number">1</span>,
-      &quot;parcelId&quot;: &quot;PDS-A1B2C3&quot;,
+      &quot;receiverStatusDetailsId&quot;: <span class="json-number">1</span>,
+      &quot;parcelId&quot;: &quot;PCL-1-1&quot;,
       &quot;orderCode&quot;: &quot;ORD-2026-001&quot;,
       &quot;actionType&quot;: &quot;STATUS_UPDATE&quot;,
       &quot;awbNumber&quot;: <span class="json-null">null</span>,
@@ -408,7 +408,7 @@
       </div>
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.0.0 — 2026-04-30
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-04
       </footer>
     </main>
   </div>

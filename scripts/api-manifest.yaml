@@ -4,7 +4,7 @@
 # ============================================================================
 info:
   title: SDCMS Backend API
-  version: "1.0.0"
+  version: "1.1.0"
   baseUrl: "{{base_url}}"
 
 collections:
@@ -26,7 +26,7 @@ collections:
           { "email": "admin@example.com", "password": "securePass123" }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "id": "EMP-001", "employeeCode": "EMP-001", "name": "Admin User", "email": "admin@example.com", "role": "ADMIN", "token": "eyJhbG..." } }
+          { "success": true, "data": { "id": "EMP-001", "employeeCode": "EMP-001", "username": "admin", "name": "Admin User", "email": "admin@example.com", "role": "ADMIN", "token": "eyJhbG..." } }
         assertions:
           - "res.status equals 200"
           - "res.body.success is true"
@@ -39,7 +39,7 @@ collections:
         description: Retrieves the authenticated user's profile and permissions.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "employeeCode": "EMP-001", "firstName": "Admin User", "email": "admin@example.com", "phoneNo": "9876543210", "roleCode": "ADMIN", "allowLogin": true, "createdAt": "2026-04-20T10:00:00Z" } }
+          { "success": true, "data": { "employeeCode": "EMP-001", "username": "admin", "firstName": "Admin User", "email": "admin@example.com", "phoneNo": "9876543210", "roleCode": "ADMIN", "allowLogin": true, "createdAt": "2026-04-20T10:00:00Z" } }
         assertions:
           - "res.status equals 200"
           - "res.body.success is true"
@@ -279,6 +279,13 @@ collections:
           { "name": "Updated Name" }
         responseStatus: 200
 
+      - name: Delete Employee
+        method: DELETE
+        path: /employees/:id
+        roles: [ADMIN]
+        description: Soft-deletes an employee (sets IsActive=0). Deactivated employees are excluded from all GET responses.
+        responseStatus: 200
+
       - name: Toggle Employee Access
         method: PATCH
         path: /employees/:id/toggle-access
@@ -437,8 +444,40 @@ collections:
   # ========== 6. RECEIVERS ==========
   - name: Receivers
     slug: receivers
-    description: Receiver lookup and dropdown endpoints
+    description: Receiver (Party) CRUD, lookup, and address book
+    guide: "Receivers mirror the Sender module. Full CRUD is supported with phone/email uniqueness checks. Each receiver can have multiple shipping addresses via the address book sub-resource."
     endpoints:
+      - name: List Receivers
+        method: GET
+        path: /receivers
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves all active receiver entities.
+        responseStatus: 200
+
+      - name: Create Receiver
+        method: POST
+        path: /receivers
+        roles: [ADMIN, OPERATOR]
+        description: Registers a new receiver with contact and address info.
+        headers: { Content-Type: application/json }
+        body: |
+          { "customerName": "Delhi Fabrics Ltd.", "phoneNo": "9123456780", "emailId": "delhi@fabrics.com", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005" }
+        responseStatus: 201
+
+      - name: Get Receiver by ID
+        method: GET
+        path: /receivers/:id
+        roles: [ADMIN, OPERATOR]
+        description: Retrieves a single receiver profile.
+        responseStatus: 200
+
+      - name: Lookup by Phone
+        method: GET
+        path: /receivers/lookup?phone=9123456780
+        roles: [ADMIN, OPERATOR]
+        description: Quick receiver lookup by mobile number for auto-fill.
+        responseStatus: 200
+
       - name: Get All Receiver Names
         method: GET
         path: /receivers/names
@@ -460,11 +499,47 @@ collections:
         description: Search receivers by partial name match.
         responseStatus: 200
 
+      - name: Update Receiver
+        method: PUT
+        path: /receivers/:id
+        roles: [ADMIN, OPERATOR]
+        description: Updates receiver information (partial updates supported).
+        headers: { Content-Type: application/json }
+        body: |
+          { "customerName": "Delhi Fabrics Updated", "city": "Gurugram" }
+        responseStatus: 200
+
+      - name: Delete Receiver
+        method: DELETE
+        path: /receivers/:id
+        roles: [ADMIN, OPERATOR]
+        description: Soft-deletes a receiver.
+        responseStatus: 200
+
+      - name: Get Addresses
+        method: GET
+        path: /receivers/:id/addresses
+        roles: [ADMIN, OPERATOR]
+        description: Address book entries for a receiver (dropdown).
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "id": 10, "partyId": 2, "partyName": "Delhi Fabrics Ltd.", "phoneNo": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "isDefault": true }] }
+
+      - name: Create Address
+        method: POST
+        path: /receivers/:id/addresses
+        roles: [ADMIN, OPERATOR]
+        description: Adds a new address to a receiver's address book.
+        headers: { Content-Type: application/json }
+        body: |
+          { "address": "789 New Location", "city": "Kolkata", "state": "West Bengal", "pincode": "700001" }
+        responseStatus: 201
+
   # ========== 7. ORDER PIPELINE ==========
   - name: Order Pipeline
     slug: order-pipeline
     description: Order CRUD with Mode A/B/C support
-    guide: "Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique Parcel ID (PDS-XXX)."
+    guide: "Our system uses 3 creation modes: Mode A (Sender-to-Self), Mode B (Sender-to-Receivers), and Mode C (Combo). The backend automatically detects the mode based on whether 'products' (root) or 'receivers' (array) are provided. Testers should verify that each receiver correctly generates its own unique dynamic Parcel ID (PCL-<orderId>-<parcelDetailsId>)."
     endpoints:
       - name: List Orders
         method: GET
@@ -491,7 +566,7 @@ collections:
         responseStatus: 201
         assertions:
           - "res.status equals 201"
-          - "Each receiver has a nested parcel with parcelId starting with PDS-"
+          - "Each receiver has a nested parcel with parcelId starting with PCL-"
           - "Parcel status is PENDING"
           - "Mode B detected: multiple receivers created"
 
@@ -512,20 +587,21 @@ collections:
         description: Full order with nested receivers, items, and parcels.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "id": 1, "orderCode": "ORD-2026-001", "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "totalAmount": 2100.00, "derivedStatus": "PENDING", "senderAddress": "14, Gandhi Nagar, Surat", "courierId": 1, "receivers": [{ "id": 1, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "parcel": { "id": 1, "parcelId": "PDS-A1B2C3", "status": "PENDING" }, "products": [{ "productId": 1, "qty": 5, "unitPrice": 420.00 }] }] } }
+          { "success": true, "data": { "id": 1, "orderCode": "ORD-2026-001", "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "totalAmount": 2100.00, "derivedStatus": "PENDING", "senderAddress": "14, Gandhi Nagar, Surat", "courierId": 1, "receivers": [{ "id": 1, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "parcel": { "parcelDetailsId": 1, "parcelId": "PCL-1-1", "status": "PENDING" }, "products": [{ "productId": 1, "qty": 5, "unitPrice": 420.00 }] }] } }
 
-      - name: Update Order
+      - name: Update Order (Full Graph)
         method: PUT
         path: /orders/:id
         roles: [ADMIN, OPERATOR]
-        description: Updates order details (blocked if any parcel >= AWB_LINKED).
+        description: "Atomic full-graph update. Accepts sender, receivers, and products. Blocked if any parcel >= AWB_LINKED. Removed receivers are soft-deleted and their parcels cancelled."
+        notes: "Uses a diff-based strategy: receivers with receiverDetailsId are updated, without it are added, any existing receivers missing from the payload are soft-deleted. Products follow the same pattern with orderItemId."
         headers: { Content-Type: application/json }
         body: |
-          { "senderName": "Ramesh Textiles Updated", "courierId": 2 }
+          { "senderId": 2, "senderAddressId": 2, "receivers": [{ "receiverDetailsId": 1, "receiverId": 1, "receiverAddressId": 1, "products": [{ "orderItemId": 1, "variationId": 1, "quantity": 5 }, { "variationId": 2, "quantity": 10 }] }, { "receiverId": 2, "receiverAddressId": 2, "products": [{ "variationId": 1, "quantity": 1 }] }] }
         responseStatus: 200
 
       - name: Cancel Order
-        method: PATCH
+        method: DELETE
         path: /orders/:id/cancel
         roles: [ADMIN, OPERATOR]
         description: Cancels order and all non-dispatched parcels.
@@ -545,7 +621,7 @@ collections:
           page: { type: 'number', description: 'Page index' }
           limit: { type: 'number', description: 'Items per page' }
           orderCode: { type: 'string', description: 'Search by partial Order Code' }
-          parcelId: { type: 'string', description: 'Search by QR code/Parcel ID' }
+          parcelId: { type: 'string', description: 'Search by dynamic Parcel ID (PCL-X-Y)' }
         responseStatus: 200
 
       - name: Get Parcel by ID
@@ -557,7 +633,7 @@ collections:
           id: { type: 'number', description: 'Unique identifier of the parcel' }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "id": 1, "parcelId": "PDS-A1B2C3", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
+          { "success": true, "data": { "parcelDetailsId": 1, "parcelId": "PCL-1-1", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
 
       - name: Get Label Data
         method: GET
@@ -566,7 +642,7 @@ collections:
         description: On-demand label generation data for printing.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "id": 1, "parcelId": "PDS-A1B2C3", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
+          { "success": true, "data": { "parcelDetailsId": 1, "parcelId": "PCL-1-1", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
 
       - name: Get Timeline
         method: GET
@@ -575,7 +651,7 @@ collections:
         description: Append-only event timeline for a parcel.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "id": 1, "parcelId": "PDS-A1B2C3", "orderCode": "ORD-2026-001", "actionType": "STATUS_UPDATE", "awbNumber": null, "previousStatus": "Created", "newStatus": "PENDING", "scannedBy": "EMP-001", "timestamp": "2026-04-24T10:05:00Z" }] }
+          { "success": true, "data": [{ "receiverStatusDetailsId": 1, "parcelId": "PCL-1-1", "orderCode": "ORD-2026-001", "actionType": "STATUS_UPDATE", "awbNumber": null, "previousStatus": "Created", "newStatus": "PENDING", "scannedBy": "EMP-001", "timestamp": "2026-04-24T10:05:00Z" }] }
 
   # ========== 9. LABEL PRINT LOGGING ==========
   - name: Label Print Logging
@@ -600,11 +676,11 @@ collections:
         method: POST
         path: /parcels/scan
         roles: [ADMIN, OPERATOR, COURIER]
-        description: "QR identifies parcel, AWB links shipment. OPERATOR → AWB_LINKED, COURIER → auto-DISPATCHED."
-        notes: "This is an atomic operation. You must scan the QR code first to identify the parcel. If a user with the COURIER role performs this scan, the parcel is automatically moved to the DISPATCHED state, skipping the manual dispatch step."
+        description: "Parcel ID identifies parcel, AWB links shipment. OPERATOR → AWB_LINKED, COURIER → auto-DISPATCHED."
+        notes: "This is an atomic operation. The parcelId (dynamic PCL-<orderId>-<parcelDetailsId> format) identifies the parcel from the scanned QR code. If a user with the COURIER role performs this scan, the parcel is automatically moved to the DISPATCHED state, skipping the manual dispatch step."
         headers: { Content-Type: application/json }
         body: |
-          { "qrCode": "PDS-A1B2C3", "awbNumber": "AWB-DTDC-001" }
+          { "parcelId": "PCL-1-1", "awbNumber": "AWB-DTDC-001" }
         responseStatus: 200
         assertions:
           - "OPERATOR scan → status AWB_LINKED"
@@ -622,7 +698,7 @@ collections:
         description: Dispatches one or more AWB_LINKED parcels.
         headers: { Content-Type: application/json }
         body: |
-          { "parcelIds": [1, 2, 3] }
+          { "parcelDetailsIds": [1, 2, 3] }
         responseStatus: 200
 
       - name: Mark Delivered
@@ -632,11 +708,11 @@ collections:
         description: Terminal state — marks parcel as DELIVERED.
         responseStatus: 200
 
-      - name: Mark Returned
+      - name: Cancel Parcel
         method: PATCH
-        path: /parcels/:id/return
+        path: /parcels/:id/cancel
         roles: [ADMIN, OPERATOR]
-        description: Terminal state — marks parcel as RETURNED.
+        description: Terminal state — cancels a parcel.
         responseStatus: 200
 
 
@@ -652,7 +728,7 @@ collections:
         description: Paginated event log from receiver_status_details.
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "id": 1, "parcelId": "PDS-A1B2C3", "orderCode": "ORD-2026-001", "actionType": "AWB_LINK", "awbNumber": "AWB-DTDC-001", "previousStatus": "LABEL_PRINTED", "newStatus": "AWB_LINKED", "scannedBy": "EMP-001", "timestamp": "2026-04-24T12:00:00Z" }], "meta": { "totalRows": 50 } }
+          { "success": true, "data": [{ "receiverStatusDetailsId": 1, "parcelId": "PCL-1-1", "orderCode": "ORD-2026-001", "actionType": "AWB_LINK", "awbNumber": "AWB-DTDC-001", "previousStatus": "LABEL_PRINTED", "newStatus": "AWB_LINKED", "scannedBy": "EMP-001", "timestamp": "2026-04-24T12:00:00Z" }], "meta": { "totalRows": 50 } }
 
       - name: Export CSV
         method: GET

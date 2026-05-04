@@ -156,18 +156,177 @@
         <h1>SDCMS Backend API</h1>
         <h2>Receivers</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get All Receiver Names</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm get">GET</span>Get All Receiver Phones</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Lookup by Name</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Receivers</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Receiver</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Receiver by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Lookup by Phone</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get All Receiver Names</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm get">GET</span>Get All Receiver Phones</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>Lookup by Name</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Receiver</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Receiver</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm get">GET</span>Get Addresses</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm post">POST</span>Create Address</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
         <h2>Receivers</h2>
-        <p>Receiver lookup and dropdown endpoints</p>
+        <p>Receiver (Party) CRUD, lookup, and address book</p>
       </header>
 
+      
+        <div class="guide-box">
+          <h4>Integration Guide</h4>
+          <p>Receivers mirror the Sender module. Full CRUD is supported with phone/email uniqueness checks. Each receiver can have multiple shipping addresses via the address book sub-resource.</p>
+        </div>
       
 
       
     <div class="endpoint-card" id="ep-0">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/receivers</code>
+        </div>
+        <h3 class="endpoint-name">List Receivers</h3>
+        <p class="endpoint-desc">Retrieves all active receiver entities.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/receivers&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-1">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
+          <code class="endpoint-path">/receivers</code>
+        </div>
+        <h3 class="endpoint-name">Create Receiver</h3>
+        <p class="endpoint-desc">Registers a new receiver with contact and address info.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/receivers&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;customerName&quot;:&quot;Delhi Fabrics Ltd.&quot;,&quot;phoneNo&quot;:&quot;9123456780&quot;,&quot;emailId&quot;:&quot;delhi@fabrics.com&quot;,&quot;address&quot;:&quot;45, Karol Bagh&quot;,&quot;city&quot;:&quot;New Delhi&quot;,&quot;state&quot;:&quot;Delhi&quot;,&quot;pincode&quot;:&quot;110005&quot;}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;customerName&quot;: &quot;Delhi Fabrics Ltd.&quot;,
+  &quot;phoneNo&quot;: &quot;9123456780&quot;,
+  &quot;emailId&quot;: &quot;delhi@fabrics.com&quot;,
+  &quot;address&quot;: &quot;45, Karol Bagh&quot;,
+  &quot;city&quot;: &quot;New Delhi&quot;,
+  &quot;state&quot;: &quot;Delhi&quot;,
+  &quot;pincode&quot;: &quot;110005&quot;
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">201</span></div>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-2">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/receivers/:id</code>
+        </div>
+        <h3 class="endpoint-name">Get Receiver by ID</h3>
+        <p class="endpoint-desc">Retrieves a single receiver profile.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/receivers/:id&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-3">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/receivers/lookup?phone=9123456780</code>
+        </div>
+        <h3 class="endpoint-name">Lookup by Phone</h3>
+        <p class="endpoint-desc">Quick receiver lookup by mobile number for auto-fill.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/receivers/lookup?phone=9123456780&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-4">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
@@ -202,7 +361,7 @@
       </div>
       </div>
     </div>
-    <div class="endpoint-card" id="ep-1">
+    <div class="endpoint-card" id="ep-5">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
@@ -237,7 +396,7 @@
       </div>
       </div>
     </div>
-    <div class="endpoint-card" id="ep-2">
+    <div class="endpoint-card" id="ep-6">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
@@ -272,8 +431,184 @@
       </div>
       </div>
     </div>
+    <div class="endpoint-card" id="ep-7">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#78350f;color:#fbbf24;border-color:#92400e">PUT</span>
+          <code class="endpoint-path">/receivers/:id</code>
+        </div>
+        <h3 class="endpoint-name">Update Receiver</h3>
+        <p class="endpoint-desc">Updates receiver information (partial updates supported).</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/receivers/:id&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;customerName&quot;:&quot;Delhi Fabrics Updated&quot;,&quot;city&quot;:&quot;Gurugram&quot;}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;customerName&quot;: &quot;Delhi Fabrics Updated&quot;,
+  &quot;city&quot;: &quot;Gurugram&quot;
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-8">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#7f1d1d;color:#f87171;border-color:#991b1b">DELETE</span>
+          <code class="endpoint-path">/receivers/:id</code>
+        </div>
+        <h3 class="endpoint-name">Delete Receiver</h3>
+        <p class="endpoint-desc">Soft-deletes a receiver.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X DELETE &quot;{{base_url}}/receivers/:id&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-9">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/receivers/:id/addresses</code>
+        </div>
+        <h3 class="endpoint-name">Get Addresses</h3>
+        <p class="endpoint-desc">Address book entries for a receiver (dropdown).</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/receivers/:id/addresses&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;id&quot;: <span class="json-number">10</span>,
+      &quot;partyId&quot;: <span class="json-number">2</span>,
+      &quot;partyName&quot;: &quot;Delhi Fabrics Ltd.&quot;,
+      &quot;phoneNo&quot;: &quot;9123456780&quot;,
+      &quot;address&quot;: &quot;45, Karol Bagh&quot;,
+      &quot;city&quot;: &quot;New Delhi&quot;,
+      &quot;state&quot;: &quot;Delhi&quot;,
+      &quot;pincode&quot;: &quot;110005&quot;,
+      &quot;isDefault&quot;: <span class="json-bool">true</span>
+    }
+  ]
+}</code></pre>
+      </div>
+      </div>
+    </div>
+    <div class="endpoint-card" id="ep-10">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
+          <code class="endpoint-path">/receivers/:id/addresses</code>
+        </div>
+        <h3 class="endpoint-name">Create Address</h3>
+        <p class="endpoint-desc">Adds a new address to a receiver's address book.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/receivers/:id/addresses&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;address&quot;:&quot;789 New Location&quot;,&quot;city&quot;:&quot;Kolkata&quot;,&quot;state&quot;:&quot;West Bengal&quot;,&quot;pincode&quot;:&quot;700001&quot;}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;address&quot;: &quot;789 New Location&quot;,
+  &quot;city&quot;: &quot;Kolkata&quot;,
+  &quot;state&quot;: &quot;West Bengal&quot;,
+  &quot;pincode&quot;: &quot;700001&quot;
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">201</span></div>
+      </div>
+      </div>
+    </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.0.0 — 2026-04-30
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-04
       </footer>
     </main>
   </div>

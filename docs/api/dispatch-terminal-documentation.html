@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Dispatch and Terminal States</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm post">POST</span>Batch Dispatch</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Mark Delivered</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Mark Returned</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm post">POST</span>Batch Dispatch</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Mark Delivered</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Cancel Parcel</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -196,12 +196,12 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/parcels/dispatch&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;parcelIds&quot;:[1,2,3]}'</code></pre>
+  -d '{&quot;parcelDetailsIds&quot;:[1,2,3]}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;parcelIds&quot;: [
+  &quot;parcelDetailsIds&quot;: [
     1,
     2,
     3
@@ -253,10 +253,10 @@
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
-          <code class="endpoint-path">/parcels/:id/return</code>
+          <code class="endpoint-path">/parcels/:id/cancel</code>
         </div>
-        <h3 class="endpoint-name">Mark Returned</h3>
-        <p class="endpoint-desc">Terminal state — marks parcel as RETURNED.</p>
+        <h3 class="endpoint-name">Cancel Parcel</h3>
+        <p class="endpoint-desc">Terminal state — cancels a parcel.</p>
         
         
           <div class="meta-grid">
@@ -275,7 +275,7 @@
 
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/parcels/:id/return&quot; \
+        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/parcels/:id/cancel&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
         
         
@@ -285,7 +285,7 @@
       </div>
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.0.0 — 2026-04-30
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-04
       </footer>
     </main>
   </div>

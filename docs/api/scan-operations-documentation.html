@@ -174,13 +174,13 @@
           <code class="endpoint-path">/parcels/scan</code>
         </div>
         <h3 class="endpoint-name">Scan and Link AWB</h3>
-        <p class="endpoint-desc">QR identifies parcel, AWB links shipment. OPERATOR → AWB_LINKED, COURIER → auto-DISPATCHED.</p>
+        <p class="endpoint-desc">Parcel ID identifies parcel, AWB links shipment. OPERATOR → AWB_LINKED, COURIER → auto-DISPATCHED.</p>
         
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> This is an atomic operation. You must scan the QR code first to identify the parcel. If a user with the COURIER role performs this scan, the parcel is automatically moved to the DISPATCHED state, skipping the manual dispatch step.
+          <strong>Developer Note:</strong> This is an atomic operation. The parcelId (dynamic PCL-&lt;orderId&gt;-&lt;parcelDetailsId&gt; format) identifies the parcel from the scanned QR code. If a user with the COURIER role performs this scan, the parcel is automatically moved to the DISPATCHED state, skipping the manual dispatch step.
         </div>
       </div>
           <div class="meta-grid">
@@ -202,12 +202,12 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/parcels/scan&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;qrCode&quot;:&quot;PDS-A1B2C3&quot;,&quot;awbNumber&quot;:&quot;AWB-DTDC-001&quot;}'</code></pre>
+  -d '{&quot;parcelId&quot;:&quot;PCL-1-1&quot;,&quot;awbNumber&quot;:&quot;AWB-DTDC-001&quot;}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;qrCode&quot;: &quot;PDS-A1B2C3&quot;,
+  &quot;parcelId&quot;: &quot;PCL-1-1&quot;,
   &quot;awbNumber&quot;: &quot;AWB-DTDC-001&quot;
 }</code></pre>
       </div>
@@ -218,7 +218,7 @@
       </div>
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.0.0 — 2026-04-30
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-04
       </footer>
     </main>
   </div>
