@@ -225,7 +225,7 @@ Order status is **strictly computed from parcels** (not stored):
 |25|GET|/api/v1/orders|7.3|
 |26|GET|/api/v1/orders/:id|7.4|
 |27|PUT|/api/v1/orders/:id|7.5|
-|28|PATCH|/api/v1/orders/:id/cancel|7.6|
+|28|DELETE|/api/v1/orders/:id/cancel|7.6|
 |29|GET|/api/v1/parcels|8.1|
 |30|GET|/api/v1/parcels/:id|8.1|
 |31|GET|/api/v1/parcels/:id/label-data|8.1|

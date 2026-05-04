@@ -668,7 +668,7 @@ describe('7. Orders', () => {
     expect(res.body.data.receivers).toHaveLength(2);
   });
 
-  it('7.10 PATCH /api/v1/orders/:id/cancel (Fresh) → 200 succeeds for pending parcels', async () => {
+  it('7.10 DELETE /api/v1/orders/:id/cancel (Fresh) → 200 succeeds for pending parcels', async () => {
     // First create a fresh order
     const createRes = await request(app)
       .post('/api/v1/orders')
@@ -683,7 +683,7 @@ describe('7. Orders', () => {
     const orderId = createRes.body.data.orderId || createRes.body.data.id;
 
     const res = await request(app)
-      .patch(`/api/v1/orders/${orderId}/cancel`)
+      .delete(`/api/v1/orders/${orderId}/cancel`)
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
 
     expect(res.statusCode).toBe(200);
@@ -815,9 +815,9 @@ describe('9. Parcels — Lifecycle', () => {
 // Parcel 1 is now DELIVERED → TERMINAL_BLOCKING prevents order cancel.
 // ============================================================================
 describe('7B. Order Cancel — post-lifecycle', () => {
-  it('7B.1 PATCH /api/v1/orders/1/cancel → 400 (parcels past cancellation threshold)', async () => {
+  it('7B.1 DELETE /api/v1/orders/1/cancel → 400 (parcels past cancellation threshold)', async () => {
     const res = await request(app)
-      .patch('/api/v1/orders/1/cancel')
+      .delete('/api/v1/orders/1/cancel')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
 
     expect(res.statusCode).toBe(400);

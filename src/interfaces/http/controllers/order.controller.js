@@ -68,7 +68,7 @@ export const updateOrder = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/v1/orders/:id/cancel
+ * DELETE /api/v1/orders/:id/cancel
  * Cancels entire order and cascades to all parcels.
  * Maps to: prc_CancelOrder
  * ❌ Cannot cancel if any parcel is DISPATCHED or DELIVERED

@@ -265,7 +265,7 @@ Adds or updates a color/size pricing variation for a product. Maps to `prc_produ
 |2|GET|/orders|ALL|List orders (paginated, filtered)|
 |3|GET|/orders/:id|ADMIN, OPERATOR|Get full order aggregate|
 |4|PUT|/orders/:id|ADMIN, OPERATOR|Update order (before dispatch)|
-|5|PATCH|/orders/:id/cancel|ADMIN, OPERATOR|Cancel entire order|
+|5|DELETE|/orders/:id/cancel|ADMIN, OPERATOR|Cancel entire order|
 
 ##### 7.2 Create Order (Complex)
 
