@@ -68,7 +68,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/products/dropdown
 // @access  Private/Admin,Operator
 export const getProductDropdown = asyncHandler(async (req, res) => {
-  const search = req.query.search || '';
+  const search = req.query.search?.trim() || '';
   const items = await productService.getProductDropdown(search);
 
   res.status(200).json({

@@ -14,7 +14,7 @@ import courierService from '../../../modules/courier/courier.service.js';
 export const getCouriers = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 20);
-  const search = req.query.search || '';
+  const search = req.query.search?.trim() || '';
 
   const couriers = await courierService.getCouriers(page, limit, search);
   

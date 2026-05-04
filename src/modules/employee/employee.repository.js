@@ -144,8 +144,8 @@ class EmployeeRepository {
       results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
       
       // In-memory filter for search and allowLogin if they are not handled by SP
-      if (search) {
-        const s = search.toLowerCase();
+      if (search && search.trim()) {
+        const s = search.trim().toLowerCase();
         results = results.filter(e => 
           (e.FullName?.toLowerCase().includes(s)) || 
           (e.EmailAddress?.toLowerCase().includes(s))
@@ -175,8 +175,8 @@ class EmployeeRepository {
     results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
 
     if (role) results = results.filter(e => e.RoleCode === role);
-    if (search) {
-      const s = search.toLowerCase();
+    if (search && search.trim()) {
+      const s = search.trim().toLowerCase();
       results = results.filter(e => e.FullName.toLowerCase().includes(s) || e.EmailAddress.toLowerCase().includes(s));
     }
     if (allowLogin !== undefined) {
