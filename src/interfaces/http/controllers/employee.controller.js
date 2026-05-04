@@ -76,3 +76,15 @@ export const toggleAccess = asyncHandler(async (req, res) => {
     data: updatedEmployee
   });
 });
+
+// @desc    Delete an employee
+// @route   DELETE /api/v1/employees/:id
+// @access  Private/Admin
+export const deleteEmployee = asyncHandler(async (req, res) => {
+  const adminId = req.user.id;
+  const deletedEmployee = await employeeService.deleteEmployee(adminId, req.params.id);
+  res.json({
+    success: true,
+    data: deletedEmployee
+  });
+});

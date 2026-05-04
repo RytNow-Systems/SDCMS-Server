@@ -175,6 +175,27 @@ class EmployeeService {
 
     return this._mapToApi(employee);
   }
+
+  /**
+   * Delete an employee (soft delete)
+   */
+  async deleteEmployee(adminId, employeeIdToDelete) {
+    // Business Rule: Admins cannot delete their own account
+    if (adminId.toString() === employeeIdToDelete.toString()) {
+      const error = new Error('Cannot delete your own account');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const employee = await employeeRepository.delete(employeeIdToDelete);
+    if (!employee) {
+      const error = new Error('Employee not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return this._mapToApi(employee);
+  }
 }
 
 export default new EmployeeService();

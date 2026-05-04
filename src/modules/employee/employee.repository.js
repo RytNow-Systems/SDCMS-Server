@@ -104,13 +104,16 @@ class EmployeeRepository {
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_authenticate_employee(?)', [email]);
-      return rows[0]?.[0] || null;
+      const emp = rows[0]?.[0] || null;
+      if (emp && (emp.IsActive === 0 || emp.IsActive === false)) return null;
+      return emp;
     }
 
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory lookup by email
     // ------------------------------------------------------------------
     const emp = seedEmployees.find((e) => e.EmailAddress === email);
+    if (emp && (emp.IsActive === 0 || emp.IsActive === false)) return null;
     return emp || null;
   }
 
@@ -136,6 +139,9 @@ class EmployeeRepository {
       ]);
       
       let results = rows[0] || [];
+      
+      // Filter out soft-deleted employees
+      results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
       
       // In-memory filter for search and allowLogin if they are not handled by SP
       if (search) {
@@ -164,6 +170,9 @@ class EmployeeRepository {
     // MOCK MODE: In-memory filtering and pagination
     // ------------------------------------------------------------------
     let results = [...seedEmployees];
+
+    // Filter out soft-deleted employees
+    results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
 
     if (role) results = results.filter(e => e.RoleCode === role);
     if (search) {
@@ -197,19 +206,22 @@ class EmployeeRepository {
    * @param {number|string} id - EmployeeCode.
    * @returns {Promise<Object|null>} Employee record or null.
    */
-  async findById(id) {
+  async findById(id, options = {}) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_employee_master_search (pEmployeeCode, 0)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_employee_master_search(?, ?)', [id, 0]);
-      return rows[0]?.[0] || null;
+      const emp = rows[0]?.[0] || null;
+      if (emp && !options.includeDeleted && (emp.IsActive === 0 || emp.IsActive === false)) return null;
+      return emp;
     }
 
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory lookup by EmployeeCode
     // ------------------------------------------------------------------
     const emp = seedEmployees.find((e) => e.EmployeeCode.toString() === id.toString());
+    if (emp && !options.includeDeleted && (emp.IsActive === 0 || emp.IsActive === false)) return null;
     return emp || null;
   }
 
@@ -254,7 +266,8 @@ class EmployeeRepository {
       EmailAddress: employeeData.EmailAddress,
       Password: employeeData.Password,
       RoleCode: employeeData.RoleCode,
-      AllowLogin: true,
+      AllowLogin: employeeData.AllowLogin !== undefined ? employeeData.AllowLogin : true,
+      IsActive: employeeData.IsActive !== undefined ? employeeData.IsActive : 1,
       CreatedDate: new Date().toISOString()
     };
 
@@ -346,6 +359,51 @@ class EmployeeRepository {
     if (index === -1) return null;
 
     seedEmployees[index].AllowLogin = allowLogin;
+    return seedEmployees[index];
+  }
+
+  /**
+   * Soft deletes an employee record by setting IsActive to 0.
+   * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
+   * Convention: EmployeeCode>0 with IsActive = 0 flag.
+   *
+   * @param {number|string} id - EmployeeCode.
+   * @returns {Promise<object|null>} Updated employee record or null.
+   */
+  async delete(id) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: soft delete via findById + prc_employee_master_set
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const existing = await this.findById(id, { includeDeleted: true });
+      if (!existing) return null;
+
+      await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        id,
+        existing.FullName,
+        existing.ContactNumber,
+        existing.EmailAddress,
+        existing.UserName,
+        existing.Password,
+        existing.FkRoleId,
+        existing.AllowLogin !== undefined ? (existing.AllowLogin ? 1 : 0) : 1,
+        1, // pCreatedBy
+        0  // pIsActive = 0
+      ]);
+      
+      return await this.findById(id, { includeDeleted: true });
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: In-memory soft delete
+    // ------------------------------------------------------------------
+    const index = seedEmployees.findIndex((e) => e.EmployeeCode.toString() === id.toString());
+    if (index === -1) return null;
+
+    // Check if already soft deleted
+    if (seedEmployees[index].IsActive === 0 || seedEmployees[index].IsActive === false) return null;
+
+    seedEmployees[index].IsActive = 0;
     return seedEmployees[index];
   }
 }
