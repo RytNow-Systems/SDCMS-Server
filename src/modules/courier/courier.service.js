@@ -12,7 +12,7 @@ class CourierService {
       id: courier.CourierId,
       courierName: courier.CourierName,
       trackingUrlTemplate: courier.TrackingUrlTemplate,
-      isActive: courier.IsActive === 1 || courier.IsActive === true,
+      isActive: courier.IsActive == true,
       createdAt: courier.CreatedDate
     };
   }

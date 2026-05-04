@@ -30,7 +30,7 @@ class SenderService {
       city: sender.City || null,
       state: sender.State || null,
       pincode: sender.Pincode || null,
-      isActive: sender.IsActive === 1 || sender.IsActive === true,
+      isActive: sender.IsActive == true,
       createdAt: sender.CreatedDate
     };
   }
@@ -56,8 +56,8 @@ class SenderService {
       state: detail.State,
       pincode: detail.Pincode,
       country: detail.Country || null,
-      isDefault: detail.IsDefault === 1 || detail.IsDefault === true,
-      isActive: detail.IsActive === 1 || detail.IsActive === true,
+      isDefault: detail.IsDefault == true,
+      isActive: detail.IsActive == true,
       createdAt: detail.CreatedDate
     };
   }

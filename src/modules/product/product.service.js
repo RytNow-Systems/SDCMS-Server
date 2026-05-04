@@ -33,7 +33,7 @@ class ProductService {
       unitId: product.FkUnitId || product.unitId || null,
       categoryName: product.CategoryName || null,
       unitTitle: product.UnitTitle || null,
-      isActive: product.IsActive !== undefined ? product.IsActive : product.isActive,
+      isActive: (product.IsActive !== undefined ? product.IsActive : product.isActive) == true,
       createdAt: product.CreatedDate || product.createdAt
     };
   }
@@ -68,7 +68,7 @@ class ProductService {
       colorName: row.ColorName || row.colorName || null,
       materialRate: row.MaterialRate || row.materialRate,
       size: row.Size || row.size,
-      isActive: row.IsActive !== undefined ? row.IsActive : row.isActive,
+      isActive: (row.IsActive !== undefined ? row.IsActive : row.isActive) == true,
       createdAt: row.CreatedDate || row.createdAt
     };
   }

@@ -30,7 +30,7 @@ class EmployeeService {
       phoneNo: employee.ContactNumber || employee.contactNumber || null,
       role: employee.RoleCode || employee.role,
       allowLogin: employee.AllowLogin ?? employee.allowLogin,
-      isActive: employee.IsActive ?? employee.isActive,
+      isActive: (employee.IsActive ?? employee.isActive) == true,
       createdAt: employee.CreatedDate || employee.createdAt
     };
   }
