@@ -48,6 +48,7 @@ class OrderService {
       senderId, 
       senderName: sender.CustomerName, 
       senderMobile: sender.PhoneNo, 
+      senderEmail: sender.EmailId || sender.emailId || null,
       senderAddress: senderAddressDetails.Address, 
       senderCity: senderAddressDetails.City, 
       senderState: senderAddressDetails.State, 
@@ -147,7 +148,7 @@ class OrderService {
     // Step 2: Unify root products and external receivers into a single array
     const normalizedReceivers = this._buildReceiversList(
       ctx.hasRootProducts, ctx.hasReceivers, ctx.products, ctx.receivers,
-      ctx.senderName, ctx.senderMobile, senderCtx
+      ctx.senderName, ctx.senderMobile, ctx.senderEmail, senderCtx
     );
 
     // Step 3: Build the aggregate graph for the repository
@@ -194,7 +195,7 @@ class OrderService {
     // Step 3: Normalize receivers based on Mode A/B/C
     const receiversList = this._buildReceiversList(
       ctx.hasRootProducts, ctx.hasReceivers, ctx.products, ctx.receivers,
-      ctx.senderName, ctx.senderMobile, senderCtx
+      ctx.senderName, ctx.senderMobile, ctx.senderEmail, senderCtx
     );
 
     // Step 4: Iteratively build the mock graph (receivers -> items -> parcels)
@@ -247,13 +248,13 @@ class OrderService {
    * Mode C: both → synthetic receiver + external receivers
    * @private
    */
-  _buildReceiversList(hasRoot, hasRecs, rootProds, recs, sName, sPhone, senderCtx) {
+  _buildReceiversList(hasRoot, hasRecs, rootProds, recs, sName, sPhone, sEmail, senderCtx) {
     const list = [];
-    // If root products exist, the sender is also a receiver (Mode A/C)
     if (hasRoot) {
       list.push({
         receiverName: sName,
         receiverPhone: sPhone,
+        receiverEmail: sEmail || '',
         address: senderCtx.address || null,
         city: senderCtx.city || null,
         state: senderCtx.state || null,
