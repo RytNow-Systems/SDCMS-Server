@@ -9,19 +9,19 @@ class CourierService {
   _mapToApi(courier) {
     if (!courier) return null;
     return {
-      id: courier.CourierId,
+      courierId: courier.CourierId,
       courierName: courier.CourierName,
       trackingUrlTemplate: courier.TrackingUrlTemplate,
       isActive: courier.IsActive == true,
-      createdAt: courier.CreatedDate
+      createdAt: courier.CreatedDate,
     };
   }
 
   async getCouriers(page = 1, limit = 20, search = "") {
     const result = await courierRepository.findAll({ page, limit, search });
     return {
-      data: result.data.map(c => this._mapToApi(c)),
-      meta: result.meta
+      data: result.data.map((c) => this._mapToApi(c)),
+      meta: result.meta,
     };
   }
 
@@ -42,7 +42,10 @@ class CourierService {
       throw error;
     }
 
-    const duplicateCount = await courierRepository.checkDuplicate(0, courierData.courierName);
+    const duplicateCount = await courierRepository.checkDuplicate(
+      0,
+      courierData.courierName,
+    );
     if (duplicateCount > 0) {
       const error = new Error("Courier name already exists");
       error.statusCode = 409;
@@ -55,7 +58,10 @@ class CourierService {
 
   async updateCourier(id, updates, adminId) {
     if (updates.courierName) {
-      const duplicateCount = await courierRepository.checkDuplicate(id, updates.courierName);
+      const duplicateCount = await courierRepository.checkDuplicate(
+        id,
+        updates.courierName,
+      );
       if (duplicateCount > 0) {
         const error = new Error("Courier name already exists");
         error.statusCode = 409;

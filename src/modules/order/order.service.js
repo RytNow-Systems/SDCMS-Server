@@ -703,7 +703,7 @@ class OrderService {
       courierId: o.FkCourierId || o.fkCourierId,
       courierName: o.CourierName || o.courierName || null,
       receivers: (o.receivers || []).map((r) => ({
-        id: r.PkReceiverDetailsId || r.id,
+        receiverDetailsId: r.PkReceiverDetailsId || r.id,
         receiverId: r.FkPartyId || r.fkPartyId,
         receiverName: r.ReceiverName || r.receiverName,
         receiverEmail: r.ReceiverEmail || r.receiverEmail || null,

@@ -4,9 +4,9 @@
 // Handles {AWB} template replacement and orchestrates notification sending.
 // ============================================================================
 
-import notificationRepository from './notification.repository.js';
-import parcelRepository from '../parcel/parcel.repository.js';
-import db from '../../infrastructure/database/db.js';
+import notificationRepository from "./notification.repository.js";
+import parcelRepository from "../parcel/parcel.repository.js";
+import db from "../../infrastructure/database/db.js";
 
 class NotificationService {
   /**
@@ -22,13 +22,13 @@ class NotificationService {
       messageContent: log.MessageContent || log.messageContent,
       statusId: log.FkNotificationStatusId || log.statusId,
       requestedBy: log.RequestedBy || log.requestedBy,
-      createdAt: log.CreatedDate || log.createdAt || log.createdDate
+      createdAt: log.CreatedDate || log.createdAt || log.createdDate,
     };
   }
 
   /**
    * Send a notification for a specific parcel.
-   * 
+   *
    * @param {number|string} parcelId - The parcel being notified.
    * @param {object} user - The authenticated user triggering the notification.
    * @returns {Promise<object>} Result of the notification attempt.
@@ -42,20 +42,25 @@ class NotificationService {
     const messageContent = `Your parcel is dispatched. Track here: ${trackingUrl}`;
 
     // Trigger external SMS/Email gateway API calls (Mocked)
-    console.log(`[NOTIFICATION] Sending tracking link: ${trackingUrl} to ${parcel.receiverPhone}`);
+    console.log(
+      `[NOTIFICATION] Sending tracking link: ${trackingUrl} to ${parcel.receiverPhone}`,
+    );
 
-    const logEntry = await notificationRepository.logNotification({
-      parcelId: parcel.id,
-      recipientPhone: parcel.receiverPhone,
-      notificationChannel: 'SMS',
-      messageContent: messageContent,
-      statusId: 1 // Sent
-    }, user?.employeeCode || 1);
+    const logEntry = await notificationRepository.logNotification(
+      {
+        parcelId: parcel.parcelId,
+        recipientPhone: parcel.receiverPhone,
+        notificationChannel: "SMS",
+        messageContent: messageContent,
+        statusId: 1, // Sent
+      },
+      user?.employeeCode || 1,
+    );
 
     return {
-      message: 'Notification sent successfully',
+      message: "Notification sent successfully",
       trackingUrl,
-      logEntry: this._mapToApi(logEntry)
+      logEntry: this._mapToApi(logEntry),
     };
   }
 
@@ -65,19 +70,20 @@ class NotificationService {
    */
   async _getAndValidateParcel(parcelId) {
     const parcel = await parcelRepository.findById(parcelId);
-    if (!parcel) throw this._error('Parcel not found', 404);
+    if (!parcel) throw this._error("Parcel not found", 404);
 
     const trackingNo = parcel.TrackingNo || parcel.trackingNo;
-    if (!trackingNo) throw this._error('No AWB linked to this parcel', 400);
+    if (!trackingNo) throw this._error("No AWB linked to this parcel", 400);
 
     const receiverPhone = parcel.ReceiverPhone || parcel.receiverPhone;
-    if (!receiverPhone) throw this._error('No receiver phone number found', 400);
+    if (!receiverPhone)
+      throw this._error("No receiver phone number found", 400);
 
     return {
-      id: parcel.PkParcelDetailsId || parcel.id,
+      parcelId: parcel.PkParcelDetailsId || parcel.id,
       trackingNo,
       receiverPhone,
-      courierId: parcel.FkCourierId || parcel.fkCourierId || parcel.courierId
+      courierId: parcel.FkCourierId || parcel.fkCourierId || parcel.courierId,
     };
   }
 
@@ -86,49 +92,58 @@ class NotificationService {
    * @private
    */
   async _generateTrackingUrl(parcel) {
-    let template = 'https://track.it/{AWB}';
-    
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('SELECT TrackingUrlTemplate FROM courier_partner_master WHERE CourierId = ?', [parcel.courierId]);
+    let template = "https://track.it/{AWB}";
+
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "SELECT TrackingUrlTemplate FROM courier_partner_master WHERE CourierId = ?",
+        [parcel.courierId],
+      );
       template = rows[0]?.[0]?.TrackingUrlTemplate || template;
     }
 
-    return template.replace('{AWB}', parcel.trackingNo);
+    return template.replace("{AWB}", parcel.trackingNo);
   }
 
   /**
    * Resend a specific notification.
-   * 
+   *
    * @param {number|string} notificationId - The ID of the log entry.
    * @param {object} user - The authenticated user.
    */
   async resendNotification(notificationId, user) {
     const log = await notificationRepository.findById(notificationId);
-    if (!log) throw this._error('Notification log entry not found', 404);
+    if (!log) throw this._error("Notification log entry not found", 404);
 
-    return await this.sendNotification(log.FkParcelDetailsId || log.parcelId, user);
+    return await this.sendNotification(
+      log.FkParcelDetailsId || log.parcelId,
+      user,
+    );
   }
 
   /**
    * Get history for a parcel.
-   * @param {number|string} parcelId 
+   * @param {number|string} parcelId
    */
   async getParcelNotifications(parcelId) {
     const logs = await notificationRepository.getHistoryByParcelId(parcelId);
-    return logs.map(log => this._mapToApi(log));
+    return logs.map((log) => this._mapToApi(log));
   }
 
   /**
    * Handle incoming webhook updates.
-   * @param {object} payload 
+   * @param {object} payload
    */
   async handleWebhook(payload) {
     const { notificationId, status } = payload;
-    const statusMap = { 'sent': 1, 'delivered': 2, 'failed': 3 };
-    const statusId = statusMap[(status || '').toLowerCase()] || 1;
+    const statusMap = { sent: 1, delivered: 2, failed: 3 };
+    const statusId = statusMap[(status || "").toLowerCase()] || 1;
 
-    const updatedLog = await notificationRepository.updateWebhookStatus(notificationId, statusId);
-    if (!updatedLog) throw this._error('Original notification not found', 404);
+    const updatedLog = await notificationRepository.updateWebhookStatus(
+      notificationId,
+      statusId,
+    );
+    if (!updatedLog) throw this._error("Original notification not found", 404);
 
     return this._mapToApi(updatedLog);
   }

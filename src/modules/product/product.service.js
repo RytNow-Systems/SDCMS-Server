@@ -8,10 +8,9 @@
 //   - Consistency: camelCase API contract vs PascalCase DB/Internal.
 // ============================================================================
 
-import productRepository from './product.repository.js';
+import productRepository from "./product.repository.js";
 
 class ProductService {
-
   // --------------------------------------------------------------------------
   // 1. DATA MAPPERS (API ↔ INTERNAL)
   // --------------------------------------------------------------------------
@@ -24,17 +23,24 @@ class ProductService {
   _mapToApi(product) {
     if (!product) return null;
     return {
-      id: product.PkProductId || product.id,
+      productId: product.PkProductId || product.id,
       materialName: product.MaterialName || product.materialName,
       materialRate: product.MaterialRate || product.materialRate,
       cuItemCode: product.cu_item_code || product.cuItemCode || null,
-      materialDescription: product.MaterialDescription || product.materialDescription || product.description || null,
+      materialDescription:
+        product.MaterialDescription ||
+        product.materialDescription ||
+        product.description ||
+        null,
       categoryId: product.FkProductCategoryId || product.categoryId || null,
       unitId: product.FkUnitId || product.unitId || null,
       categoryName: product.CategoryName || null,
       unitTitle: product.UnitTitle || null,
-      isActive: (product.IsActive !== undefined ? product.IsActive : product.isActive) == true,
-      createdAt: product.CreatedDate || product.createdAt
+      isActive:
+        (product.IsActive !== undefined
+          ? product.IsActive
+          : product.isActive) == true,
+      createdAt: product.CreatedDate || product.createdAt,
     };
   }
 
@@ -46,9 +52,11 @@ class ProductService {
   _mapToInternal(apiData) {
     const internal = {};
     if (apiData.materialName) internal.MaterialName = apiData.materialName;
-    if (apiData.materialRate !== undefined) internal.MaterialRate = apiData.materialRate;
+    if (apiData.materialRate !== undefined)
+      internal.MaterialRate = apiData.materialRate;
     if (apiData.cuItemCode) internal.cu_item_code = apiData.cuItemCode;
-    if (apiData.materialDescription) internal.MaterialDescription = apiData.materialDescription;
+    if (apiData.materialDescription)
+      internal.MaterialDescription = apiData.materialDescription;
     if (apiData.categoryId) internal.FkProductCategoryId = apiData.categoryId;
     if (apiData.unitId) internal.FkUnitId = apiData.unitId;
     return internal;
@@ -68,8 +76,9 @@ class ProductService {
       colorName: row.ColorName || row.colorName || null,
       materialRate: row.MaterialRate || row.materialRate,
       size: row.Size || row.size,
-      isActive: (row.IsActive !== undefined ? row.IsActive : row.isActive) == true,
-      createdAt: row.CreatedDate || row.createdAt
+      isActive:
+        (row.IsActive !== undefined ? row.IsActive : row.isActive) == true,
+      createdAt: row.CreatedDate || row.createdAt,
     };
   }
 
@@ -80,8 +89,10 @@ class ProductService {
    */
   _mapMatrixToInternal(apiData) {
     const internal = {};
-    if (apiData.fkLuColorId !== undefined) internal.FkLuColorId = apiData.fkLuColorId;
-    if (apiData.materialRate !== undefined) internal.MaterialRate = apiData.materialRate;
+    if (apiData.fkLuColorId !== undefined)
+      internal.FkLuColorId = apiData.fkLuColorId;
+    if (apiData.materialRate !== undefined)
+      internal.MaterialRate = apiData.materialRate;
     if (apiData.size !== undefined) internal.Size = apiData.size;
     return internal;
   }
@@ -94,8 +105,8 @@ class ProductService {
   _mapCategoryToApi(cat) {
     if (!cat) return null;
     return {
-      id: cat.PkProductCategoryId || cat.id,
-      categoryName: cat.CategoryName || cat.categoryName
+      categoryId: cat.PkProductCategoryId || cat.id,
+      categoryName: cat.CategoryName || cat.categoryName,
     };
   }
 
@@ -107,9 +118,9 @@ class ProductService {
   _mapUnitToApi(unit) {
     if (!unit) return null;
     return {
-      id: unit.PkUnitId || unit.id,
+      unitId: unit.PkUnitId || unit.id,
       unitTitle: unit.UnitTitle || unit.unitTitle,
-      unitCode: unit.UnitCode || unit.unitCode
+      unitCode: unit.UnitCode || unit.unitCode,
     };
   }
 
@@ -121,9 +132,9 @@ class ProductService {
   _mapColorToApi(color) {
     if (!color) return null;
     return {
-      id: color.PkLuColorId || color.id,
+      colorId: color.PkLuColorId || color.id,
       colorName: color.ColorName || color.colorName,
-      colorCode: color.ColorCode || color.colorCode || null
+      colorCode: color.ColorCode || color.colorCode || null,
     };
   }
 
@@ -137,8 +148,8 @@ class ProductService {
   async getProducts(categoryId = 0, unitId = 0) {
     const data = await productRepository.findAll(categoryId, unitId);
     return {
-      data: data.map(p => this._mapToApi(p)),
-      total: data.length
+      data: data.map((p) => this._mapToApi(p)),
+      total: data.length,
     };
   }
 
@@ -148,24 +159,26 @@ class ProductService {
   async getProductById(id) {
     const product = await productRepository.findById(id);
     if (!product) {
-      const error = new Error('Product not found');
+      const error = new Error("Product not found");
       error.statusCode = 404;
       throw error;
     }
     const mapped = this._mapToApi(product);
-    mapped.variations = (product.variations || []).map(v => this._mapMatrixToApi(v));
+    mapped.variations = (product.variations || []).map((v) =>
+      this._mapMatrixToApi(v),
+    );
     return mapped;
   }
 
   /**
    * Fetches search-friendly dropdown items.
    */
-  async getProductDropdown(search = '') {
+  async getProductDropdown(search = "") {
     const items = await productRepository.getDropdown(search);
-    return items.map(item => {
+    return items.map((item) => {
       const labelParts = [item.MaterialName];
       if (item.ColorName || item.Size) {
-        const specs = [item.ColorName, item.Size].filter(Boolean).join(' / ');
+        const specs = [item.ColorName, item.Size].filter(Boolean).join(" / ");
         labelParts.push(`— ${specs}`);
       }
       if (item.CategoryName) {
@@ -174,14 +187,14 @@ class ProductService {
       if (item.cu_item_code) {
         labelParts.push(`[${item.cu_item_code}]`);
       }
-      
+
       return {
         value: {
           productId: item.PkProductId,
           variationId: item.PkProductColorId || null,
-          materialRate: item.MaterialRate
+          materialRate: item.MaterialRate,
         },
-        label: labelParts.join(' ')
+        label: labelParts.join(" "),
       };
     });
   }
@@ -192,7 +205,7 @@ class ProductService {
    */
   async getCategories() {
     const raw = await productRepository.getCategories();
-    return raw.map(c => this._mapCategoryToApi(c));
+    return raw.map((c) => this._mapCategoryToApi(c));
   }
 
   /**
@@ -201,7 +214,7 @@ class ProductService {
    */
   async getUnits() {
     const raw = await productRepository.getUnits();
-    return raw.map(u => this._mapUnitToApi(u));
+    return raw.map((u) => this._mapUnitToApi(u));
   }
 
   /**
@@ -210,7 +223,7 @@ class ProductService {
    */
   async getColors() {
     const raw = await productRepository.getColors();
-    return raw.map(c => this._mapColorToApi(c));
+    return raw.map((c) => this._mapColorToApi(c));
   }
 
   /**
@@ -220,11 +233,17 @@ class ProductService {
    * @returns {Promise<object>} API-friendly category object.
    */
   async createCategory(categoryName, adminId) {
-    const result = await productRepository.createCategory(categoryName, adminId);
+    const result = await productRepository.createCategory(
+      categoryName,
+      adminId,
+    );
     if (!result) {
       // Re-fetch by name as fallback (SP may not return the inserted row)
       const all = await productRepository.getCategories();
-      const created = all.find(c => (c.CategoryName || '').toLowerCase() === categoryName.toLowerCase());
+      const created = all.find(
+        (c) =>
+          (c.CategoryName || "").toLowerCase() === categoryName.toLowerCase(),
+      );
       return this._mapCategoryToApi(created);
     }
     return this._mapCategoryToApi(result);
@@ -238,11 +257,17 @@ class ProductService {
    * @returns {Promise<object>} API-friendly color object.
    */
   async createColor(colorName, colorCode, adminId) {
-    const result = await productRepository.createColor(colorName, colorCode, adminId);
+    const result = await productRepository.createColor(
+      colorName,
+      colorCode,
+      adminId,
+    );
     if (!result) {
       // Re-fetch by name as fallback (SP may not return the inserted row)
       const all = await productRepository.getColors();
-      const created = all.find(c => (c.ColorName || '').toLowerCase() === colorName.toLowerCase());
+      const created = all.find(
+        (c) => (c.ColorName || "").toLowerCase() === colorName.toLowerCase(),
+      );
       return this._mapColorToApi(created);
     }
     return this._mapColorToApi(result);
@@ -259,7 +284,9 @@ class ProductService {
     if (!result) {
       // Re-fetch by code as fallback (SP may not return the inserted row)
       const all = await productRepository.getUnits();
-      const created = all.find(u => (u.UnitCode || '').toLowerCase() === unitCode.toLowerCase());
+      const created = all.find(
+        (u) => (u.UnitCode || "").toLowerCase() === unitCode.toLowerCase(),
+      );
       return this._mapUnitToApi(created);
     }
     return this._mapUnitToApi(result);
@@ -281,7 +308,7 @@ class ProductService {
     // Auto-generate MaterialCode / cu_item_code
     if (!internalData.cu_item_code) {
       const nextCode = await productRepository.getNextItemCode();
-      internalData.cu_item_code = nextCode.padStart(4, '0');
+      internalData.cu_item_code = nextCode.padStart(4, "0");
       internalData.MaterialCode = internalData.cu_item_code;
     } else {
       internalData.MaterialCode = internalData.cu_item_code;
@@ -292,11 +319,13 @@ class ProductService {
       0,
       internalData.FkProductCategoryId,
       internalData.FkUnitId,
-      internalData.MaterialName
+      internalData.MaterialName,
     );
 
     if (duplicateCount > 0) {
-      const error = new Error('A product with this name already exists in the selected category/unit.');
+      const error = new Error(
+        "A product with this name already exists in the selected category/unit.",
+      );
       error.statusCode = 409;
       throw error;
     }
@@ -304,19 +333,24 @@ class ProductService {
     let newProduct = await productRepository.create(internalData, adminId);
 
     // Re-fetch fallback if SP returned null or incomplete data
-    const insertedId = newProduct?.InsertedId || newProduct?.PkProductId || newProduct?.id;
+    const insertedId =
+      newProduct?.InsertedId || newProduct?.PkProductId || newProduct?.id;
     if (insertedId) {
-      newProduct = await productRepository.findById(insertedId) || newProduct;
+      newProduct = (await productRepository.findById(insertedId)) || newProduct;
     } else if (!newProduct || (!newProduct.PkProductId && !newProduct.id)) {
       const searchRes = await productRepository.findAll(0, 0);
-      newProduct = searchRes.find(p => p.cu_item_code === internalData.cu_item_code) || newProduct;
+      newProduct =
+        searchRes.find((p) => p.cu_item_code === internalData.cu_item_code) ||
+        newProduct;
     }
 
     const productId = newProduct?.PkProductId || newProduct?.id;
 
     // Process inline variations if provided
     const variations = await this._processCreateVariations(
-      productData.variations || [], productId, adminId
+      productData.variations || [],
+      productId,
+      adminId,
     );
 
     const mapped = this._mapToApi(newProduct);
@@ -340,19 +374,26 @@ class ProductService {
     const merged = {
       MaterialName: internalUpdates.MaterialName ?? existing.materialName,
       MaterialRate: internalUpdates.MaterialRate ?? existing.materialRate,
-      FkProductCategoryId: internalUpdates.FkProductCategoryId ?? existing.categoryId,
+      FkProductCategoryId:
+        internalUpdates.FkProductCategoryId ?? existing.categoryId,
       FkUnitId: internalUpdates.FkUnitId ?? existing.unitId,
       MaterialCode: internalUpdates.MaterialCode ?? existing.cuItemCode,
       cu_item_code: internalUpdates.cu_item_code ?? existing.cuItemCode,
-      MaterialDescription: internalUpdates.MaterialDescription ?? existing.materialDescription
+      MaterialDescription:
+        internalUpdates.MaterialDescription ?? existing.materialDescription,
     };
 
     // Business Rule: Check for name collision upon update
     const duplicateCount = await productRepository.checkDuplicate(
-      id, merged.FkProductCategoryId, merged.FkUnitId, merged.MaterialName
+      id,
+      merged.FkProductCategoryId,
+      merged.FkUnitId,
+      merged.MaterialName,
     );
     if (duplicateCount > 0) {
-      const error = new Error('Another product already uses this name in the selected category/unit.');
+      const error = new Error(
+        "Another product already uses this name in the selected category/unit.",
+      );
       error.statusCode = 409;
       throw error;
     }
@@ -360,8 +401,11 @@ class ProductService {
     let updatedProduct = await productRepository.update(id, merged, adminId);
 
     // Re-fetch fallback
-    if (!updatedProduct || (!updatedProduct.PkProductId && !updatedProduct.id)) {
-      updatedProduct = await productRepository.findById(id) || updatedProduct;
+    if (
+      !updatedProduct ||
+      (!updatedProduct.PkProductId && !updatedProduct.id)
+    ) {
+      updatedProduct = (await productRepository.findById(id)) || updatedProduct;
     }
 
     // Process inline variation diff if provided
@@ -387,16 +431,20 @@ class ProductService {
       const internalData = {
         FkLuColorId: v.colorId,
         MaterialRate: v.materialRate,
-        Size: v.size
+        Size: v.size,
       };
       await productRepository.setColorMatrix(
-        0, productId, internalData, adminId, 1
+        0,
+        productId,
+        internalData,
+        adminId,
+        1,
       );
     }
 
     // Re-fetch all variations for this product to get complete data
     const savedVariations = await productRepository.getColorMatrix(productId);
-    return savedVariations.map(v => this._mapMatrixToApi(v));
+    return savedVariations.map((v) => this._mapMatrixToApi(v));
   }
 
   /**
@@ -416,26 +464,37 @@ class ProductService {
 
       if (matrixId > 0 && isActive === 0) {
         // Soft-delete: fetch existing to fill required SP params
-        const existingVariations = await productRepository.getColorMatrix(productId);
+        const existingVariations =
+          await productRepository.getColorMatrix(productId);
         const existing = existingVariations.find(
-          row => row.PkProductColorId === matrixId
+          (row) => row.PkProductColorId === matrixId,
         );
         if (existing) {
-          await productRepository.setColorMatrix(matrixId, productId, {
-            FkLuColorId: existing.FkLuColorId,
-            MaterialRate: existing.MaterialRate,
-            Size: existing.Size
-          }, adminId, 0);
+          await productRepository.setColorMatrix(
+            matrixId,
+            productId,
+            {
+              FkLuColorId: existing.FkLuColorId,
+              MaterialRate: existing.MaterialRate,
+              Size: existing.Size,
+            },
+            adminId,
+            0,
+          );
         }
       } else {
         // Insert or update
         const internalData = {
           FkLuColorId: v.colorId,
           MaterialRate: v.materialRate,
-          Size: v.size
+          Size: v.size,
         };
         await productRepository.setColorMatrix(
-          matrixId, productId, internalData, adminId, isActive
+          matrixId,
+          productId,
+          internalData,
+          adminId,
+          isActive,
         );
       }
     }
@@ -455,7 +514,10 @@ class ProductService {
     const internalData = this._mapMatrixToInternal(matrixData);
     const matrixId = matrixData.matrixId || 0;
     const result = await productRepository.setColorMatrix(
-      matrixId, productId, internalData, adminId
+      matrixId,
+      productId,
+      internalData,
+      adminId,
     );
     return this._mapMatrixToApi(result);
   }
@@ -466,7 +528,7 @@ class ProductService {
   async deleteProduct(id, adminId) {
     const success = await productRepository.delete(id, adminId);
     if (!success) {
-      const error = new Error('Product not found or deletion failed.');
+      const error = new Error("Product not found or deletion failed.");
       error.statusCode = 404;
       throw error;
     }
