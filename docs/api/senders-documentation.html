@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Senders</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Senders</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Sender</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Sender by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Lookup by Phone</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get All Sender Names</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm get">GET</span>Get All Sender Phones</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>Lookup by Name</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Sender</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Sender</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm get">GET</span>Get Addresses</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm post">POST</span>Create Address</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Senders</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Sender</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Sender by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Lookup by Phone</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get All Party Names</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm get">GET</span>Get All Party Phones</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>Lookup by Name</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Sender</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Sender</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm get">GET</span>Get Addresses</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm post">POST</span>Create Address</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -311,7 +311,7 @@
           <code class="endpoint-path">/senders/lookup?phone=9876543210</code>
         </div>
         <h3 class="endpoint-name">Lookup by Phone</h3>
-        <p class="endpoint-desc">Quick sender lookup by mobile number for auto-fill.</p>
+        <p class="endpoint-desc">Quick party lookup by mobile number for auto-fill (searches both senders and receivers).</p>
         
         
           <div class="meta-grid">
@@ -347,8 +347,8 @@
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
           <code class="endpoint-path">/senders/names</code>
         </div>
-        <h3 class="endpoint-name">Get All Sender Names</h3>
-        <p class="endpoint-desc">Distinct sender names for autocomplete dropdown.</p>
+        <h3 class="endpoint-name">Get All Party Names</h3>
+        <p class="endpoint-desc">Distinct party names (senders and receivers) for autocomplete dropdown.</p>
         
         
           <div class="meta-grid">
@@ -391,8 +391,8 @@
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
           <code class="endpoint-path">/senders/phones</code>
         </div>
-        <h3 class="endpoint-name">Get All Sender Phones</h3>
-        <p class="endpoint-desc">Distinct phone numbers for autocomplete dropdown.</p>
+        <h3 class="endpoint-name">Get All Party Phones</h3>
+        <p class="endpoint-desc">Distinct party phone numbers (senders and receivers) for autocomplete dropdown.</p>
         
         
           <div class="meta-grid">
@@ -436,7 +436,7 @@
           <code class="endpoint-path">/senders/lookup-by-name?name=John</code>
         </div>
         <h3 class="endpoint-name">Lookup by Name</h3>
-        <p class="endpoint-desc">Search senders by partial name match.</p>
+        <p class="endpoint-desc">Search parties by partial name match (searches both senders and receivers).</p>
         
         
           <div class="meta-grid">
@@ -652,7 +652,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-04
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-05
       </footer>
     </main>
   </div>

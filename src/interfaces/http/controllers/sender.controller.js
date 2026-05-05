@@ -61,37 +61,37 @@ class SenderController {
 
   /**
    * @route GET /api/v1/senders/lookup?phone=...
-   * @desc  Finds a sender by phone number for form auto-fill.
+   * @desc  Finds a party by phone number for form auto-fill (searches both senders and receivers).
    */
   lookupByPhone = asyncHandler(async (req, res) => {
-    const sender = await senderService.lookupByPhone(req.query.phone, 1);
+    const sender = await senderService.lookupByPhone(req.query.phone, null);
     res.json({ success: true, data: sender });
   });
 
   /**
    * @route GET /api/v1/senders/names
-   * @desc  Autocomplete for distinct sender names.
+   * @desc  Autocomplete for distinct party names (senders and receivers).
    */
   getAllNames = asyncHandler(async (req, res) => {
-    const names = await senderService.getAllSenderNames(1);
+    const names = await senderService.getAllSenderNames(null);
     res.json({ success: true, data: names });
   });
 
   /**
    * @route GET /api/v1/senders/phones
-   * @desc  Autocomplete for distinct sender phone numbers.
+   * @desc  Autocomplete for distinct party phone numbers (senders and receivers).
    */
   getAllPhones = asyncHandler(async (req, res) => {
-    const phones = await senderService.getAllPhoneNumbers(1);
+    const phones = await senderService.getAllPhoneNumbers(null);
     res.json({ success: true, data: phones });
   });
 
   /**
    * @route GET /api/v1/senders/lookup-by-name?name=...
-   * @desc  Partial name search for party suggestions.
+   * @desc  Partial name search for party suggestions (searches both senders and receivers).
    */
   lookupByName = asyncHandler(async (req, res) => {
-    const parties = await senderService.lookupByName(req.query.name, 1);
+    const parties = await senderService.lookupByName(req.query.name, null);
     res.json({ success: true, data: parties });
   });
 

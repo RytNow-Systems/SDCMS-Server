@@ -58,12 +58,12 @@ export const deleteReceiver = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get all distinct active receiver names
+ * @desc    Get all distinct active party names (senders and receivers)
  * @route   GET /api/v1/receivers/names
  * @access  Private (ADMIN, OPERATOR)
  */
 export const getAllNames = asyncHandler(async (req, res) => {
-  const names = await senderService.getAllSenderNames(2);
+  const names = await senderService.getAllSenderNames(null);
 
   res.status(200).json({
     success: true,
@@ -72,12 +72,12 @@ export const getAllNames = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get all distinct active receiver phone numbers
+ * @desc    Get all distinct active party phone numbers (senders and receivers)
  * @route   GET /api/v1/receivers/phones
  * @access  Private (ADMIN, OPERATOR)
  */
 export const getAllPhones = asyncHandler(async (req, res) => {
-  const phones = await senderService.getAllPhoneNumbers(2);
+  const phones = await senderService.getAllPhoneNumbers(null);
 
   res.status(200).json({
     success: true,
@@ -86,12 +86,12 @@ export const getAllPhones = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Lookup receivers by name (partial match)
+ * @desc    Lookup parties by name (partial match, searches both senders and receivers)
  * @route   GET /api/v1/receivers/lookup-by-name?name=...
  * @access  Private (ADMIN, OPERATOR)
  */
 export const lookupByName = asyncHandler(async (req, res) => {
-  const receivers = await senderService.lookupByName(req.query.name, 2);
+  const receivers = await senderService.lookupByName(req.query.name, null);
 
   res.status(200).json({
     success: true,
@@ -100,12 +100,12 @@ export const lookupByName = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Lookup receivers by phone number (partial match)
+ * @desc    Lookup parties by phone number (searches both senders and receivers)
  * @route   GET /api/v1/receivers/lookup-by-phone?phone=...
  * @access  Private (ADMIN, OPERATOR)
  */
 export const lookupByPhone = asyncHandler(async (req, res) => {
-  const receivers = await senderService.lookupByPhone(req.query.phone, 2);
+  const receivers = await senderService.lookupByPhone(req.query.phone, null);
 
   res.status(200).json({
     success: true,

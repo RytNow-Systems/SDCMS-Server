@@ -377,23 +377,23 @@ collections:
         method: GET
         path: /senders/lookup?phone=9876543210
         roles: [ADMIN, OPERATOR]
-        description: Quick sender lookup by mobile number for auto-fill.
+        description: Quick party lookup by mobile number for auto-fill (searches both senders and receivers).
         responseStatus: 200
 
-      - name: Get All Sender Names
+      - name: Get All Party Names
         method: GET
         path: /senders/names
         roles: [ADMIN, OPERATOR]
-        description: Distinct sender names for autocomplete dropdown.
+        description: Distinct party names (senders and receivers) for autocomplete dropdown.
         responseStatus: 200
         responseBody: |
           { "success": true, "data": ["John Doe Enterprises", "Ramesh Textiles"] }
 
-      - name: Get All Sender Phones
+      - name: Get All Party Phones
         method: GET
         path: /senders/phones
         roles: [ADMIN, OPERATOR]
-        description: Distinct phone numbers for autocomplete dropdown.
+        description: Distinct party phone numbers (senders and receivers) for autocomplete dropdown.
         responseStatus: 200
         responseBody: |
           { "success": true, "data": ["9876543210", "9000000001"] }
@@ -402,7 +402,7 @@ collections:
         method: GET
         path: /senders/lookup-by-name?name=John
         roles: [ADMIN, OPERATOR]
-        description: Search senders by partial name match.
+        description: Search parties by partial name match (searches both senders and receivers).
         responseStatus: 200
 
       - name: Update Sender
@@ -475,28 +475,28 @@ collections:
         method: GET
         path: /receivers/lookup?phone=9123456780
         roles: [ADMIN, OPERATOR]
-        description: Quick receiver lookup by mobile number for auto-fill.
+        description: Quick party lookup by mobile number for auto-fill (searches both senders and receivers).
         responseStatus: 200
 
-      - name: Get All Receiver Names
+      - name: Get All Party Names
         method: GET
         path: /receivers/names
         roles: [ADMIN, OPERATOR]
-        description: Distinct receiver names for autocomplete dropdown.
+        description: Distinct party names (senders and receivers) for autocomplete dropdown.
         responseStatus: 200
 
-      - name: Get All Receiver Phones
+      - name: Get All Party Phones
         method: GET
         path: /receivers/phones
         roles: [ADMIN, OPERATOR]
-        description: Distinct receiver phone numbers for autocomplete.
+        description: Distinct party phone numbers (senders and receivers) for autocomplete.
         responseStatus: 200
 
       - name: Lookup by Name
         method: GET
         path: /receivers/lookup-by-name?name=Receiver
         roles: [ADMIN, OPERATOR]
-        description: Search receivers by partial name match.
+        description: Search parties by partial name match (searches both senders and receivers).
         responseStatus: 200
 
       - name: Update Receiver
