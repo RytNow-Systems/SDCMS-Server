@@ -180,12 +180,37 @@ class OrderRepository {
    */
   async findAllOrders(filters = {}) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_order_master_get(?, ?)', [
+      // Step 1: Get order list
+      const [orderRows] = await db.execute('CALL prc_order_master_get(?, ?)', [
         0, // pAction: 0 for list
         0  // pPkOrderId: 0
       ]);
+      const orders = orderRows[0] || [];
+
+      // Step 2: Get all receivers to map orders → receivers
+      const [receiverRows] = await db.execute('CALL prc_receiver_details_get(?, ?)', [0, 0]);
+      const allReceivers = receiverRows[0] || [];
+
+      // Step 3: Get all parcels
+      const [parcelRows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [0, 0]);
+      const allParcels = parcelRows[0] || [];
+
+      // Step 4: Calculate totalParcels per order
+      const receiverParcelCount = new Map();
+      for (const rec of allReceivers) {
+        const recParcels = allParcels.filter(p => p.FkReceiverDetailsId === rec.PkReceiverDetailsId);
+        const current = receiverParcelCount.get(rec.FkOrderId) || 0;
+        receiverParcelCount.set(rec.FkOrderId, current + recParcels.length);
+      }
+
+      // Step 5: Enrich orders with totalParcels
+      const enrichedOrders = orders.map(o => ({
+        ...o,
+        TotalParcels: receiverParcelCount.get(o.PkOrderId) || 0
+      }));
+
       // Pagination is handled in-memory for this module's search results.
-      return this._paginateData(rows[0] || [], filters);
+      return this._paginateData(enrichedOrders, filters);
     }
     return this._findAllOrdersMock(filters);
   }
@@ -226,6 +251,20 @@ class OrderRepository {
       const orderHeader = orderRows[0]?.[0] || null;
       if (!orderHeader) return null;
 
+      // Step 1.5: Fetch sender email from Party_master
+      let senderEmail = null;
+      if (orderHeader.FkSenderId) {
+        const [senderRows] = await db.execute('CALL prc_Party_master_get(?, ?, ?)', [1, null, orderHeader.FkSenderId]);
+        senderEmail = senderRows[0]?.[0]?.EmailId || null;
+      }
+
+      // Step 1.6: Fetch courier name from courier_partner_master
+      let courierName = null;
+      if (orderHeader.FkCourierId) {
+        const [courierRows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [1, orderHeader.FkCourierId]);
+        courierName = courierRows[0]?.[0]?.CourierName || null;
+      }
+
       // Step 2: Get receivers from prc_receiver_details_get (pAction=0).
       // Filter by FkOrderId in JS to isolate this order's receivers.
       const [receiverRows] = await db.execute('CALL prc_receiver_details_get(?, ?)', [
@@ -253,7 +292,7 @@ class OrderRepository {
       ]);
       const allItems = itemRows[0] || [];
 
-      return this._buildOrderAggregate(orderHeader, orderReceivers, allParcels, allItems);
+      return this._buildOrderAggregate(orderHeader, orderReceivers, allParcels, allItems, senderEmail, courierName);
     }
     return this._findByIdMock(orderId);
   }
@@ -276,8 +315,10 @@ class OrderRepository {
    * @param {Array}  receivers   - Rows from prc_receiver_details_get filtered by orderId.
    * @param {Array}  allParcels  - All parcel rows from prc_parcel_details_get.
    * @param {Array}  allItems    - All order item rows from prc_order_items_get.
+   * @param {string|null} senderEmail - Email from Party_master.
+   * @param {string|null} courierName - Courier name from courier_partner_master.
    */
-  _buildOrderAggregate(orderHeader, receivers, allParcels, allItems) {
+  _buildOrderAggregate(orderHeader, receivers, allParcels, allItems, senderEmail, courierName) {
     if (!orderHeader) return null;
 
     const order = {
@@ -289,6 +330,8 @@ class OrderRepository {
       TotalAmount: orderHeader.TotalAmount,
       SenderName: orderHeader.SenderName || orderHeader.CustomerName,
       SenderMobile: orderHeader.SenderMobile || orderHeader.SenderPhone,
+      SenderEmail: senderEmail,
+      CourierName: courierName,
       receivers: []
     };
 
@@ -326,6 +369,7 @@ class OrderRepository {
       return {
         PkReceiverDetailsId: recId,
         FkPartyId: r.FkReceiverId,
+        ReceiverEmail: r.ReceiverEmail,
         ReceiverName: r.ReceiverName,
         ReceiverPhone: r.ReceiverPhone,
         Address: r.Address,
@@ -342,8 +386,8 @@ class OrderRepository {
           UnitTitle: i.UnitTitle
         })),
         parcel: parcelRow ? {
-          parcelDetailsId: parcelRow.PkParcelDetailsId,
-          parcelId: ParcelCodeService.generateCode(order.PkOrderId, parcelRow.PkParcelDetailsId),
+          PkParcelDetailsId: parcelRow.PkParcelDetailsId,
+          parcelCode: ParcelCodeService.generateCode(order.PkOrderId, parcelRow.PkParcelDetailsId),
           trackingNo: parcelRow.TrackingNo,
           status: parcelRow.ParcelStatusName || parcelRow.StatusDescription || parcelRow.FkParcelStatusId
         } : null
@@ -604,7 +648,7 @@ class OrderRepository {
   _createOrderMock(data, adminId) {
     const order = { id: seedOrders.length + 1, orderCode: `ORD-${Date.now()}`, fkSenderId: data.senderId, senderName: data.senderName, senderMobile: data.senderMobile, senderAddress: data.senderAddress, fkCourierId: data.courierId, totalAmount: 0, createdBy: adminId || null, createdAt: new Date(), isActive: true };
     seedOrders.push(order);
-    return order;
+    return { orderId: order.id, orderCode: order.orderCode };
   }
 
   /** @private */
@@ -613,7 +657,17 @@ class OrderRepository {
     const data = activeOrders.map((order) => {
       const receivers = seedReceivers.filter((r) => r.fkOrderId === order.id);
       const parcels = seedParcels.filter((p) => receivers.some((r) => r.id === p.fkReceiverDetailsId));
-      return { id: order.id, orderCode: order.orderCode, senderName: order.senderName, senderMobile: order.senderMobile, totalAmount: order.totalAmount, totalReceivers: receivers.length, totalParcels: parcels.length, derivedStatus: this._deriveOrderStatus(parcels), createdAt: order.createdAt };
+      return {
+        PkOrderId: order.id,
+        OrderCode: order.orderCode,
+        FkSenderId: order.fkSenderId,
+        SenderName: order.senderName,
+        SenderMobile: order.senderMobile,
+        TotalAmount: order.totalAmount,
+        TotalParcels: parcels.length,
+        DynamicOrderStatus: this._deriveOrderStatus(parcels),
+        OrderDate: order.createdAt
+      };
     });
     return this._paginateData(data, filters);
   }
@@ -622,12 +676,57 @@ class OrderRepository {
   _findByIdMock(orderId) {
     const order = seedOrders.find((o) => o.id === parseInt(orderId) && o.isActive);
     if (!order) return null;
-    const receivers = seedReceivers.filter((r) => r.fkOrderId === order.id).map(r => ({
-      ...r,
-      items: seedOrderItems.filter(i => i.fkReceiverDetailsId === r.id),
-      parcel: seedParcels.find(p => p.fkReceiverDetailsId === r.id)
-    }));
-    return { ...order, derivedStatus: this._deriveOrderStatus(receivers.map(r => r.parcel).filter(Boolean)), receivers };
+
+    // Mock: Get sender email
+    const senderEmail = order.fkSenderId ? `sender${order.fkSenderId}@example.com` : null;
+    // Mock: Get courier name
+    const courierName = order.fkCourierId ? `Mock Courier ${order.fkCourierId}` : null;
+
+    const receivers = seedReceivers.filter((r) => r.fkOrderId === order.id).map(r => {
+      const items = seedOrderItems.filter(i => i.fkReceiverDetailsId === r.id);
+      const parcel = seedParcels.find(p => p.fkReceiverDetailsId === r.id);
+      return {
+        PkReceiverDetailsId: r.id,
+        FkPartyId: r.receiverId || null,
+        ReceiverEmail: r.receiverEmail || null,
+        ReceiverName: r.receiverName,
+        ReceiverPhone: r.receiverPhone,
+        Address: r.address,
+        City: r.city,
+        State: r.state,
+        Pincode: r.pincode,
+        items: items.map(i => ({
+          PkOrderItemId: i.id,
+          FkProductId: i.fkProductId,
+          OutwardQty: i.outwardQty,
+          UnitPrice: i.unitPrice,
+          MaterialName: i.materialName || 'Mock Material',
+          MaterialCode: i.materialCode || 'MOCK-001',
+          UnitTitle: i.unitTitle || 'Piece'
+        })),
+        parcel: parcel ? {
+          PkParcelDetailsId: parcel.id,
+          parcelCode: ParcelCodeService.generateCode(order.id, parcel.id),
+          TrackingNo: parcel.trackingNo || null,
+          ParcelStatusName: parcel.parcelStatusCode || 'PENDING'
+        } : null
+      };
+    });
+
+    return {
+      PkOrderId: order.id,
+      OrderCode: order.orderCode,
+      FkSenderId: order.fkSenderId,
+      SenderName: order.senderName,
+      SenderMobile: order.senderMobile,
+      SenderEmail: senderEmail,
+      TotalAmount: order.totalAmount,
+      OrderDate: order.createdAt,
+      ExpectedDeliveryDate: null,
+      CourierName: courierName,
+      derivedStatus: this._deriveOrderStatus(receivers.map(r => r.parcel).filter(Boolean)),
+      receivers
+    };
   }
 
   /** @private */

@@ -164,8 +164,8 @@ class OrderService {
 
     // Repository handles the atomic transaction across 4 tables
     const result = await orderRepository.createOrder(orderPayload, ctx.createdBy);
-    
-    const fullOrder = await orderRepository.findById(result.orderId);
+
+    const fullOrder = await orderRepository.findById(result.orderId || result.id);
     return this._mapOrderAggregate(fullOrder);
   }
 
@@ -537,16 +537,24 @@ class OrderService {
    * @private
    */
   _mapOrderSummary(o) {
+    // Calculate totalParcels from receivers if not directly provided
+    let totalParcels = o.TotalParcels || o.totalParcels;
+    if (!totalParcels && o.receivers && Array.isArray(o.receivers)) {
+      totalParcels = o.receivers.filter(r => r.parcel || (r.parcelId || r.PkParcelDetailsId)).length;
+    }
+    
     return {
-      id: o.PkOrderId || o.id,
+      orderId: o.PkOrderId || o.id || o.orderId,
       orderCode: o.OrderCode || o.orderCode,
       senderId: o.FkSenderId || o.fkSenderId,
       senderName: o.SenderName || o.senderName,
+      senderEmail: o.SenderEmail || o.senderEmail || null,
       senderMobile: o.SenderMobile || o.senderMobile,
       totalAmount: o.TotalAmount || o.totalAmount,
       derivedStatus: o.DynamicOrderStatus || o.DerivedStatus || o.derivedStatus || 'Pending',
       createdAt: o.OrderDate || o.CreatedAt || o.createdAt,
-      totalParcels: o.TotalParcels || o.totalParcels || 0
+      expectedDeliveryDate: o.ExpectedDeliveryDate || o.expectedDeliveryDate || null,
+      totalParcels: totalParcels || 0
     };
   }
 
@@ -560,22 +568,25 @@ class OrderService {
       ...this._mapOrderSummary(o),
       senderAddress: o.SenderAddress || o.senderAddress,
       courierId: o.FkCourierId || o.fkCourierId,
+      courierName: o.CourierName || o.courierName || null,
       receivers: (o.receivers || []).map((r) => ({
         id: r.PkReceiverDetailsId || r.id,
         receiverId: r.FkPartyId || r.fkPartyId,
         receiverName: r.ReceiverName || r.receiverName,
+        receiverEmail: r.ReceiverEmail || r.receiverEmail || null,
         receiverPhone: r.ReceiverPhone || r.receiverPhone,
         address: r.Address || r.address,
         city: r.City || r.city,
         state: r.State || r.state,
         pincode: r.Pincode || r.pincode,
         parcel: r.parcel ? {
-          parcelDetailsId: r.parcel.PkParcelDetailsId || r.parcel.id || r.parcel.parcelDetailsId,
-          parcelId: ParcelCodeService.generateCode(
-            o.PkOrderId || o.id,
+          parcelId: r.parcel.PkParcelDetailsId || r.parcel.id || r.parcel.parcelDetailsId,
+          parcelCode: r.parcel.parcelCode || r.parcel.ParcelCode || ParcelCodeService.generateCode(
+            o.orderId || o.PkOrderId || o.id,
             r.parcel.PkParcelDetailsId || r.parcel.id || r.parcel.parcelDetailsId
           ),
-          status: r.parcel.ParcelStatus || r.parcel.parcelStatusCode || r.parcel.status || 'PENDING'
+          trackingNo: r.parcel.TrackingNo || r.parcel.trackingNo || null,
+          status: r.parcel.ParcelStatus || r.parcel.ParcelStatusCode || r.parcel.status || r.parcel.ParcelStatusName || 'PENDING'
         } : null,
         products: (r.items || []).map((i) => ({
           productId: i.FkProductId || i.fkProductId,
