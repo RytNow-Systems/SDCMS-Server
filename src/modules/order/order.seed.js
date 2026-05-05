@@ -12,24 +12,24 @@
 export const seedParties = [
   {
     id: 1,
-    customerName: 'Ramesh Textiles',
-    phoneNo: '9876543210',
-    address: '14, Gandhi Nagar, Near Railway Station',
-    city: 'Surat',
-    state: 'Gujarat',
-    pincode: '395002',
-    isActive: true
+    customerName: "Ramesh Textiles",
+    phoneNo: "9876543210",
+    address: "14, Gandhi Nagar, Near Railway Station",
+    city: "Surat",
+    state: "Gujarat",
+    pincode: "395002",
+    isActive: true,
   },
   {
     id: 2,
-    customerName: 'Delhi Fabrics Ltd.',
-    phoneNo: '9123456780',
-    address: '45, Karol Bagh',
-    city: 'New Delhi',
-    state: 'Delhi',
-    pincode: '110005',
-    isActive: true
-  }
+    customerName: "Delhi Fabrics Ltd.",
+    phoneNo: "9123456780",
+    address: "45, Karol Bagh",
+    city: "New Delhi",
+    state: "Delhi",
+    pincode: "110005",
+    isActive: true,
+  },
 ];
 
 /**
@@ -40,17 +40,19 @@ export const seedParties = [
 export const seedOrders = [
   {
     id: 1,
-    orderCode: 'ORD-20260330-001',
+    orderCode: "ORD-20260330-001",
     fkSenderId: 1,
-    senderName: 'Ramesh Textiles',
-    senderMobile: '9876543210',
-    senderAddress: '14, Gandhi Nagar, Near Railway Station, Surat, Gujarat 395002',
+    fkPartyDetailsId: 1,
+    senderName: "Ramesh Textiles",
+    senderMobile: "9876543210",
+    senderAddress:
+      "14, Gandhi Nagar, Near Railway Station, Surat, Gujarat 395002",
     fkCourierId: 1,
-    totalAmount: 3650.00,
-    createdBy: 'EMP001',
-    createdAt: new Date('2026-03-30T10:00:00Z'),
-    isActive: true
-  }
+    totalAmount: 3650.0,
+    createdBy: "EMP001",
+    createdAt: new Date("2026-03-30T10:00:00Z"),
+    isActive: true,
+  },
 ];
 
 /**
@@ -61,29 +63,31 @@ export const seedReceivers = [
   {
     id: 1,
     fkOrderId: 1,
-    receiverName: 'Delhi Fabrics Ltd.',
-    receiverPhone: '9123456780',
-    receiverEmail: 'delhi@fabrics.com',
-    address: '45, Karol Bagh',
-    city: 'New Delhi',
-    state: 'Delhi',
-    pincode: '110005',
-    country: 'India',
-    isActive: true
+    fkPartyDetailsId: 2,
+    receiverName: "Delhi Fabrics Ltd.",
+    receiverPhone: "9123456780",
+    receiverEmail: "delhi@fabrics.com",
+    address: "45, Karol Bagh",
+    city: "New Delhi",
+    state: "Delhi",
+    pincode: "110005",
+    country: "India",
+    isActive: true,
   },
   {
     id: 2,
     fkOrderId: 1,
-    receiverName: 'Mumbai Silk House',
-    receiverPhone: '9988776655',
-    receiverEmail: 'mumbai@silkhouse.com',
-    address: '22, Linking Road, Bandra West',
-    city: 'Mumbai',
-    state: 'Maharashtra',
-    pincode: '400050',
-    country: 'India',
-    isActive: true
-  }
+    fkPartyDetailsId: 3,
+    receiverName: "Mumbai Silk House",
+    receiverPhone: "9988776655",
+    receiverEmail: "mumbai@silkhouse.com",
+    address: "22, Linking Road, Bandra West",
+    city: "Mumbai",
+    state: "Maharashtra",
+    pincode: "400050",
+    country: "India",
+    isActive: true,
+  },
 ];
 
 /**
@@ -91,9 +95,30 @@ export const seedReceivers = [
  * Maps to: order_items (PkOrderItemId, FkReceiverDetailsId, FkProductId, OutwardQty, UnitPrice)
  */
 export const seedOrderItems = [
-  { id: 1, fkReceiverDetailsId: 1, fkProductId: 1, outwardQty: 5, unitPrice: 420.00 },
-  { id: 2, fkReceiverDetailsId: 1, fkProductId: 3, outwardQty: 2, unitPrice: 1100.00 },
-  { id: 3, fkReceiverDetailsId: 2, fkProductId: 1, outwardQty: 3, unitPrice: 450.00 }
+  {
+    id: 1,
+    fkReceiverDetailsId: 1,
+    fkProductId: 1,
+    fkLuColorId: 1,
+    outwardQty: 5,
+    unitPrice: 420.0,
+  },
+  {
+    id: 2,
+    fkReceiverDetailsId: 1,
+    fkProductId: 3,
+    fkLuColorId: 2,
+    outwardQty: 2,
+    unitPrice: 1100.0,
+  },
+  {
+    id: 3,
+    fkReceiverDetailsId: 2,
+    fkProductId: 1,
+    fkLuColorId: 1,
+    outwardQty: 3,
+    unitPrice: 450.0,
+  },
 ];
 
 /**
@@ -106,26 +131,26 @@ export const seedParcels = [
     id: 1,
     fkReceiverDetailsId: 1,
     fkCourierId: 1,
-    parcel_id: 'PDS-A1B2C3',
+    parcelCode: "UC-1-1",
     trackingNo: null,
-    fkParcelStatusId: null,    // Will resolve to lu_details.LuDetailsId for "PENDING"
-    parcelStatusCode: 'PENDING',
+    fkParcelStatusId: null, // Will resolve to lu_details.LuDetailsId for "PENDING"
+    parcelStatusCode: "PENDING",
     labelPrintCount: 0,
     dispatchDate: null,
-    createdBy: 'EMP001',
-    createdAt: new Date('2026-03-30T10:00:00Z')
+    createdBy: "EMP001",
+    createdAt: new Date("2026-03-30T10:00:00Z"),
   },
   {
     id: 2,
     fkReceiverDetailsId: 2,
     fkCourierId: 1,
-    parcel_id: 'PDS-D4E5F6',
+    parcelCode: "UC-1-2",
     trackingNo: null,
     fkParcelStatusId: null,
-    parcelStatusCode: 'PENDING',
+    parcelStatusCode: "PENDING",
     labelPrintCount: 0,
     dispatchDate: null,
-    createdBy: 'EMP001',
-    createdAt: new Date('2026-03-30T10:00:00Z')
-  }
+    createdBy: "EMP001",
+    createdAt: new Date("2026-03-30T10:00:00Z"),
+  },
 ];

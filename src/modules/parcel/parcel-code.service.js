@@ -13,7 +13,8 @@ import senderRepository from "../sender/sender.repository.js";
 
 class ParcelCodeService {
   /**
-   * Generates a parcel code using the formula PCL-[orderId]-[parcelId].
+   * @deprecated DB auto-runs FnGenerateParcelCode() on insert now. Backend should read ParcelCode from DB.
+   * Generates a parcel code using the formula UC-[orderId]-[parcelId].
    * This is a synchronous method — use only when orderId is already known.
    *
    * @param {number|string} orderId
@@ -22,10 +23,11 @@ class ParcelCodeService {
    */
   generateCode(orderId, parcelId) {
     if (!orderId || !parcelId) return null;
-    return `PCL-${orderId}-${parcelId}`;
+    return `UC-${orderId}-${parcelId}`;
   }
 
   /**
+   * @deprecated DB auto-runs FnGenerateParcelCode() on insert now. Backend should read ParcelCode from DB.
    * Generates a parcel code with automatic orderId resolution.
    * When orderId is not directly available (e.g., from prc_parcel_details_get),
    * this method resolves it by looking up the receiver's FkOrderId via the DB.
@@ -43,7 +45,7 @@ class ParcelCodeService {
 
     // Fast path: orderId already known
     if (orderId) {
-      return `PCL-${orderId}-${parcelId}`;
+      return `UC-${orderId}-${parcelId}`;
     }
 
     // Slow path: resolve orderId from receiverDetailsId
@@ -52,12 +54,12 @@ class ParcelCodeService {
     const resolvedOrderId = await this._resolveOrderId(receiverDetailsId);
     if (!resolvedOrderId) return null;
 
-    return `PCL-${resolvedOrderId}-${parcelId}`;
+    return `UC-${resolvedOrderId}-${parcelId}`;
   }
 
   /**
    * Deconstructs a parcel code back into its constituent Order and Parcel IDs.
-   * Useful for debugging or backward lookup.
+   * Useful for debugging or backward lookup. Accepts both 'UC-' and legacy 'PCL-' prefixes.
    *
    * @param {string} parcelCode
    * @returns {object|null} Object containing orderId and parcelId, or null if invalid
@@ -66,7 +68,7 @@ class ParcelCodeService {
     if (
       !parcelCode ||
       typeof parcelCode !== "string" ||
-      !parcelCode.startsWith("PCL-")
+      (!parcelCode.startsWith("PCL-") && !parcelCode.startsWith("UC-"))
     ) {
       return null;
     }

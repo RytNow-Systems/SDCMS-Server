@@ -18,7 +18,7 @@
 //   - prc_receiver_status_details_set: Append-only log
 // ============================================================================
 
-import db from '../../infrastructure/database/db.js';
+import db from "../../infrastructure/database/db.js";
 
 import {
   seedParcels,
@@ -26,16 +26,16 @@ import {
   seedParties,
   seedOrders,
   seedStatusLog,
-} from './parcel.seed.js';
+} from "./parcel.seed.js";
 
 /**
  * ParcelRepository
- * 
+ *
  * INJECTION SITE:
  * This repository is the sole data access point for the Parcel module.
  * It interacts with the database via 'db' (MySQL2) using stored procedures
  * as defined in 'api_procedure_spec_v2.md'.
- * 
+ *
  * In MOCK mode, it uses local seeds from './parcel.seed.js'.
  */
 class ParcelRepository {
@@ -52,21 +52,28 @@ class ParcelRepository {
    * @returns {Promise<object>} { data: [...], total: number }
    */
   async findAll(filters = {}) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      // pAction=0: List all parcels, pPkParcelDetailsId=0 (unused for list)
-      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
-        0, // pAction: list all
-        0  // pPkParcelDetailsId: unused for pAction=0
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      // pAction=0: List all parcels
+      const [rows] = await db.execute(
+        "CALL prc_parcel_details_search(?, ?, ?, ?)",
+        [
+          0, // pAction
+          0, // pPkParcelDetailsId
+          0, // pFkReceiverDetailsId
+          0, // pFkCourierId
+        ],
+      );
 
       let data = rows[0] || [];
 
       // Client-side search filtering (SP does not support text search)
       if (filters.search) {
         const q = filters.search.toLowerCase();
-        data = data.filter(p =>
-          (p.PkParcelDetailsId && p.PkParcelDetailsId.toString().includes(q)) ||
-          (p.TrackingNo && p.TrackingNo.toLowerCase().includes(q))
+        data = data.filter(
+          (p) =>
+            (p.PkParcelDetailsId &&
+              p.PkParcelDetailsId.toString().includes(q)) ||
+            (p.TrackingNo && p.TrackingNo.toLowerCase().includes(q)),
         );
       }
 
@@ -82,12 +89,14 @@ class ParcelRepository {
     // MOCK MODE
     const results = this._filterMockParcels(filters);
     const total = results.length;
-    
+
     // Pagination
     const page = filters.page || 1;
     const limit = filters.limit || 20;
     const start = (page - 1) * limit;
-    const data = results.slice(start, start + limit).map(p => this._mapMockParcel(p));
+    const data = results
+      .slice(start, start + limit)
+      .map((p) => this._mapMockParcel(p));
 
     return { data, total };
   }
@@ -101,11 +110,16 @@ class ParcelRepository {
    * @returns {Promise<object|null>} Parcel detail, or null if not found.
    */
   async findById(id) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
-        1, // pAction: get by ID
-        id // pPkParcelDetailsId
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_parcel_details_search(?, ?, ?, ?)",
+        [
+          1, // pAction: get by ID
+          id, // pPkParcelDetailsId
+          0,
+          0,
+        ],
+      );
       return rows[0]?.[0] || null;
     }
 
@@ -121,8 +135,11 @@ class ParcelRepository {
    * @returns {Promise<object|null>}
    */
   async findByAWB(awb) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_parcel_details_search_by_awb(?)', [awb]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_parcel_details_search_by_awb(?)",
+        [awb],
+      );
       return rows[0]?.[0] || null;
     }
     return seedParcels.find((p) => p.trackingNo === awb) || null;
@@ -139,10 +156,10 @@ class ParcelRepository {
    * @returns {Promise<object|null>}
    */
   async getLabelData(id) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_parcel_details_get(?, ?)', [
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute("CALL prc_parcel_details_get(?, ?)", [
         2, // pAction: label data (parcel + receiver join)
-        id // pPkParcelDetailsId
+        id, // pPkParcelDetailsId
       ]);
       return rows[0]?.[0] || null;
     }
@@ -155,21 +172,22 @@ class ParcelRepository {
 
   /**
    * Get chronological timeline of events.
-   * Procedure: CALL prc_receiver_status_details_search(0, receiverDetailsId, 0)
+   * Procedure: CALL prc_receiver_status_details_get(1, parcelId)
    *
-   * @param {number} receiverDetailsId
+   * @param {number} parcelId
    * @returns {Promise<Array>}
    */
-  async getTimeline(receiverDetailsId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_receiver_status_details_search(?, ?, ?)', [
-        0, receiverDetailsId, 0
-      ]);
+  async getTimeline(parcelId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_receiver_status_details_get(?, ?)",
+        [1, parcelId],
+      );
       return rows[0] || [];
     }
 
     return seedStatusLog
-      .filter((log) => log.fkReceiverDetailsId === parseInt(receiverDetailsId))
+      .filter((log) => log.fkParcelDetailsId === parseInt(parcelId))
       .sort((a, b) => new Date(a.createdDate) - new Date(b.createdDate));
   }
 
@@ -179,7 +197,7 @@ class ParcelRepository {
 
   /**
    * Update parcel state.
-   * Procedure: CALL prc_parcel_details_set(triggerType, parcelId, 0, awbNumber, courierId, adminId)
+   * Procedure: CALL prc_parcel_details_set(parcelId, triggerType, null, awbNumber, courierId, adminId)
    *
    * @param {number} parcelId
    * @param {number} triggerType - 1=PRINT, 2=SCAN, 3=DISPATCH, 4=DELIVERED, 5=CANCELLED
@@ -188,16 +206,25 @@ class ParcelRepository {
    * @param {string} adminId - EmployeeCode
    * @returns {Promise<object>}
    */
-  async updateParcelState(parcelId, triggerType, awbNumber, courierId, adminId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)', [
-        triggerType,
-        parcelId,
-        0, // pFkReceiverDetailsId (usually 0 if updating existing)
-        awbNumber || null,
-        courierId || 0,
-        adminId
-      ]);
+  async updateParcelState(
+    parcelId,
+    triggerType,
+    awbNumber,
+    courierId,
+    adminId,
+  ) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)",
+        [
+          parcelId,
+          triggerType,
+          null, // pFkReceiverDetailsId
+          awbNumber || null,
+          courierId || 0,
+          adminId,
+        ],
+      );
       return rows[0]?.[0] || null;
     }
 
@@ -208,27 +235,27 @@ class ParcelRepository {
     const parcel = seedParcels[index];
     const previousStatus = parcel.parcelStatusCode;
 
-    let actionType = 'STATUS_UPDATE';
+    let actionType = "STATUS_UPDATE";
 
     switch (triggerType) {
       case 1: // PRINT_LABEL
         parcel.labelPrintCount += 1;
-        parcel.parcelStatusCode = 'LABEL_PRINTED';
+        parcel.parcelStatusCode = "LABEL_PRINTED";
         break;
       case 2: // SCAN_LINK_AWB
         parcel.trackingNo = awbNumber;
-        parcel.parcelStatusCode = 'AWB_LINKED';
-        actionType = 'AWB_LINK';
+        parcel.parcelStatusCode = "AWB_LINKED";
+        actionType = "AWB_LINK";
         break;
       case 3: // DISPATCH
-        parcel.parcelStatusCode = 'DISPATCHED';
+        parcel.parcelStatusCode = "DISPATCHED";
         parcel.dispatchDate = new Date();
         break;
       case 4: // DELIVERED
-        parcel.parcelStatusCode = 'DELIVERED';
+        parcel.parcelStatusCode = "DELIVERED";
         break;
       case 5: // CANCELLED
-        parcel.parcelStatusCode = 'CANCELLED';
+        parcel.parcelStatusCode = "CANCELLED";
         break;
     }
 
@@ -240,7 +267,7 @@ class ParcelRepository {
       actionType,
       awbNumber: awbNumber || null,
       createdBy: adminId,
-      createdDate: new Date()
+      createdDate: new Date(),
     });
 
     return { ...parcel, previousStatus };
@@ -257,13 +284,13 @@ class ParcelRepository {
    * @param {string} adminId - EmployeeCode
    */
   async logEvent(parcelId, receiverDetailsId, actionType, awbNumber, adminId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      await db.execute('CALL prc_receiver_status_details_set(?, ?, ?, ?, ?)', [
+    if (process.env.USE_MOCK_DB !== "true") {
+      await db.execute("CALL prc_receiver_status_details_set(?, ?, ?, ?, ?)", [
         parcelId,
         receiverDetailsId,
         actionType,
         awbNumber || null,
-        adminId
+        adminId,
       ]);
       return;
     }
@@ -276,7 +303,7 @@ class ParcelRepository {
       actionType,
       awbNumber: awbNumber || null,
       createdBy: adminId,
-      createdDate: new Date()
+      createdDate: new Date(),
     });
   }
 
@@ -286,15 +313,17 @@ class ParcelRepository {
    * (Optionally filtering if SP supports more params)
    */
   async browseEvents(filters = {}) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_receiver_status_details_search(?, ?, ?)', [
-        0, 0, 0
-      ]);
-      
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_receiver_status_details_get(?, ?)",
+        [0, 0],
+      );
+
       let data = rows[0] || [];
       // Manual filtering for now if SP is limited
-      if (filters.actionType) data = data.filter(e => e.ActionType === filters.actionType);
-      
+      if (filters.actionType)
+        data = data.filter((e) => e.ActionType === filters.actionType);
+
       const total = data.length;
       const page = filters.page || 1;
       const limit = filters.limit || 50;
@@ -326,8 +355,12 @@ class ParcelRepository {
    * @private
    */
   _mapMockParcel(parcel) {
-    const receiver = seedReceivers.find((r) => r.id === parcel.fkReceiverDetailsId);
-    const order = receiver ? seedOrders.find((o) => o.id === receiver.fkOrderId) : null;
+    const receiver = seedReceivers.find(
+      (r) => r.id === parcel.fkReceiverDetailsId,
+    );
+    const order = receiver
+      ? seedOrders.find((o) => o.id === receiver.fkOrderId)
+      : null;
 
     return {
       ...parcel,
@@ -340,7 +373,7 @@ class ParcelRepository {
       state: receiver?.state || null,
       pincode: receiver?.pincode || null,
       orderCode: order?.orderCode || null,
-      orderId: order?.id || null
+      orderId: order?.id || null,
     };
   }
 
@@ -358,7 +391,7 @@ class ParcelRepository {
       filtered = filtered.filter(
         (p) =>
           p.id.toString().includes(q) ||
-          (p.trackingNo && p.trackingNo.toLowerCase().includes(q))
+          (p.trackingNo && p.trackingNo.toLowerCase().includes(q)),
       );
     }
     return filtered;

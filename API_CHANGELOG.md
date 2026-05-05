@@ -4,6 +4,26 @@ This document tracks all API changes and provides a checklist for keeping Bruno 
 
 ---
 
+## 🚀 Version 2.6: Schema v2 Refactor — Order & Parcel APIs
+**Date:** May 5, 2026
+**Status:** Implementation Complete
+
+### ⚠️ Breaking Change
+- **Response Format**: The `parcelCode` string format returned in GET /orders and all GET /parcels endpoints has changed from `PCL-{orderId}-{parcelId}` to `UC-{orderId}-{parcelId}`.
+- **Input Format**: The `POST /parcels/scan` endpoint now expects the `parcelId` field to contain the new `UC-*` prefix (though it will accept legacy `PCL-*` during rollout).
+
+### 📦 Module-Specific Changes
+
+#### 1. Order Pipeline
+- **Additions**: `colorId` and `colorName` are now included in the per-product response array.
+- **Database Alignment**: Removed redundant snapshots in `order_master` and `receiver_details`. Sender and receiver addresses are now sourced directly from `party_details` via JOINs.
+
+#### 2. Parcel Execution
+- **Bug Fix**: Fixed parameter mismatch in `prc_parcel_details_set` for state updates.
+- **Data Source**: Backend no longer dynamically generates `ParcelCode` — it reads the auto-generated `UC-*` values directly from the database row.
+
+---
+
 ## 🚀 Version 2.5: Cancel Order Method Change (PATCH → DELETE)
 **Date:** May 4, 2026
 **Status:** Implementation Complete
