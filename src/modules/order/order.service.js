@@ -177,6 +177,8 @@ class OrderService {
       ctx.senderMobile,
       ctx.senderEmail,
       senderCtx,
+      ctx.senderId,
+      ctx.senderAddressId,
     );
 
     // Step 3: Build the aggregate graph for the repository
@@ -239,6 +241,8 @@ class OrderService {
       ctx.senderMobile,
       ctx.senderEmail,
       senderCtx,
+      ctx.senderId,
+      ctx.senderAddressId,
     );
 
     // Step 4: Iteratively build the mock graph (receivers -> items -> parcels)
@@ -304,7 +308,7 @@ class OrderService {
   }
 
   /**
-   * Domain Logic: Resolves Order Modes into a unified receiver array.
+   * Builds the unified receivers list based on Mode detection.
    * Mode A: root products → synthetic receiver (self)
    * Mode B: external receivers → list of receivers
    * Mode C: both → synthetic receiver + external receivers
@@ -319,10 +323,14 @@ class OrderService {
     sPhone,
     sEmail,
     senderCtx,
+    senderId,
+    senderAddressId,
   ) {
     const list = [];
     if (hasRoot) {
       list.push({
+        receiverId: senderId,
+        receiverAddressId: senderAddressId,
         receiverName: sName,
         receiverPhone: sPhone,
         receiverEmail: sEmail || "",
@@ -703,6 +711,9 @@ class OrderService {
     return {
       ...this._mapOrderSummary(o),
       senderAddress: o.SenderAddress || o.senderAddress,
+      senderCity: o.SenderCity || o.senderCity,
+      senderState: o.SenderState || o.senderState,
+      senderPincode: o.SenderPincode || o.senderPincode,
       courierId: o.FkCourierId || o.fkCourierId,
       courierName: o.CourierName || o.courierName || null,
       receivers: (o.receivers || []).map((r) => ({
@@ -711,10 +722,10 @@ class OrderService {
         receiverName: r.ReceiverName || r.receiverName,
         receiverEmail: r.ReceiverEmail || r.receiverEmail || null,
         receiverPhone: r.ReceiverPhone || r.receiverPhone,
-        address: r.Address || r.address,
-        city: r.City || r.city,
-        state: r.State || r.state,
-        pincode: r.Pincode || r.pincode,
+        receiverAddress: r.Address || r.address,
+        receiverCity: r.City || r.city,
+        receiverState: r.State || r.state,
+        receiverPincode: r.Pincode || r.pincode,
         parcel: r.parcel
           ? {
               parcelId:

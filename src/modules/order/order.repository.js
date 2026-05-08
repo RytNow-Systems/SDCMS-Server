@@ -236,11 +236,29 @@ class OrderRepository {
         receiverParcelCount.set(rec.FkOrderId, current + recParcels.length);
       }
 
-      // Step 5: Enrich orders with totalParcels
-      const enrichedOrders = orders.map((o) => ({
-        ...o,
-        TotalParcels: receiverParcelCount.get(o.PkOrderId) || 0,
-      }));
+      // Step 5: Fetch sender details for all unique senders
+      const uniqueSenderIds = [
+        ...new Set(orders.map((o) => o.FkSenderId).filter(Boolean)),
+      ];
+      const senderMap = new Map();
+      for (const senderId of uniqueSenderIds) {
+        const sender = await this.resolveParty(senderId);
+        if (sender) {
+          senderMap.set(senderId, sender);
+        }
+      }
+
+      // Step 6: Enrich orders with totalParcels and sender details
+      const enrichedOrders = orders.map((o) => {
+        const sender = senderMap.get(o.FkSenderId);
+        return {
+          ...o,
+          TotalParcels: receiverParcelCount.get(o.PkOrderId) || 0,
+          SenderName: sender?.CustomerName || o.SenderName || null,
+          SenderMobile: sender?.PhoneNo || o.SenderMobile || null,
+          SenderEmail: sender?.EmailId || null,
+        };
+      });
 
       // Pagination is handled in-memory for this module's search results.
       return this._paginateData(enrichedOrders, filters);
@@ -287,11 +305,10 @@ class OrderRepository {
       const orderHeader = orderRows[0]?.[0] || null;
       if (!orderHeader) return null;
 
-      // Step 1.5: Fetch sender email from party_master (not party_details)
-      let senderEmail = null;
+      // Step 1.5: Fetch sender details from party_master (email, phone, name)
+      let sender = null;
       if (orderHeader.FkSenderId) {
-        const sender = await this.resolveParty(orderHeader.FkSenderId);
-        senderEmail = sender?.EmailId || null;
+        sender = await this.resolveParty(orderHeader.FkSenderId);
       }
 
       // Step 1.6: Fetch courier name from courier_partner_master
@@ -349,15 +366,19 @@ class OrderRepository {
         statusMap.set(lu.LuDetailsId, lu.LuDetails);
       }
 
-      // Step 6: Fetch receiver emails from party_master for each unique receiver
+      // Step 6: Fetch receiver details (name, phone, email) from party_master for each unique receiver
       const uniqueReceiverIds = [
         ...new Set(orderReceivers.map((r) => r.FkReceiverId).filter(Boolean)),
       ];
-      const receiverEmailMap = new Map();
+      const receiverPartyMap = new Map();
       for (const receiverId of uniqueReceiverIds) {
         const receiver = await this.resolveParty(receiverId);
         if (receiver) {
-          receiverEmailMap.set(receiverId, receiver.EmailId || null);
+          receiverPartyMap.set(receiverId, {
+            email: receiver.EmailId || null,
+            name: receiver.CustomerName || null,
+            phone: receiver.PhoneNo || null,
+          });
         }
       }
 
@@ -366,10 +387,10 @@ class OrderRepository {
         orderReceivers,
         allParcels,
         allItems,
-        senderEmail,
+        sender,
         courierName,
         statusMap,
-        receiverEmailMap,
+        receiverPartyMap,
       );
     }
     return this._findByIdMock(orderId);
@@ -388,27 +409,27 @@ class OrderRepository {
    * - allParcels:  prc_parcel_details_get(pAction=0)   → matched by FkReceiverDetailsId
    * - allItems:    prc_order_items_get(pAction=0)      → grouped by FkReceiverDetailsId
    * - statusMap:   Map<LuDetailsId, LuDetails> from prc_lu_details_get → resolves parcel status
-   * - receiverEmailMap: Map<FkReceiverId, EmailId> from party_master → resolves receiver emails
+   * - receiverPartyMap: Map<FkReceiverId, {email, name, phone}> from party_master → resolves receiver details
    *
    * @private
    * @param {object} orderHeader - Single row from prc_order_master_get.
    * @param {Array}  receivers   - Rows from prc_receiver_details_get filtered by orderId.
    * @param {Array}  allParcels  - All parcel rows from prc_parcel_details_get.
    * @param {Array}  allItems    - All order item rows from prc_order_items_get.
-   * @param {string|null} senderEmail - Email from Party_master.
+   * @param {object|null} sender - Sender object from party_master (via resolveParty).
    * @param {string|null} courierName - Courier name from courier_partner_master.
    * @param {Map} statusMap - Lookup map for resolving FkParcelStatusId to status name.
-   * @param {Map} receiverEmailMap - Lookup map for resolving FkReceiverId to receiver email.
+   * @param {Map} receiverPartyMap - Lookup map for resolving FkReceiverId to receiver details (name, phone, email).
    */
   _buildOrderAggregate(
     orderHeader,
     receivers,
     allParcels,
     allItems,
-    senderEmail,
+    sender,
     courierName,
     statusMap,
-    receiverEmailMap,
+    receiverPartyMap,
   ) {
     if (!orderHeader) return null;
 
@@ -419,9 +440,17 @@ class OrderRepository {
       OrderDate: orderHeader.OrderDate,
       ExpectedDeliveryDate: orderHeader.ExpectedDeliveryDate,
       TotalAmount: orderHeader.TotalAmount,
-      SenderName: orderHeader.SenderName || orderHeader.CustomerName,
-      SenderMobile: orderHeader.SenderMobile || orderHeader.SenderPhone,
-      SenderEmail: senderEmail,
+      SenderName:
+        sender?.CustomerName ||
+        orderHeader.SenderName ||
+        orderHeader.CustomerName,
+      SenderMobile:
+        sender?.PhoneNo || orderHeader.SenderMobile || orderHeader.SenderPhone,
+      SenderEmail: sender?.EmailId || null,
+      SenderAddress: orderHeader.Address || null,
+      SenderCity: orderHeader.City || orderHeader.city || null,
+      SenderState: orderHeader.State || null,
+      SenderPincode: orderHeader.Pincode || null,
       CourierName: courierName,
       receivers: [],
     };
@@ -456,15 +485,16 @@ class OrderRepository {
       const recId = r.PkReceiverDetailsId;
       const parcelRow = parcelsByReceiver.get(recId) || null;
       const receiverItems = itemsByReceiver.get(recId) || [];
+      const receiverParty = receiverPartyMap.get(r.FkReceiverId);
 
       return {
         PkReceiverDetailsId: recId,
         FkPartyId: r.FkReceiverId,
         PkPartyDetailsId: r.FkPartyDetailsId || r.PkPartyDetailsId,
         ReceiverEmail:
-          receiverEmailMap.get(r.FkReceiverId) || r.ReceiverEmail || null,
-        ReceiverName: r.ReceiverName,
-        ReceiverPhone: r.ReceiverPhone,
+          receiverParty?.email || r.ReceiverEmail || sender?.EmailId || null,
+        ReceiverName: receiverParty?.name || r.ReceiverName || null,
+        ReceiverPhone: receiverParty?.phone || r.ReceiverPhone || null,
         Address: r.Address,
         City: r.City,
         State: r.State,
