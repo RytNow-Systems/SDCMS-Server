@@ -6,16 +6,24 @@
 // All responses use the standard envelope: { success, data?, error? }
 // ============================================================================
 
-import asyncHandler from 'express-async-handler';
-import orderService from '../../../modules/order/order.service.js';
+import asyncHandler from "express-async-handler";
+import orderService from "../../../modules/order/order.service.js";
 
 /**
  * POST /api/v1/orders
  * Creates a complex order (sender → order → receivers → items → parcels).
+ * Returns only orderId and orderCode for simplified response.
  */
 export const createOrder = asyncHandler(async (req, res) => {
   const result = await orderService.createOrder(req.body, req.user);
-  res.status(201).json({ success: true, data: result });
+  // Return only essential fields for create response
+  res.status(201).json({
+    success: true,
+    data: {
+      orderId: result.orderId,
+      orderCode: result.orderCode,
+    },
+  });
 });
 
 /**
@@ -28,8 +36,8 @@ export const getOrderList = asyncHandler(async (req, res) => {
     page: parseInt(req.query.page) || 1,
     limit: parseInt(req.query.limit) || 20,
     search: req.query.search?.trim() || null,
-    sortBy: req.query.sortBy || 'created_at',
-    sortOrder: req.query.sortOrder || 'desc'
+    sortBy: req.query.sortBy || "created_at",
+    sortOrder: req.query.sortOrder || "desc",
   };
 
   const { data, total } = await orderService.getOrderSummaryList(filters);
@@ -41,8 +49,8 @@ export const getOrderList = asyncHandler(async (req, res) => {
       page: filters.page,
       limit: filters.limit,
       totalRows: total,
-      totalPages: Math.ceil(total / filters.limit)
-    }
+      totalPages: Math.ceil(total / filters.limit),
+    },
   });
 });
 
@@ -63,7 +71,11 @@ export const getOrderById = asyncHandler(async (req, res) => {
  * ❗ Fails if any parcel status ≥ AWB_LINKED
  */
 export const updateOrder = asyncHandler(async (req, res) => {
-  const result = await orderService.updateOrder(req.params.id, req.body, req.user);
+  const result = await orderService.updateOrder(
+    req.params.id,
+    req.body,
+    req.user,
+  );
   res.json({ success: true, data: result });
 });
 
