@@ -38,10 +38,12 @@ class ProductService {
       unitTitle: product.UnitTitle || null,
       colorName: product.ColorName || null,
       size: product.Size || null,
-      isActive:
-        (product.IsActive !== undefined
-          ? product.IsActive
-          : product.isActive) == true,
+      isActive: (() => {
+        const val =
+          product.IsActive !== undefined ? product.IsActive : product.isActive;
+        if (Buffer.isBuffer(val)) return val[0] === 1;
+        return val === 1 || val === true;
+      })(),
       createdAt: product.CreatedDate || product.createdAt,
     };
   }
@@ -78,8 +80,11 @@ class ProductService {
       colorName: row.ColorName || row.colorName || null,
       materialRate: row.MaterialRate || row.materialRate,
       size: row.Size || row.size,
-      isActive:
-        (row.IsActive !== undefined ? row.IsActive : row.isActive) == true,
+      isActive: (() => {
+        const val = row.IsActive !== undefined ? row.IsActive : row.isActive;
+        if (Buffer.isBuffer(val)) return val[0] === 1;
+        return val === 1 || val === true;
+      })(),
       createdAt: row.CreatedDate || row.createdAt,
     };
   }
