@@ -54,6 +54,7 @@ class OrderService {
 
     const ctx = {
       senderId,
+      senderAddressId,
       senderName: sender.CustomerName,
       senderMobile: sender.PhoneNo,
       senderEmail: sender.EmailId || sender.emailId || null,
@@ -138,6 +139,7 @@ class OrderService {
 
       resolved.push({
         receiverId: r.receiverId,
+        receiverAddressId: r.receiverAddressId,
         receiverName: party.CustomerName,
         receiverPhone: party.PhoneNo,
         receiverEmail: party.EmailId || party.emailId || "",
@@ -180,6 +182,7 @@ class OrderService {
     // Step 3: Build the aggregate graph for the repository
     const orderPayload = {
       senderId: ctx.senderId,
+      senderAddressId: ctx.senderAddressId,
       senderName: ctx.senderName,
       senderMobile: ctx.senderMobile,
       senderAddress: ctx.senderAddress,
@@ -743,7 +746,7 @@ class OrderService {
           materialName: i.MaterialName || i.materialName || null,
           materialCode: i.MaterialCode || i.materialCode || null,
           unitTitle: i.UnitTitle || i.unitTitle || null,
-          colorId: i.ColorId || i.colorId || null,
+          colorId: i.PkLuColorId || i.ColorId || i.colorId || null,
           colorName: i.ColorName || i.colorName || null,
         })),
       })),

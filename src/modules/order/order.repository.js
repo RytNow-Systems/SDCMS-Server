@@ -287,8 +287,12 @@ class OrderRepository {
       const orderHeader = orderRows[0]?.[0] || null;
       if (!orderHeader) return null;
 
-      // Step 1.5: Removed prc_Party_master_get since email is now joined in prc_order_master_get
-      let senderEmail = orderHeader.EmailId || null;
+      // Step 1.5: Fetch sender email from party_master (not party_details)
+      let senderEmail = null;
+      if (orderHeader.FkSenderId) {
+        const sender = await this.resolveParty(orderHeader.FkSenderId);
+        senderEmail = sender?.EmailId || null;
+      }
 
       // Step 1.6: Fetch courier name from courier_partner_master
       let courierName = null;
@@ -333,6 +337,30 @@ class OrderRepository {
       ]);
       const allItems = itemRows[0] || [];
 
+      // Step 5: Get parcel status lookup values (lu_details for status resolution)
+      const [luRows] = await db.execute("CALL prc_lu_details_get(?, ?)", [
+        0, // pAction: 0 = get all lookup details
+        0, // pLookUpId: unused
+      ]);
+      const allLookups = luRows[0] || [];
+      // Build a map: LuDetailsId -> LuDetails (status name)
+      const statusMap = new Map();
+      for (const lu of allLookups) {
+        statusMap.set(lu.LuDetailsId, lu.LuDetails);
+      }
+
+      // Step 6: Fetch receiver emails from party_master for each unique receiver
+      const uniqueReceiverIds = [
+        ...new Set(orderReceivers.map((r) => r.FkReceiverId).filter(Boolean)),
+      ];
+      const receiverEmailMap = new Map();
+      for (const receiverId of uniqueReceiverIds) {
+        const receiver = await this.resolveParty(receiverId);
+        if (receiver) {
+          receiverEmailMap.set(receiverId, receiver.EmailId || null);
+        }
+      }
+
       return this._buildOrderAggregate(
         orderHeader,
         orderReceivers,
@@ -340,6 +368,8 @@ class OrderRepository {
         allItems,
         senderEmail,
         courierName,
+        statusMap,
+        receiverEmailMap,
       );
     }
     return this._findByIdMock(orderId);
@@ -357,6 +387,8 @@ class OrderRepository {
    * - receivers:   prc_receiver_details_get(pAction=0) filtered by FkOrderId
    * - allParcels:  prc_parcel_details_get(pAction=0)   → matched by FkReceiverDetailsId
    * - allItems:    prc_order_items_get(pAction=0)      → grouped by FkReceiverDetailsId
+   * - statusMap:   Map<LuDetailsId, LuDetails> from prc_lu_details_get → resolves parcel status
+   * - receiverEmailMap: Map<FkReceiverId, EmailId> from party_master → resolves receiver emails
    *
    * @private
    * @param {object} orderHeader - Single row from prc_order_master_get.
@@ -365,6 +397,8 @@ class OrderRepository {
    * @param {Array}  allItems    - All order item rows from prc_order_items_get.
    * @param {string|null} senderEmail - Email from Party_master.
    * @param {string|null} courierName - Courier name from courier_partner_master.
+   * @param {Map} statusMap - Lookup map for resolving FkParcelStatusId to status name.
+   * @param {Map} receiverEmailMap - Lookup map for resolving FkReceiverId to receiver email.
    */
   _buildOrderAggregate(
     orderHeader,
@@ -373,6 +407,8 @@ class OrderRepository {
     allItems,
     senderEmail,
     courierName,
+    statusMap,
+    receiverEmailMap,
   ) {
     if (!orderHeader) return null;
 
@@ -425,7 +461,8 @@ class OrderRepository {
         PkReceiverDetailsId: recId,
         FkPartyId: r.FkReceiverId,
         PkPartyDetailsId: r.FkPartyDetailsId || r.PkPartyDetailsId,
-        ReceiverEmail: r.EmailId || r.ReceiverEmail,
+        ReceiverEmail:
+          receiverEmailMap.get(r.FkReceiverId) || r.ReceiverEmail || null,
         ReceiverName: r.ReceiverName,
         ReceiverPhone: r.ReceiverPhone,
         Address: r.Address,
@@ -441,7 +478,7 @@ class OrderRepository {
           MaterialName: i.MaterialName,
           MaterialCode: i.MaterialCode,
           UnitTitle: i.UnitTitle,
-          ColorId: i.FkLuColorId || i.ColorId,
+          ColorId: i.PkLuColorId || i.FkLuColorId || i.ColorId,
           ColorName: i.ColorName,
         })),
         parcel: parcelRow
@@ -453,8 +490,7 @@ class OrderRepository {
               ),
               trackingNo: parcelRow.TrackingNo,
               status:
-                parcelRow.ParcelStatusName ||
-                parcelRow.StatusDescription ||
+                statusMap.get(parcelRow.FkParcelStatusId) ||
                 parcelRow.FkParcelStatusId,
             }
           : null,
