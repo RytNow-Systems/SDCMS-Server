@@ -22,16 +22,27 @@ class ProductService {
    */
   _mapToApi(product) {
     if (!product) return null;
+
+    const matName = product.MaterialName || product.materialName || "";
+    const catName = product.CategoryName || product.categoryName || "";
+    const colName = product.ColorName || product.colorName || "";
+    const size = product.Size || product.size || "";
+    const unitTitle = product.UnitTitle || product.unitTitle || "";
+
+    let generatedDesc = matName;
+    if (catName) generatedDesc += ` (${catName})`;
+    const specs = [];
+    if (colName) specs.push(colName);
+    if (size) specs.push(size);
+    if (specs.length > 0) generatedDesc += ` - ${specs.join(", ")}`;
+    if (unitTitle) generatedDesc += ` [${unitTitle}]`;
+
     return {
       productId: product.PkProductId || product.id,
-      materialName: product.MaterialName || product.materialName,
+      materialName: matName,
       materialRate: product.MaterialRate || product.materialRate,
       cuItemCode: product.cu_item_code || product.cuItemCode || null,
-      materialDescription:
-        product.MaterialDescription ||
-        product.materialDescription ||
-        product.description ||
-        null,
+      materialDescription: generatedDesc || null,
       categoryId: product.FkProductCategoryId || product.categoryId || null,
       unitId: product.FkUnitId || product.unitId || null,
       categoryName: product.CategoryName || null,
@@ -42,7 +53,9 @@ class ProductService {
         const val =
           product.IsActive !== undefined ? product.IsActive : product.isActive;
         if (Buffer.isBuffer(val)) return val[0] === 1;
-        return val === 1 || val === true;
+        return (
+          val === 1 || val === true || val === "1" || val === "Active"
+        );
       })(),
       createdAt: product.CreatedDate || product.createdAt,
     };
