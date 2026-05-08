@@ -16,26 +16,26 @@
 //   - prc_lu_color_code_set: Color upsert (ID=0: insert, ID>0: update)
 // ============================================================================
 
-import db from '../../infrastructure/database/db.js';
+import db from "../../infrastructure/database/db.js";
 
 // ============================================================================
 // MOCK DATA STORE (For USE_MOCK_DB=true)
 // ============================================================================
 let seedCategories = [
-  { PkProductCategoryId: 1, CategoryName: 'Textiles', IsActive: true },
-  { PkProductCategoryId: 2, CategoryName: 'Accessories', IsActive: true }
+  { PkProductCategoryId: 1, CategoryName: "Textiles", IsActive: true },
+  { PkProductCategoryId: 2, CategoryName: "Accessories", IsActive: true },
 ];
 
 let seedUnits = [
-  { PkUnitId: 1, UnitTitle: 'Kilogram', UnitCode: 'KG', IsActive: 1 },
-  { PkUnitId: 2, UnitTitle: 'Pieces', UnitCode: 'PCS', IsActive: 1 },
-  { PkUnitId: 3, UnitTitle: 'Litre', UnitCode: 'LTR', IsActive: 1 }
+  { PkUnitId: 1, UnitTitle: "Kilogram", UnitCode: "KG", IsActive: 1 },
+  { PkUnitId: 2, UnitTitle: "Pieces", UnitCode: "PCS", IsActive: 1 },
+  { PkUnitId: 3, UnitTitle: "Litre", UnitCode: "LTR", IsActive: 1 },
 ];
 
 let seedColors = [
-  { PkLuColorId: 1, ColorName: 'Red', ColorCode: 'RED', IsActive: 1 },
-  { PkLuColorId: 2, ColorName: 'Blue', ColorCode: 'BLU', IsActive: 1 },
-  { PkLuColorId: 3, ColorName: 'Green', ColorCode: 'GRN', IsActive: 1 }
+  { PkLuColorId: 1, ColorName: "Red", ColorCode: "RED", IsActive: 1 },
+  { PkLuColorId: 2, ColorName: "Blue", ColorCode: "BLU", IsActive: 1 },
+  { PkLuColorId: 3, ColorName: "Green", ColorCode: "GRN", IsActive: 1 },
 ];
 
 let seedColorMatrix = [
@@ -43,59 +43,58 @@ let seedColorMatrix = [
     PkProductColorId: 1,
     FkProductId: 1,
     FkLuColorId: 1,
-    ColorName: 'Red',
-    MaterialRate: 550.00,
-    Size: 'M',
+    ColorName: "Red",
+    MaterialRate: 550.0,
+    Size: "M",
     IsActive: 1,
-    CreatedDate: new Date().toISOString()
+    CreatedDate: new Date().toISOString(),
   },
   {
     PkProductColorId: 2,
     FkProductId: 1,
     FkLuColorId: 2,
-    ColorName: 'Blue',
-    MaterialRate: 520.00,
-    Size: 'L',
+    ColorName: "Blue",
+    MaterialRate: 520.0,
+    Size: "L",
     IsActive: 1,
-    CreatedDate: new Date().toISOString()
-  }
+    CreatedDate: new Date().toISOString(),
+  },
 ];
 
 let seedProducts = [
   {
     PkProductId: 1,
-    MaterialName: 'Cotton Fiber',
-    MaterialRate: 500.50,
-    cu_item_code: 'CF-001',
+    MaterialName: "Cotton Fiber",
+    MaterialRate: 500.5,
+    cu_item_code: "CF-001",
     FkProductCategoryId: 1,
     FkUnitId: 1,
     IsActive: true,
-    CreatedDate: new Date().toISOString()
+    CreatedDate: new Date().toISOString(),
   },
   {
     PkProductId: 2,
-    MaterialName: 'Polyester Yarn',
-    MaterialRate: 300.00,
-    cu_item_code: 'PY-002',
+    MaterialName: "Polyester Yarn",
+    MaterialRate: 300.0,
+    cu_item_code: "PY-002",
     FkProductCategoryId: 1,
     FkUnitId: 1,
     IsActive: true,
-    CreatedDate: new Date().toISOString()
+    CreatedDate: new Date().toISOString(),
   },
   {
     PkProductId: 3,
-    MaterialName: 'Silk Thread',
-    MaterialRate: 1500.00,
-    cu_item_code: 'ST-003',
+    MaterialName: "Silk Thread",
+    MaterialRate: 1500.0,
+    cu_item_code: "ST-003",
     FkProductCategoryId: 1,
     FkUnitId: 1,
     IsActive: true,
-    CreatedDate: new Date().toISOString()
-  }
+    CreatedDate: new Date().toISOString(),
+  },
 ];
 
 class ProductRepository {
-
   // --------------------------------------------------------------------------
   // 1. VALIDATION PROCEDURES
   // --------------------------------------------------------------------------
@@ -110,21 +109,20 @@ class ProductRepository {
    */
   async checkDuplicate(id, categoryId, unitId, name) {
     // --- LIVE DB EXECUTION ---
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_check_duplicate_product_master(?, ?, ?, ?)', [
-        id || 0,
-        categoryId || 0,
-        unitId || 0,
-        name
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_check_duplicate_product_master(?, ?, ?, ?)",
+        [id || 0, categoryId || 0, unitId || 0, name],
+      );
       return rows[0]?.[0]?.duplicate_count || 0;
     }
 
     // --- MOCK IN-MEMORY LOGIC ---
-    const isDuplicate = seedProducts.some(p => 
-      p.MaterialName.toLowerCase() === name.toLowerCase() && 
-      p.PkProductId !== id && 
-      p.IsActive
+    const isDuplicate = seedProducts.some(
+      (p) =>
+        p.MaterialName.toLowerCase() === name.toLowerCase() &&
+        p.PkProductId !== id &&
+        p.IsActive,
     );
     return isDuplicate ? 1 : 0;
   }
@@ -139,11 +137,14 @@ class ProductRepository {
    * @returns {Promise<Array>} List of category records.
    */
   async getCategories() {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_category_get(?, ?)', [0, 0]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_category_get(?, ?)",
+        [0, 0],
+      );
       return rows[0] || [];
     }
-    return seedCategories.filter(c => c.IsActive);
+    return seedCategories.filter((c) => c.IsActive);
   }
 
   /**
@@ -155,7 +156,10 @@ class ProductRepository {
   async getCategoryByName(name) {
     const categories = await this.getCategories();
     const lower = name.toLowerCase();
-    return categories.find(c => (c.CategoryName || '').toLowerCase() === lower) || null;
+    return (
+      categories.find((c) => (c.CategoryName || "").toLowerCase() === lower) ||
+      null
+    );
   }
 
   /**
@@ -164,11 +168,11 @@ class ProductRepository {
    * @returns {Promise<Array>} List of unit records.
    */
   async getUnits() {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_lu_unit_get(?)', [0]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute("CALL prc_lu_unit_get(?)", [0]);
       return rows[0] || [];
     }
-    return seedUnits.filter(u => u.IsActive);
+    return seedUnits.filter((u) => u.IsActive);
   }
 
   /**
@@ -180,7 +184,9 @@ class ProductRepository {
   async getUnitByCode(code) {
     const units = await this.getUnits();
     const lower = code.toLowerCase();
-    return units.find(u => (u.UnitCode || '').toLowerCase() === lower) || null;
+    return (
+      units.find((u) => (u.UnitCode || "").toLowerCase() === lower) || null
+    );
   }
 
   /**
@@ -189,11 +195,14 @@ class ProductRepository {
    * @returns {Promise<Array>} List of color records.
    */
   async getColors() {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_lu_color_code_get(?, ?)', [0, 0]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_lu_color_code_get(?, ?)",
+        [0, 0],
+      );
       return rows[0] || [];
     }
-    return seedColors.filter(c => c.IsActive);
+    return seedColors.filter((c) => c.IsActive);
   }
 
   /**
@@ -204,19 +213,17 @@ class ProductRepository {
    * @returns {Promise<object|null>} Created category or null.
    */
   async createCategory(categoryName, adminId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_category_set(?, ?, ?, ?)', [
-        0,
-        categoryName,
-        adminId,
-        1
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_category_set(?, ?, ?, ?)",
+        [0, categoryName, adminId, 1],
+      );
       return rows[0]?.[0] || null;
     }
     const newCat = {
       PkProductCategoryId: seedCategories.length + 1,
       CategoryName: categoryName,
-      IsActive: true
+      IsActive: true,
     };
     seedCategories.push(newCat);
     return newCat;
@@ -231,21 +238,18 @@ class ProductRepository {
    * @returns {Promise<object|null>} Created color or null.
    */
   async createColor(colorName, colorCode, adminId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_lu_color_code_set(?, ?, ?, ?, ?)', [
-        0,
-        colorName,
-        colorCode || '',
-        adminId,
-        1
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_lu_color_code_set(?, ?, ?, ?, ?)",
+        [0, colorName, colorCode || "", adminId, 1],
+      );
       return rows[0]?.[0] || null;
     }
     const newColor = {
       PkLuColorId: seedColors.length + 1,
       ColorName: colorName,
-      ColorCode: colorCode || '',
-      IsActive: 1
+      ColorCode: colorCode || "",
+      IsActive: 1,
     };
     seedColors.push(newColor);
     return newColor;
@@ -259,12 +263,12 @@ class ProductRepository {
    * @returns {Promise<object|null>} Created unit or null.
    */
   async createUnit(unitTitle, unitCode) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_lu_unit_set(?, ?, ?, ?)', [
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute("CALL prc_lu_unit_set(?, ?, ?, ?)", [
         0,
         unitTitle,
         unitCode,
-        1
+        1,
       ]);
       return rows[0]?.[0] || null;
     }
@@ -272,7 +276,7 @@ class ProductRepository {
       PkUnitId: seedUnits.length + 1,
       UnitTitle: unitTitle,
       UnitCode: unitCode,
-      IsActive: 1
+      IsActive: 1,
     };
     seedUnits.push(newUnit);
     return newUnit;
@@ -285,19 +289,22 @@ class ProductRepository {
    * @returns {Promise<string>} Next available code (e.g., '1002').
    */
   async getNextItemCode() {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [0, 0, 0]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [0, 0, 0],
+      );
       const products = rows[0] || [];
       const maxCode = products.reduce((max, p) => {
         const num = parseInt(p.cu_item_code, 10);
-        return (!isNaN(num) && num > max) ? num : max;
+        return !isNaN(num) && num > max ? num : max;
       }, 1000);
       return String(maxCode + 1);
     }
 
     const maxCode = seedProducts.reduce((max, p) => {
       const num = parseInt(p.cu_item_code, 10);
-      return (!isNaN(num) && num > max) ? num : max;
+      return !isNaN(num) && num > max ? num : max;
     }, 1000);
     return String(maxCode + 1);
   }
@@ -312,17 +319,111 @@ class ProductRepository {
    * @param {number} unitId - Filter by Unit PK.
    * @returns {Promise<Array>} List of product records.
    */
-  async findAll(categoryId = 0, unitId = 0) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [0, categoryId, unitId]);
-      return rows[0];
+  /**
+   * Retrieves all products with their color/size variations and applies pagination.
+   * @param {Object} filters - Filter and pagination parameters
+   * @param {number} [filters.categoryId=0] - Category ID to filter by (0 for all)
+   * @param {number} [filters.unitId=0] - Unit ID to filter by (0 for all)
+   * @param {number} [filters.page=1] - Page number for pagination
+   * @param {number} [filters.limit=20] - Number of items per page
+   * @returns {Promise<{data: Array, total: number}>} Paginated product list with color/size matrix
+   */
+  async findAll(filters = {}) {
+    const { categoryId = 0, unitId = 0, page = 1, limit = 20 } = filters;
+
+    let products = [];
+    let matrices = [];
+
+    // Step 1: Fetch all products based on filters
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [pRows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [0, categoryId, unitId],
+      );
+      products = pRows[0] || [];
+      matrices = await this.getAllColorMatrix();
+    } else {
+      // Apply filters in mock mode
+      products = seedProducts
+        .filter(
+          (p) =>
+            p.IsActive &&
+            (!categoryId || p.FkProductCategoryId === categoryId) &&
+            (!unitId || p.FkUnitId === unitId),
+        )
+        .map((p) => {
+          const cat = seedCategories.find(
+            (c) => c.PkProductCategoryId === p.FkProductCategoryId,
+          );
+          const unit = seedUnits.find((u) => u.PkUnitId === p.FkUnitId);
+          return {
+            ...p,
+            CategoryName: cat?.CategoryName || "N/A",
+            UnitTitle: unit?.UnitTitle || "N/A",
+          };
+        });
+      matrices = seedColorMatrix.filter((m) => m.IsActive);
     }
 
-    return seedProducts.filter(p => 
-      p.IsActive && 
-      (!categoryId || p.FkProductCategoryId === categoryId) &&
-      (!unitId || p.FkUnitId === unitId)
+    // Step 2: Build flat list with color/size matrix (same logic as getDropdown)
+    let fullResults = [];
+    for (const p of products) {
+      const pVariations = matrices.filter(
+        (m) => String(m.FkProductId) === String(p.PkProductId),
+      );
+
+      if (pVariations.length > 0) {
+        // Product has variations - create one entry per variation
+        for (const v of pVariations) {
+          fullResults.push({
+            PkProductId: p.PkProductId,
+            PkProductColorId: v.PkProductColorId,
+            MaterialName: p.MaterialName,
+            ColorName: v.ColorName || null,
+            Size: v.Size || null,
+            MaterialRate: v.MaterialRate || p.MaterialRate,
+            cu_item_code: p.cu_item_code,
+            CategoryName: p.CategoryName || null,
+            UnitTitle: p.UnitTitle || null,
+            FkProductCategoryId: p.FkProductCategoryId,
+            FkUnitId: p.FkUnitId,
+            IsActive: p.IsActive,
+            CreatedDate: p.CreatedDate,
+          });
+        }
+      } else {
+        // Product without variations - create single entry with null color/size
+        fullResults.push({
+          PkProductId: p.PkProductId,
+          PkProductColorId: null,
+          MaterialName: p.MaterialName,
+          ColorName: null,
+          Size: null,
+          MaterialRate: p.MaterialRate,
+          cu_item_code: p.cu_item_code,
+          CategoryName: p.CategoryName || null,
+          UnitTitle: p.UnitTitle || null,
+          FkProductCategoryId: p.FkProductCategoryId,
+          FkUnitId: p.FkUnitId,
+          IsActive: p.IsActive,
+          CreatedDate: p.CreatedDate,
+        });
+      }
+    }
+
+    // Step 3: Apply pagination (using the same pattern as order.repository.js _paginateData)
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+    const paginatedResults = fullResults.slice(
+      (pageNum - 1) * limitNum,
+      pageNum * limitNum,
     );
+
+    // Step 4: Return paginated result with total count
+    return {
+      data: paginatedResults,
+      total: fullResults.length,
+    };
   }
 
   /**
@@ -331,8 +432,11 @@ class ProductRepository {
    * @returns {Promise<object|null>} Product record (with variations) or null.
    */
   async findById(id) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [id, 0, 0]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [id, 0, 0],
+      );
       const product = rows[0]?.[0] || null;
       if (product) {
         product.variations = await this.getColorMatrix(id);
@@ -340,10 +444,13 @@ class ProductRepository {
       return product;
     }
 
-    const product = seedProducts.find(p => p.PkProductId.toString() === id.toString() && p.IsActive) || null;
+    const product =
+      seedProducts.find(
+        (p) => p.PkProductId.toString() === id.toString() && p.IsActive,
+      ) || null;
     if (product) {
       product.variations = seedColorMatrix.filter(
-        m => m.FkProductId.toString() === id.toString() && m.IsActive
+        (m) => m.FkProductId.toString() === id.toString() && m.IsActive,
       );
     }
     return product;
@@ -353,27 +460,40 @@ class ProductRepository {
    * Fetches products joined with category names for selection dropdowns.
    * @param {string} search - Partial match for name or category.
    */
-  async getDropdown(search = '') {
+  async getDropdown(search = "") {
     let products = [];
     let matrices = [];
 
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [pRows] = await db.execute('CALL prc_product_master_search(?, ?, ?)', [0, 0, 0]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [pRows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [0, 0, 0],
+      );
       products = pRows[0] || [];
       matrices = await this.getAllColorMatrix();
     } else {
-      products = seedProducts.filter(p => p.IsActive).map(p => {
-        const cat = seedCategories.find(c => c.PkProductCategoryId === p.FkProductCategoryId);
-        const unit = seedUnits.find(u => u.PkUnitId === p.FkUnitId);
-        return { ...p, CategoryName: cat?.CategoryName || 'N/A', UnitTitle: unit?.UnitTitle || 'N/A' };
-      });
-      matrices = seedColorMatrix.filter(m => m.IsActive);
+      products = seedProducts
+        .filter((p) => p.IsActive)
+        .map((p) => {
+          const cat = seedCategories.find(
+            (c) => c.PkProductCategoryId === p.FkProductCategoryId,
+          );
+          const unit = seedUnits.find((u) => u.PkUnitId === p.FkUnitId);
+          return {
+            ...p,
+            CategoryName: cat?.CategoryName || "N/A",
+            UnitTitle: unit?.UnitTitle || "N/A",
+          };
+        });
+      matrices = seedColorMatrix.filter((m) => m.IsActive);
     }
 
     let flatList = [];
     for (const p of products) {
-      const pVariations = matrices.filter(m => String(m.FkProductId) === String(p.PkProductId));
-      
+      const pVariations = matrices.filter(
+        (m) => String(m.FkProductId) === String(p.PkProductId),
+      );
+
       if (pVariations.length > 0) {
         for (const v of pVariations) {
           flatList.push({
@@ -385,7 +505,7 @@ class ProductRepository {
             MaterialRate: v.MaterialRate || p.MaterialRate, // Override with variation rate
             cu_item_code: p.cu_item_code,
             CategoryName: p.CategoryName || null,
-            UnitTitle: p.UnitTitle || null
+            UnitTitle: p.UnitTitle || null,
           });
         }
       } else {
@@ -398,17 +518,18 @@ class ProductRepository {
           MaterialRate: p.MaterialRate,
           cu_item_code: p.cu_item_code,
           CategoryName: p.CategoryName || null,
-          UnitTitle: p.UnitTitle || null
+          UnitTitle: p.UnitTitle || null,
         });
       }
     }
 
     if (search) {
       const q = search.toLowerCase();
-      flatList = flatList.filter(item => 
-        (item.MaterialName && item.MaterialName.toLowerCase().includes(q)) || 
-        (item.CategoryName && item.CategoryName.toLowerCase().includes(q)) ||
-        (item.ColorName && item.ColorName.toLowerCase().includes(q))
+      flatList = flatList.filter(
+        (item) =>
+          (item.MaterialName && item.MaterialName.toLowerCase().includes(q)) ||
+          (item.CategoryName && item.CategoryName.toLowerCase().includes(q)) ||
+          (item.ColorName && item.ColorName.toLowerCase().includes(q)),
       );
     }
 
@@ -425,19 +546,22 @@ class ProductRepository {
    * @param {number} adminId - User ID of creator.
    */
   async create(data, adminId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        0, // Insert mode
-        data.FkProductCategoryId || 0,
-        data.FkUnitId || 0,
-        data.MaterialCode || null,
-        data.MaterialName,
-        data.cu_item_code || null,
-        data.MaterialRate,
-        data.MaterialDescription || null,
-        adminId,
-        1 // Active
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          0, // Insert mode
+          data.FkProductCategoryId || 0,
+          data.FkUnitId || 0,
+          data.MaterialCode || null,
+          data.MaterialName,
+          data.cu_item_code || null,
+          data.MaterialRate,
+          data.MaterialDescription || null,
+          adminId,
+          1, // Active
+        ],
+      );
       return rows[0]?.[0];
     }
 
@@ -445,7 +569,7 @@ class ProductRepository {
       PkProductId: seedProducts.length + 1,
       ...data,
       IsActive: true,
-      CreatedDate: new Date().toISOString()
+      CreatedDate: new Date().toISOString(),
     };
     seedProducts.push(newProduct);
     return newProduct;
@@ -455,23 +579,28 @@ class ProductRepository {
    * Updates an existing product record.
    */
   async update(id, data, adminId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        id,
-        data.FkProductCategoryId || 0,
-        data.FkUnitId || 0,
-        data.MaterialCode || null,
-        data.MaterialName,
-        data.cu_item_code || null,
-        data.MaterialRate,
-        data.MaterialDescription || null,
-        adminId,
-        1
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          id,
+          data.FkProductCategoryId || 0,
+          data.FkUnitId || 0,
+          data.MaterialCode || null,
+          data.MaterialName,
+          data.cu_item_code || null,
+          data.MaterialRate,
+          data.MaterialDescription || null,
+          adminId,
+          1,
+        ],
+      );
       return rows[0]?.[0] || null;
     }
 
-    const idx = seedProducts.findIndex(p => p.PkProductId.toString() === id.toString());
+    const idx = seedProducts.findIndex(
+      (p) => p.PkProductId.toString() === id.toString(),
+    );
     if (idx === -1) return null;
     seedProducts[idx] = { ...seedProducts[idx], ...data };
     return seedProducts[idx];
@@ -487,18 +616,19 @@ class ProductRepository {
    * @returns {Promise<Array>} List of color matrix records.
    */
   async getColorMatrix(productId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_color_matrix_get(?, ?)', [0, productId]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_color_matrix_get(?, ?)",
+        [0, productId],
+      );
       const allRows = rows[0] || [];
       // Defensive JS-side filter: SP pAction=0 may return all rows if
       // the WHERE clause for FkProductId is missing (known SP bug).
-      return allRows.filter(
-        r => String(r.FkProductId) === String(productId)
-      );
+      return allRows.filter((r) => String(r.FkProductId) === String(productId));
     }
 
     return seedColorMatrix.filter(
-      m => m.FkProductId.toString() === productId.toString() && m.IsActive
+      (m) => m.FkProductId.toString() === productId.toString() && m.IsActive,
     );
   }
 
@@ -509,11 +639,14 @@ class ProductRepository {
    * @returns {Promise<Array>} All color matrix records.
    */
   async getAllColorMatrix() {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_color_matrix_get(?, ?)', [0, 0]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_color_matrix_get(?, ?)",
+        [0, 0],
+      );
       return rows[0] || [];
     }
-    return seedColorMatrix.filter(m => m.IsActive);
+    return seedColorMatrix.filter((m) => m.IsActive);
   }
 
   /**
@@ -525,24 +658,34 @@ class ProductRepository {
    * @returns {Promise<object>} The upserted matrix record.
    */
   async setColorMatrix(matrixId, productId, data, adminId, isActive = 1) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_product_color_matrix_set(?, ?, ?, ?, ?, ?, ?)', [
-        matrixId || 0,
-        productId,
-        data.FkLuColorId,
-        data.MaterialRate,
-        data.Size,
-        adminId,
-        isActive
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_color_matrix_set(?, ?, ?, ?, ?, ?, ?)",
+        [
+          matrixId || 0,
+          productId,
+          data.FkLuColorId,
+          data.MaterialRate,
+          data.Size,
+          adminId,
+          isActive,
+        ],
+      );
       return rows[0]?.[0] || null;
     }
 
     // --- MOCK IN-MEMORY LOGIC ---
     if (matrixId && matrixId > 0) {
-      const idx = seedColorMatrix.findIndex(m => m.PkProductColorId === matrixId);
+      const idx = seedColorMatrix.findIndex(
+        (m) => m.PkProductColorId === matrixId,
+      );
       if (idx !== -1) {
-        seedColorMatrix[idx] = { ...seedColorMatrix[idx], ...data, FkProductId: productId, IsActive: isActive };
+        seedColorMatrix[idx] = {
+          ...seedColorMatrix[idx],
+          ...data,
+          FkProductId: productId,
+          IsActive: isActive,
+        };
         return seedColorMatrix[idx];
       }
       return null;
@@ -552,7 +695,7 @@ class ProductRepository {
       FkProductId: productId,
       ...data,
       IsActive: isActive,
-      CreatedDate: new Date().toISOString()
+      CreatedDate: new Date().toISOString(),
     };
     seedColorMatrix.push(newEntry);
     return newEntry;
@@ -579,30 +722,35 @@ class ProductRepository {
         {
           FkLuColorId: v.FkLuColorId,
           MaterialRate: v.MaterialRate,
-          Size: v.Size
+          Size: v.Size,
         },
         adminId,
-        0 // IsActive = 0
+        0, // IsActive = 0
       );
     }
 
-    if (process.env.USE_MOCK_DB !== 'true') {
-      await db.execute('CALL prc_product_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-        id,
-        current.FkProductCategoryId,
-        current.FkUnitId,
-        current.MaterialCode,
-        current.MaterialName,
-        current.cu_item_code,
-        current.MaterialRate,
-        current.MaterialDescription,
-        adminId,
-        0 // Soft Delete
-      ]);
+    if (process.env.USE_MOCK_DB !== "true") {
+      await db.execute(
+        "CALL prc_product_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          id,
+          current.FkProductCategoryId,
+          current.FkUnitId,
+          current.MaterialCode,
+          current.MaterialName,
+          current.cu_item_code,
+          current.MaterialRate,
+          current.MaterialDescription,
+          adminId,
+          0, // Soft Delete
+        ],
+      );
       return true;
     }
 
-    const idx = seedProducts.findIndex(p => p.PkProductId.toString() === id.toString());
+    const idx = seedProducts.findIndex(
+      (p) => p.PkProductId.toString() === id.toString(),
+    );
     if (idx !== -1) seedProducts[idx].IsActive = false;
     return true;
   }

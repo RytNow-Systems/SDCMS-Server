@@ -5,26 +5,33 @@
 // global error handler (AGENTS.md §3D).
 // ============================================================================
 
-import asyncHandler from 'express-async-handler';
-import productService from '../../../modules/product/product.service.js';
+import asyncHandler from "express-async-handler";
+import productService from "../../../modules/product/product.service.js";
 
 // @desc    Get all products
 // @route   GET /api/v1/products
 // @access  Private/Admin,Operator
 export const getProducts = asyncHandler(async (req, res) => {
-  const categoryId = parseInt(req.query.categoryId) || 0;
-  const unitId = parseInt(req.query.unitId) || 0;
+  const filters = {
+    page: parseInt(req.query.page) || 1,
+    limit: parseInt(req.query.limit) || 20,
+    categoryId: parseInt(req.query.categoryId) || 0,
+    unitId: parseInt(req.query.unitId) || 0,
+  };
 
-  const products = await productService.getProducts(categoryId, unitId);
-  
+  const { data, total } = await productService.getProducts(filters);
+
   res.status(200).json({
     success: true,
-    data: products.data,
+    data,
     meta: {
-      total: products.total,
-      categoryId,
-      unitId
-    }
+      page: filters.page,
+      limit: filters.limit,
+      totalRows: total,
+      totalPages: Math.ceil(total / filters.limit),
+      categoryId: filters.categoryId,
+      unitId: filters.unitId,
+    },
   });
 });
 
@@ -33,10 +40,10 @@ export const getProducts = asyncHandler(async (req, res) => {
 // @access  Private/Admin,Operator
 export const getProductById = asyncHandler(async (req, res) => {
   const product = await productService.getProductById(req.params.id);
-  
+
   res.status(200).json({
     success: true,
-    data: product
+    data: product,
   });
 });
 
@@ -45,10 +52,10 @@ export const getProductById = asyncHandler(async (req, res) => {
 // @access  Private/Admin,Operator
 export const createProduct = asyncHandler(async (req, res) => {
   const product = await productService.createProduct(req.body, req.user.id);
-  
+
   res.status(201).json({
     success: true,
-    data: product
+    data: product,
   });
 });
 
@@ -56,11 +63,15 @@ export const createProduct = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/products/:id
 // @access  Private/Admin,Operator
 export const updateProduct = asyncHandler(async (req, res) => {
-  const product = await productService.updateProduct(req.params.id, req.body, req.user.id);
-  
+  const product = await productService.updateProduct(
+    req.params.id,
+    req.body,
+    req.user.id,
+  );
+
   res.status(200).json({
     success: true,
-    data: product
+    data: product,
   });
 });
 
@@ -68,12 +79,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/products/dropdown
 // @access  Private/Admin,Operator
 export const getProductDropdown = asyncHandler(async (req, res) => {
-  const search = req.query.search?.trim() || '';
+  const search = req.query.search?.trim() || "";
   const items = await productService.getProductDropdown(search);
 
   res.status(200).json({
     success: true,
-    data: items
+    data: items,
   });
 });
 
@@ -82,10 +93,10 @@ export const getProductDropdown = asyncHandler(async (req, res) => {
 // @access  Private/Admin,Operator
 export const deleteProduct = asyncHandler(async (req, res) => {
   await productService.deleteProduct(req.params.id, req.user.id);
-  
+
   res.status(200).json({
     success: true,
-    message: 'Product successfully removed'
+    message: "Product successfully removed",
   });
 });
 
@@ -96,13 +107,13 @@ export const addProductMatrix = asyncHandler(async (req, res) => {
   const variation = await productService.addOrUpdateColorMatrix(
     parseInt(req.params.id),
     req.body,
-    req.user.id
+    req.user.id,
   );
 
   const status = req.body.matrixId ? 200 : 201;
   res.status(status).json({
     success: true,
-    data: variation
+    data: variation,
   });
 });
 
@@ -113,7 +124,7 @@ export const getProductCategories = asyncHandler(async (req, res) => {
   const categories = await productService.getCategories();
   res.status(200).json({
     success: true,
-    data: categories
+    data: categories,
   });
 });
 
@@ -124,7 +135,7 @@ export const getProductUnits = asyncHandler(async (req, res) => {
   const units = await productService.getUnits();
   res.status(200).json({
     success: true,
-    data: units
+    data: units,
   });
 });
 
@@ -132,10 +143,13 @@ export const getProductUnits = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/products/categories
 // @access  Private/Admin,Operator
 export const createProductCategory = asyncHandler(async (req, res) => {
-  const category = await productService.createCategory(req.body.categoryName, req.user.id);
+  const category = await productService.createCategory(
+    req.body.categoryName,
+    req.user.id,
+  );
   res.status(201).json({
     success: true,
-    data: category
+    data: category,
   });
 });
 
@@ -146,7 +160,7 @@ export const getProductColors = asyncHandler(async (req, res) => {
   const colors = await productService.getColors();
   res.status(200).json({
     success: true,
-    data: colors
+    data: colors,
   });
 });
 
@@ -155,11 +169,13 @@ export const getProductColors = asyncHandler(async (req, res) => {
 // @access  Private/Admin,Operator
 export const createProductColor = asyncHandler(async (req, res) => {
   const color = await productService.createColor(
-    req.body.colorName, req.body.colorCode || '', req.user.id
+    req.body.colorName,
+    req.body.colorCode || "",
+    req.user.id,
   );
   res.status(201).json({
     success: true,
-    data: color
+    data: color,
   });
 });
 
@@ -167,9 +183,12 @@ export const createProductColor = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/products/units
 // @access  Private/Admin,Operator
 export const createProductUnit = asyncHandler(async (req, res) => {
-  const unit = await productService.createUnit(req.body.unitTitle, req.body.unitCode);
+  const unit = await productService.createUnit(
+    req.body.unitTitle,
+    req.body.unitCode,
+  );
   res.status(201).json({
     success: true,
-    data: unit
+    data: unit,
   });
 });

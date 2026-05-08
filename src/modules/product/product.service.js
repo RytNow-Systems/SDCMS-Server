@@ -36,6 +36,8 @@ class ProductService {
       unitId: product.FkUnitId || product.unitId || null,
       categoryName: product.CategoryName || null,
       unitTitle: product.UnitTitle || null,
+      colorName: product.ColorName || null,
+      size: product.Size || null,
       isActive:
         (product.IsActive !== undefined
           ? product.IsActive
@@ -145,11 +147,11 @@ class ProductService {
   /**
    * Retrieves all products with optional filters.
    */
-  async getProducts(categoryId = 0, unitId = 0) {
-    const data = await productRepository.findAll(categoryId, unitId);
+  async getProducts(filters = {}) {
+    const result = await productRepository.findAll(filters);
     return {
-      data: data.map((p) => this._mapToApi(p)),
-      total: data.length,
+      data: result.data.map((p) => this._mapToApi(p)),
+      total: result.total,
     };
   }
 
