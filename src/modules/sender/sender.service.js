@@ -30,7 +30,7 @@ class SenderService {
       city: sender.City || null,
       state: sender.State || null,
       pincode: sender.Pincode || null,
-      isActive: sender.IsActive === 1 || sender.IsActive === true,
+      isActive: sender.IsActive == true,
       createdAt: sender.CreatedDate
     };
   }
@@ -56,8 +56,8 @@ class SenderService {
       state: detail.State,
       pincode: detail.Pincode,
       country: detail.Country || null,
-      isDefault: detail.IsDefault === 1 || detail.IsDefault === true,
-      isActive: detail.IsActive === 1 || detail.IsActive === true,
+      isDefault: detail.IsDefault == true,
+      isActive: detail.IsActive == true,
       createdAt: detail.CreatedDate
     };
   }
@@ -159,16 +159,17 @@ class SenderService {
    * @returns {Promise<object>} Matching sender/receiver.
    */
   async lookupByPhone(phone, partyTypeId) {
-    if (!phone) {
+    if (!phone || !phone.trim()) {
       const error = new Error('Phone number is required for lookup');
       error.statusCode = 400;
       throw error;
     }
+    const trimmedPhone = phone.trim();
     const parties = await senderRepository.findAll(partyTypeId);
-    const party = parties.find(s => s.PhoneNo === phone);
+    const party = parties.find(s => s.PhoneNo === trimmedPhone);
     if (!party) {
       const typeLabel = partyTypeId === 1 ? 'Sender' : 'Receiver';
-      const error = new Error(`No ${typeLabel} found for phone: ${phone}`);
+      const error = new Error(`No ${typeLabel} found for phone: ${trimmedPhone}`);
       error.statusCode = 404;
       throw error;
     }
@@ -202,13 +203,13 @@ class SenderService {
    * @returns {Promise<Array<object>>}
    */
   async lookupByName(name, partyTypeId = null) {
-    if (!name) {
+    if (!name || !name.trim()) {
       const error = new Error('Name query parameter is required for lookup');
       error.statusCode = 400;
       throw error;
     }
     const typeId = partyTypeId === 1 ? 1 : partyTypeId === 2 ? 2 : partyTypeId;
-    const parties = await senderRepository.findByName(name, typeId);
+    const parties = await senderRepository.findByName(name.trim(), typeId);
     return parties.map((s) => this._mapToApi(s, typeId));
   }
 

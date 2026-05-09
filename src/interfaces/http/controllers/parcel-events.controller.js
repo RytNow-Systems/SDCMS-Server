@@ -21,8 +21,8 @@ export const browseEvents = asyncHandler(async (req, res) => {
     limit: parseInt(req.query.limit) || 50,
     dateFrom: req.query.dateFrom || null,
     dateTo: req.query.dateTo || null,
-    actionType: req.query.actionType || null,
-    scannedBy: req.query.scannedBy || null
+    actionType: req.query.actionType?.trim() || null,
+    scannedBy: req.query.scannedBy?.trim() || null
   };
 
   const { data, total } = await parcelService.browseEvents(filters);
@@ -49,8 +49,8 @@ export const exportCSV = asyncHandler(async (req, res) => {
   const filters = {
     dateFrom: req.query.dateFrom || null,
     dateTo: req.query.dateTo || null,
-    actionType: req.query.actionType || null,
-    scannedBy: req.query.scannedBy || null
+    actionType: req.query.actionType?.trim() || null,
+    scannedBy: req.query.scannedBy?.trim() || null
   };
 
   const { data } = await parcelService.browseEvents(filters);

@@ -625,13 +625,13 @@
     &quot;unitId&quot;: <span class="json-number">1</span>,
     &quot;variations&quot;: [
       {
-        &quot;id&quot;: <span class="json-number">1</span>,
+        &quot;variationId&quot;: <span class="json-number">1</span>,
         &quot;colorId&quot;: <span class="json-number">1</span>,
         &quot;size&quot;: &quot;M&quot;,
         &quot;materialRate&quot;: <span class="json-number">550</span>
       },
       {
-        &quot;id&quot;: <span class="json-number">2</span>,
+        &quot;variationId&quot;: <span class="json-number">2</span>,
         &quot;colorId&quot;: <span class="json-number">2</span>,
         &quot;size&quot;: &quot;L&quot;,
         &quot;materialRate&quot;: <span class="json-number">600</span>
@@ -702,7 +702,7 @@
     &quot;unitId&quot;: <span class="json-number">1</span>,
     &quot;variations&quot;: [
       {
-        &quot;id&quot;: <span class="json-number">1</span>,
+        &quot;variationId&quot;: <span class="json-number">1</span>,
         &quot;colorId&quot;: <span class="json-number">1</span>,
         &quot;colorName&quot;: &quot;Red&quot;,
         &quot;size&quot;: &quot;M&quot;,
@@ -857,14 +857,12 @@
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: [
     {
-      &quot;productId&quot;: <span class="json-number">1</span>,
-      &quot;variationId&quot;: <span class="json-number">1</span>,
-      &quot;materialName&quot;: &quot;Cotton Roll&quot;,
-      &quot;colorName&quot;: &quot;Red&quot;,
-      &quot;size&quot;: &quot;M&quot;,
-      &quot;materialRate&quot;: <span class="json-number">550</span>,
-      &quot;categoryName&quot;: &quot;Textiles&quot;,
-      &quot;label&quot;: &quot;Cotton Roll — Red / M (Textiles)&quot;
+      &quot;value&quot;: {
+        &quot;productId&quot;: <span class="json-number">1</span>,
+        &quot;variationId&quot;: <span class="json-number">1</span>,
+        &quot;materialRate&quot;: <span class="json-number">550</span>
+      },
+      &quot;label&quot;: &quot;Cotton Roll — Red / M (Textiles) [CU-001]&quot;
     }
   ]
 }</code></pre>
@@ -924,7 +922,7 @@
         <pre class="code-block"><code>{
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: {
-    &quot;id&quot;: <span class="json-number">3</span>,
+    &quot;variationId&quot;: <span class="json-number">3</span>,
     &quot;productId&quot;: <span class="json-number">1</span>,
     &quot;colorId&quot;: <span class="json-number">1</span>,
     &quot;materialRate&quot;: <span class="json-number">550</span>,
@@ -937,7 +935,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-04
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-05
       </footer>
     </main>
   </div>
