@@ -382,6 +382,26 @@ class OrderRepository {
         }
       }
 
+      // Step 7: Fetch the full product_color_matrix to enrich items with Size and ColorName.
+      // prc_product_color_matrix_get(pAction=0, 0) returns all active matrix entries.
+      // Keyed by PkProductColorId for O(1) item enrichment.
+      const [matrixRows] = await db.execute(
+        "CALL prc_product_color_matrix_get(?, ?)",
+        [
+          0, // pAction: 0 = get all variations
+          0, // pPkProductColorId: 0 (unused for pAction=0)
+        ],
+      );
+      const allColorMatrix = matrixRows[0] || [];
+      // Build a composite map: "FkProductId_FkLuColorId" -> matrix row.
+      // prc_order_items_get returns lu_color_code.PkLuColorId (not PkProductColorId),
+      // so we key by product+color pair to correctly resolve Size per item.
+      const colorMatrixMap = new Map();
+      for (const entry of allColorMatrix) {
+        const key = `${entry.FkProductId}_${entry.FkLuColorId}`;
+        colorMatrixMap.set(key, entry);
+      }
+
       return this._buildOrderAggregate(
         orderHeader,
         orderReceivers,
@@ -391,6 +411,7 @@ class OrderRepository {
         courierName,
         statusMap,
         receiverPartyMap,
+        colorMatrixMap,
       );
     }
     return this._findByIdMock(orderId);
@@ -404,22 +425,24 @@ class OrderRepository {
    * Build nested order aggregate from order header + receivers + parcels + items.
    *
    * Data Sources:
-   * - orderHeader: prc_order_master_get(pAction=1)   → order_master columns
-   * - receivers:   prc_receiver_details_get(pAction=0) filtered by FkOrderId
-   * - allParcels:  prc_parcel_details_get(pAction=0)   → matched by FkReceiverDetailsId
-   * - allItems:    prc_order_items_get(pAction=0)      → grouped by FkReceiverDetailsId
-   * - statusMap:   Map<LuDetailsId, LuDetails> from prc_lu_details_get → resolves parcel status
-   * - receiverPartyMap: Map<FkReceiverId, {email, name, phone}> from party_master → resolves receiver details
+   * - orderHeader:    prc_order_master_get(pAction=1)         → order_master columns
+   * - receivers:      prc_receiver_details_get(pAction=0)     → filtered by FkOrderId
+   * - allParcels:     prc_parcel_details_get(pAction=0)       → matched by FkReceiverDetailsId
+   * - allItems:       prc_order_items_get(pAction=0)          → grouped by FkReceiverDetailsId
+   * - statusMap:      Map<LuDetailsId, LuDetails>             → prc_lu_details_get, resolves parcel status
+   * - receiverPartyMap: Map<FkReceiverId, {email,name,phone}> → party_master, resolves receiver details
+   * - colorMatrixMap: Map<"FkProductId_FkLuColorId", matrixRow> → prc_product_color_matrix_get, enriches items with Size & ColorName
    *
    * @private
-   * @param {object} orderHeader - Single row from prc_order_master_get.
-   * @param {Array}  receivers   - Rows from prc_receiver_details_get filtered by orderId.
-   * @param {Array}  allParcels  - All parcel rows from prc_parcel_details_get.
-   * @param {Array}  allItems    - All order item rows from prc_order_items_get.
-   * @param {object|null} sender - Sender object from party_master (via resolveParty).
+   * @param {object} orderHeader     - Single row from prc_order_master_get.
+   * @param {Array}  receivers       - Rows from prc_receiver_details_get filtered by orderId.
+   * @param {Array}  allParcels      - All parcel rows from prc_parcel_details_get.
+   * @param {Array}  allItems        - All order item rows from prc_order_items_get.
+   * @param {object|null} sender     - Sender object from party_master (via resolveParty).
    * @param {string|null} courierName - Courier name from courier_partner_master.
-   * @param {Map} statusMap - Lookup map for resolving FkParcelStatusId to status name.
-   * @param {Map} receiverPartyMap - Lookup map for resolving FkReceiverId to receiver details (name, phone, email).
+   * @param {Map} statusMap          - Lookup map: FkParcelStatusId → status label.
+   * @param {Map} receiverPartyMap   - Lookup map: FkReceiverId → { email, name, phone }.
+   * @param {Map} colorMatrixMap     - Lookup map: PkProductColorId → product_color_matrix row (Size, ColorName).
    */
   _buildOrderAggregate(
     orderHeader,
@@ -430,6 +453,7 @@ class OrderRepository {
     courierName,
     statusMap,
     receiverPartyMap,
+    colorMatrixMap = new Map(),
   ) {
     if (!orderHeader) return null;
 
@@ -500,17 +524,29 @@ class OrderRepository {
         State: r.State,
         Pincode: r.Pincode,
         Country: r.Country,
-        items: receiverItems.map((i) => ({
-          PkOrderItemId: i.PkOrderItemId,
-          FkProductId: i.FkProductId,
-          OutwardQty: i.OutwardQty,
-          UnitPrice: i.UnitPrice,
-          MaterialName: i.MaterialName,
-          MaterialCode: i.MaterialCode,
-          UnitTitle: i.UnitTitle,
-          ColorId: i.PkLuColorId || i.FkLuColorId || i.ColorId,
-          ColorName: i.ColorName,
-        })),
+        items: receiverItems.map((i) => {
+          // Resolve the color matrix entry using the composite key "FkProductId_FkLuColorId".
+          // prc_order_items_get JOINs lu_color_code and returns PkLuColorId (not PkProductColorId),
+          // so we combine FkProductId + PkLuColorId to pinpoint the exact size/color variation.
+          const matrixKey = `${i.FkProductId}_${i.PkLuColorId}`;
+          const colorMatrixEntry = colorMatrixMap.get(matrixKey) || null;
+
+          return {
+            PkOrderItemId: i.PkOrderItemId,
+            FkProductId: i.FkProductId,
+            OutwardQty: i.OutwardQty,
+            UnitPrice: i.UnitPrice,
+            MaterialName: i.MaterialName,
+            MaterialCode: i.MaterialCode,
+            UnitTitle: i.UnitTitle,
+            // ColorId: the FK reference (PkLuColorId from lu_color_code)
+            ColorId: i.PkLuColorId || i.FkLuColorId || i.ColorId,
+            // ColorName: prefer the canonical name from product_color_matrix, fall back to SP join
+            ColorName: colorMatrixEntry?.ColorName || i.ColorName || null,
+            // Size: from product_color_matrix (not stored on order_items directly)
+            Size: colorMatrixEntry?.Size || null,
+          };
+        }),
         parcel: parcelRow
           ? {
               PkParcelDetailsId: parcelRow.PkParcelDetailsId,

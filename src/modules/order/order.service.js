@@ -759,6 +759,7 @@ class OrderService {
           unitTitle: i.UnitTitle || i.unitTitle || null,
           colorId: i.PkLuColorId || i.ColorId || i.colorId || null,
           colorName: i.ColorName || i.colorName || null,
+          size: i.Size || i.size || null,
         })),
       })),
     };
