@@ -469,7 +469,11 @@ class ProductRepository {
         "CALL prc_product_master_search(?, ?, ?)",
         [0, 0, 0],
       );
-      products = pRows[0] || [];
+      const _isActiveRow = (val) => {
+        if (Buffer.isBuffer(val)) return val[0] === 1;
+        return val === 1 || val === true || val === "1";
+      };
+      products = (pRows[0] || []).filter((p) => _isActiveRow(p.IsActive));
       matrices = await this.getAllColorMatrix();
     } else {
       products = seedProducts
@@ -562,7 +566,12 @@ class ProductRepository {
           1, // Active
         ],
       );
-      return rows[0]?.[0];
+      // SP may SELECT the new row (rows[0][0]) or return only an OkPacket.
+      // When it's an OkPacket, rows[0].insertId carries the auto-increment ID.
+      const row = rows[0]?.[0];
+      if (row?.PkProductId) return row;
+      const insertId = rows[0]?.insertId;
+      return insertId ? { InsertedId: insertId } : null;
     }
 
     const newProduct = {
