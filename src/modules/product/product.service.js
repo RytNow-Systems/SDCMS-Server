@@ -39,6 +39,7 @@ class ProductService {
 
     return {
       productId: product.PkProductId || product.id,
+      variationId: product.PkProductColorId ?? null,
       materialName: matName,
       materialRate: product.MaterialRate || product.materialRate,
       cuItemCode: product.cu_item_code || product.cuItemCode || null,
