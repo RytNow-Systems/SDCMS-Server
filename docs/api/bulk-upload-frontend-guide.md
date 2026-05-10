@@ -57,28 +57,35 @@ interface BulkUploadSessionCreated {
   failedRows:       number;
 }
 
+type BulkUploadStatus    = 'VALIDATING' | 'COMPLETED' | 'FAILED' | 'PARTIAL_SUCCESS';
+type BulkUploadErrorType = 'VALIDATION' | 'DUPLICATE_PHONE' | 'PRODUCT_NOT_FOUND' | 'COURIER_NOT_FOUND' | 'MISSING_DATA' | 'DUPLICATE_ORDER';
+
 interface BulkUploadSessionSummary {
-  sessionId:    number;
-  sessionHash:  string;
-  fileName:     string;
-  totalRows:    number;
-  successCount: number;
-  failedCount:  number;
-  createdBy:    string;   // employeeCode of the uploader
-  createdAt:    string;   // ISO 8601
+  sessionId:            number;
+  sessionHash:          string;
+  fileName:             string;
+  totalRows:            number;
+  successfulOrders:     number;
+  failedRows:           number;
+  status:               BulkUploadStatus;
+  uploadedByEmployeeId: number;   // employee PK of the uploader
+  uploadedAt:           string;   // ISO 8601
 }
 
 interface BulkUploadErrorRow {
-  rowData:      BulkUploadRow; // original payload, always a parsed object
+  rowData:      BulkUploadRow;  // original payload, always a parsed object
+  errorType:    BulkUploadErrorType;
   errorMessage: string;
 }
 
 interface BulkUploadSessionDetail {
-  bulkUploadErrorId: number;
-  bulkUploadId:      number;
-  rowNumber:         number;   // 1-based index within the original rows array
-  errorMessage:      string;
-  rowData:           BulkUploadRow;
+  errorId:      number;
+  bulkUploadId: number;
+  rowNumber:    number;           // 1-based index within the original rows array
+  errorType:    BulkUploadErrorType;
+  errorMessage: string;
+  rowData:      BulkUploadRow;
+  createdAt:    string;          // ISO 8601
 }
 
 interface BulkUploadSessionWithDetails {
@@ -331,6 +338,8 @@ GET /api/v1/bulk-uploads
 ```
 
 Returns all sessions for the history/audit view. Response shape: `BulkUploadSessionSummary[]`.
+
+Fields changed from v1: `successCount` → `successfulOrders`, `failedCount` → `failedRows`, `createdBy` (string) → `uploadedByEmployeeId` (number), `createdAt` → `uploadedAt`. New fields: `status`.
 
 ### Get Session with Error Details
 

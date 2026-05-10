@@ -294,10 +294,11 @@
       &quot;sessionHash&quot;: &quot;d41d8cd98f00b204e9800998ecf8427e&quot;,
       &quot;fileName&quot;: &quot;april_orders.json&quot;,
       &quot;totalRows&quot;: <span class="json-number">10</span>,
-      &quot;successCount&quot;: <span class="json-number">9</span>,
-      &quot;failedCount&quot;: <span class="json-number">1</span>,
-      &quot;createdBy&quot;: &quot;EMP-001&quot;,
-      &quot;createdAt&quot;: &quot;2026-05-10T09: <span class="json-number">00</span>: <span class="json-number">00</span>Z&quot;
+      &quot;successfulOrders&quot;: <span class="json-number">9</span>,
+      &quot;failedRows&quot;: <span class="json-number">1</span>,
+      &quot;status&quot;: &quot;PARTIAL_SUCCESS&quot;,
+      &quot;uploadedByEmployeeId&quot;: <span class="json-number">1</span>,
+      &quot;uploadedAt&quot;: &quot;2026-05-10T09: <span class="json-number">00</span>: <span class="json-number">00</span>Z&quot;
     }
   ]
 }</code></pre>
@@ -362,17 +363,20 @@
       &quot;sessionHash&quot;: &quot;d41d8cd98f00b204e9800998ecf8427e&quot;,
       &quot;fileName&quot;: &quot;april_orders.json&quot;,
       &quot;totalRows&quot;: <span class="json-number">10</span>,
-      &quot;successCount&quot;: <span class="json-number">9</span>,
-      &quot;failedCount&quot;: <span class="json-number">1</span>,
-      &quot;createdBy&quot;: &quot;EMP-001&quot;,
-      &quot;createdAt&quot;: &quot;2026-05-10T09: <span class="json-number">00</span>: <span class="json-number">00</span>Z&quot;
+      &quot;successfulOrders&quot;: <span class="json-number">9</span>,
+      &quot;failedRows&quot;: <span class="json-number">1</span>,
+      &quot;status&quot;: &quot;PARTIAL_SUCCESS&quot;,
+      &quot;uploadedByEmployeeId&quot;: <span class="json-number">1</span>,
+      &quot;uploadedAt&quot;: &quot;2026-05-10T09: <span class="json-number">00</span>: <span class="json-number">00</span>Z&quot;
     },
     &quot;details&quot;: [
       {
-        &quot;bulkUploadErrorId&quot;: <span class="json-number">3</span>,
+        &quot;errorId&quot;: <span class="json-number">3</span>,
         &quot;bulkUploadId&quot;: <span class="json-number">7</span>,
         &quot;rowNumber&quot;: <span class="json-number">4</span>,
+        &quot;errorType&quot;: &quot;VALIDATION&quot;,
         &quot;errorMessage&quot;: &quot;Receiver address not found for receiverAddressId: <span class="json-number">99</span>&quot;,
+        &quot;createdAt&quot;: &quot;2026-05-10T09: <span class="json-number">01</span>: <span class="json-number">00</span>Z&quot;,
         &quot;rowData&quot;: {
           &quot;senderId&quot;: <span class="json-number">1</span>,
           &quot;senderAddressId&quot;: <span class="json-number">1</span>,

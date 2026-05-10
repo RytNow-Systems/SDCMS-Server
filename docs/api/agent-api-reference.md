@@ -464,28 +464,35 @@ interface BulkUploadCreated {
   failedRows:       number;
 }
 
+type BulkUploadStatus = 'VALIDATING' | 'COMPLETED' | 'FAILED' | 'PARTIAL_SUCCESS';
+type BulkUploadErrorType = 'VALIDATION' | 'DUPLICATE_PHONE' | 'PRODUCT_NOT_FOUND' | 'COURIER_NOT_FOUND' | 'MISSING_DATA' | 'DUPLICATE_ORDER';
+
 interface BulkUploadSession {
-  sessionId:    number;
-  sessionHash:  string;
-  fileName:     string;
-  totalRows:    number;
-  successCount: number;
-  failedCount:  number;
-  createdBy:    string;
-  createdAt:    string;
+  sessionId:            number;
+  sessionHash:          string;
+  fileName:             string;
+  totalRows:            number;
+  successfulOrders:     number;
+  failedRows:           number;
+  status:               BulkUploadStatus;
+  uploadedByEmployeeId: number;
+  uploadedAt:           string;  // ISO 8601
 }
 
 interface BulkUploadErrorRow {
   rowData:      BulkUploadRow;  // always a parsed object
+  errorType:    BulkUploadErrorType;
   errorMessage: string;
 }
 
 interface BulkUploadDetail {
-  bulkUploadErrorId: number;
-  bulkUploadId:      number;
-  rowNumber:         number;   // 1-based
-  errorMessage:      string;
-  rowData:           BulkUploadRow;
+  errorId:      number;
+  bulkUploadId: number;
+  rowNumber:    number;   // 1-based
+  errorType:    BulkUploadErrorType;
+  errorMessage: string;
+  rowData:      BulkUploadRow;
+  createdAt:    string;  // ISO 8601
 }
 ```
 

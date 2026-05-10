@@ -22,7 +22,7 @@ class BulkUploadService {
    * @returns {Promise<object>} { sessionId, successfulOrders, failedRows }
    */
   async processBulkUpload(sessionHash, fileName, rows, user) {
-    const createdBy = user?.employeeCode || 'SYSTEM';
+    const uploadedByEmployeeId = user?.id ?? 0;
 
     // 1. Duplicate-batch guard
     const duplicateCount = await bulkUploadRepository.checkDuplicate(sessionHash);
@@ -39,7 +39,7 @@ class BulkUploadService {
       sessionHash,
       fileName,
       rows.length,
-      createdBy,
+      uploadedByEmployeeId,
     );
     const sessionId = session.PkBulkUploadId || session.id;
 
@@ -121,7 +121,7 @@ class BulkUploadService {
   async getErrorsBySessionId(sessionId) {
     const errors = await bulkUploadRepository.getErrorsBySessionId(sessionId);
     return errors.map((e) => {
-      const raw = e.RowData || e.rowData;
+      const raw = e.RowData;
       let rowData;
       try {
         rowData = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -130,7 +130,8 @@ class BulkUploadService {
       }
       return {
         rowData,
-        errorMessage: e.ErrorMessage || e.errorMessage,
+        errorType: e.ErrorType,
+        errorMessage: e.ErrorMessage,
       };
     });
   }
@@ -143,20 +144,15 @@ class BulkUploadService {
   _mapSession(session) {
     if (!session) return null;
     return {
-      sessionId: session.PkBulkUploadId || session.id,
-      sessionHash: session.SessionHash || session.sessionHash,
-      fileName: session.FileName || session.fileName,
-      totalRows: session.TotalRows || session.totalRows,
-      successCount:
-        session.SuccessCount !== undefined
-          ? session.SuccessCount
-          : session.successCount,
-      failedCount:
-        session.FailedCount !== undefined
-          ? session.FailedCount
-          : session.failedCount,
-      createdBy: session.CreatedBy || session.createdBy,
-      createdAt: session.CreatedDate || session.createdDate || session.createdAt,
+      sessionId: session.PkBulkUploadId,
+      sessionHash: session.SessionHash,
+      fileName: session.FileName,
+      totalRows: session.TotalRows,
+      successfulOrders: session.SuccessfulOrders,
+      failedRows: session.FailedRows,
+      status: session.Status,
+      uploadedByEmployeeId: session.FkUploadedByEmployeeCode,
+      uploadedAt: session.UploadedAt,
     };
   }
 
@@ -164,18 +160,20 @@ class BulkUploadService {
   _mapDetail(detail) {
     if (!detail) return null;
     let rowData = null;
-    const raw = detail.RowData || detail.rowData;
+    const raw = detail.RowData;
     try {
       rowData = typeof raw === 'string' ? JSON.parse(raw) : raw;
     } catch {
       rowData = raw;
     }
     return {
-      bulkUploadErrorId: detail.PkBulkUploadErrorId || detail.id,
-      bulkUploadId: detail.FkBulkUploadId || detail.bulkUploadId,
-      rowNumber: detail.RowNumber || detail.rowNumber,
-      errorMessage: detail.ErrorMessage || detail.errorMessage,
+      errorId: detail.PkErrorId,
+      bulkUploadId: detail.FkBulkUploadId,
+      rowNumber: detail.RowNumber,
+      errorType: detail.ErrorType,
+      errorMessage: detail.ErrorMessage,
       rowData,
+      createdAt: detail.CreatedAt,
     };
   }
 }

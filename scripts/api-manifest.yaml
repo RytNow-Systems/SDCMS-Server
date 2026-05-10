@@ -888,17 +888,18 @@ collections:
                 "sessionHash": "d41d8cd98f00b204e9800998ecf8427e",
                 "fileName": "april_orders.json",
                 "totalRows": 10,
-                "successCount": 9,
-                "failedCount": 1,
-                "createdBy": "EMP-001",
-                "createdAt": "2026-05-10T09:00:00Z"
+                "successfulOrders": 9,
+                "failedRows": 1,
+                "status": "PARTIAL_SUCCESS",
+                "uploadedByEmployeeId": 1,
+                "uploadedAt": "2026-05-10T09:00:00Z"
               }
             ]
           }
         assertions:
           - "res.status equals 200"
           - "res.body.data is Array"
-          - "Each item contains sessionId, totalRows, successCount, failedCount"
+          - "Each item contains sessionId, totalRows, successfulOrders, failedRows, status"
 
       - name: Get Session by ID
         method: GET
@@ -917,17 +918,20 @@ collections:
                 "sessionHash": "d41d8cd98f00b204e9800998ecf8427e",
                 "fileName": "april_orders.json",
                 "totalRows": 10,
-                "successCount": 9,
-                "failedCount": 1,
-                "createdBy": "EMP-001",
-                "createdAt": "2026-05-10T09:00:00Z"
+                "successfulOrders": 9,
+                "failedRows": 1,
+                "status": "PARTIAL_SUCCESS",
+                "uploadedByEmployeeId": 1,
+                "uploadedAt": "2026-05-10T09:00:00Z"
               },
               "details": [
                 {
-                  "bulkUploadErrorId": 3,
+                  "errorId": 3,
                   "bulkUploadId": 7,
                   "rowNumber": 4,
+                  "errorType": "VALIDATION",
                   "errorMessage": "Receiver address not found for receiverAddressId: 99",
+                  "createdAt": "2026-05-10T09:01:00Z",
                   "rowData": {
                     "senderId": 1,
                     "senderAddressId": 1,

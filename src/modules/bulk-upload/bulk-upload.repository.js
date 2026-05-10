@@ -19,10 +19,11 @@ let mockSessions = [
     SessionHash: 'abc123seed',
     FileName: 'sample_orders.xlsx',
     TotalRows: 5,
-    SuccessCount: 4,
-    FailedCount: 1,
-    CreatedBy: 'EMP001',
-    CreatedDate: '2026-04-10T10:00:00Z',
+    SuccessfulOrders: 4,
+    FailedRows: 1,
+    FkUploadedByEmployeeCode: 1,
+    Status: 'PARTIAL_SUCCESS',
+    UploadedAt: '2026-04-10T10:00:00Z',
   },
 ];
 
@@ -58,19 +59,19 @@ class BulkUploadRepository {
 
   /**
    * Create a new bulk upload session record.
-   * Procedure: CALL prc_BulkUploadSessions_set(0, pSessionHash, pFileName, pTotalRows, 0, 0, pCreatedBy)
+   * Procedure: CALL prc_BulkUploadSessions_set(0, pSessionHash, pFileName, pTotalRows, 0, 0, pFkUploadedByEmployeeCode)
    *
-   * @param {string} sessionHash - Unique content hash for deduplication.
-   * @param {string} fileName    - Name of the uploaded file.
-   * @param {number} totalRows   - Total order rows submitted.
-   * @param {string} createdBy   - EmployeeCode of the uploader.
+   * @param {string} sessionHash           - Unique content hash for deduplication.
+   * @param {string} fileName              - Name of the uploaded file.
+   * @param {number} totalRows             - Total order rows submitted.
+   * @param {number} uploadedByEmployeeId  - PK of the uploading employee.
    * @returns {Promise<object>} { PkBulkUploadId }
    */
-  async createSession(sessionHash, fileName, totalRows, createdBy) {
+  async createSession(sessionHash, fileName, totalRows, uploadedByEmployeeId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
         'CALL prc_BulkUploadSessions_set(?, ?, ?, ?, ?, ?, ?)',
-        [0, sessionHash, fileName, totalRows, 0, 0, createdBy],
+        [0, sessionHash, fileName, totalRows, 0, 0, uploadedByEmployeeId],
       );
       return rows[0][0];
     }
@@ -83,10 +84,11 @@ class BulkUploadRepository {
       SessionHash: sessionHash,
       FileName: fileName,
       TotalRows: totalRows,
-      SuccessCount: 0,
-      FailedCount: 0,
-      CreatedBy: createdBy,
-      CreatedDate: new Date().toISOString(),
+      SuccessfulOrders: 0,
+      FailedRows: 0,
+      FkUploadedByEmployeeCode: uploadedByEmployeeId,
+      Status: 'VALIDATING',
+      UploadedAt: new Date().toISOString(),
     };
     mockSessions.push(session);
     return session;
@@ -143,12 +145,13 @@ class BulkUploadRepository {
         ? Math.max(...mockErrors.map((e) => e.PkBulkUploadErrorId)) + 1
         : 1;
     const entry = {
-      PkBulkUploadErrorId: newId,
+      PkErrorId: newId,
       FkBulkUploadId: sessionId,
       RowNumber: rowNumber,
+      ErrorType: 'VALIDATION',
       ErrorMessage: errorMessage,
       RowData: rowData,
-      CreatedDate: new Date().toISOString(),
+      CreatedAt: new Date().toISOString(),
     };
     mockErrors.push(entry);
     return entry;
