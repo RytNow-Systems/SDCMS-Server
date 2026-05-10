@@ -402,6 +402,18 @@ class OrderRepository {
         colorMatrixMap.set(key, entry);
       }
 
+      // Step 8: Fetch product master to enrich items with MaterialDescription.
+      // prc_order_items_get does not include MaterialDescription in its JOIN,
+      // so we resolve it separately via prc_product_master_search and key by PkProductId.
+      const [productRows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [0, 0, 0],
+      );
+      const productDescMap = new Map();
+      for (const prod of productRows[0] || []) {
+        productDescMap.set(prod.PkProductId, prod.MaterialDescription || null);
+      }
+
       return this._buildOrderAggregate(
         orderHeader,
         orderReceivers,
@@ -412,6 +424,7 @@ class OrderRepository {
         statusMap,
         receiverPartyMap,
         colorMatrixMap,
+        productDescMap,
       );
     }
     return this._findByIdMock(orderId);
@@ -454,6 +467,7 @@ class OrderRepository {
     statusMap,
     receiverPartyMap,
     colorMatrixMap = new Map(),
+    productDescMap = new Map(),
   ) {
     if (!orderHeader) return null;
 
@@ -538,6 +552,7 @@ class OrderRepository {
             UnitPrice: i.UnitPrice,
             MaterialName: i.MaterialName,
             MaterialCode: i.MaterialCode,
+            MaterialDescription: productDescMap.get(i.FkProductId) || i.MaterialDescription || null,
             UnitTitle: i.UnitTitle,
             // ColorId: the FK reference (PkLuColorId from lu_color_code)
             ColorId: i.PkLuColorId || i.FkLuColorId || i.ColorId,
@@ -1006,6 +1021,7 @@ class OrderRepository {
             UnitPrice: i.unitPrice,
             MaterialName: i.materialName || "Mock Material",
             MaterialCode: i.materialCode || "MOCK-001",
+            MaterialDescription: i.materialDescription || null,
             UnitTitle: i.unitTitle || "Piece",
           })),
           parcel: parcel
