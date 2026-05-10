@@ -156,14 +156,21 @@
         <h1>SDCMS Backend API</h1>
         <h2>Bulk Upload</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm post">POST</span>Create Bulk Session</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm get">GET</span>List Sessions</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Session by ID</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm post">POST</span>Create Bulk Session</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm get">GET</span>List Sessions</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Session by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm get">GET</span>Get Session Errors</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
         <h2>Bulk Upload</h2>
-        <p>Batch order creation via array upload</p>
+        <p>Batch order creation via JSON array upload with per-row error isolation</p>
       </header>
 
+      
+        <div class="guide-box">
+          <h4>Integration Guide</h4>
+          <div class="guide-text">
+            <div style="margin-bottom: 16px;"><p style="margin-bottom:8px; font-size:14px; color:var(--text-muted);">Bulk upload is a two-phase workflow. Phase 1 — POST /bulk-uploads submits the batch; each row is processed independently so a bad row never aborts the rest. Phase 2 — GET /bulk-uploads/:id/errors lets you fetch the failed rows with their original payloads and error messages for correction and re-submission. The sessionHash field is a client-generated content hash (e.g. MD5 of the raw JSON) used to prevent duplicate submissions — the backend will return 409 if the same hash is submitted twice. All IDs (senderId, receiverId, etc.) must be pre-existing Party Master records.</p></div>
+          </div>
+        </div>
       
 
       
@@ -174,9 +181,15 @@
           <code class="endpoint-path">/bulk-uploads</code>
         </div>
         <h3 class="endpoint-name">Create Bulk Session</h3>
-        <p class="endpoint-desc">Processes an array of orders in a single batch.</p>
+        <p class="endpoint-desc">Submits a batch of orders. Each row is processed independently — failures are logged per-row and do not abort the batch. Returns a session summary with success/failure counts.</p>
         
         
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> sessionHash is required and must be a client-generated content hash (e.g. MD5 of the stringified rows array). Submitting the same sessionHash twice returns 409 Conflict. Each row requires IDs from the Party Master (senderId, senderAddressId, receiverId, receiverAddressId) — free-text names are not accepted. courierId per row is optional and defaults to null. receiverPhone is stored as a snapshot and must be at least 10 characters.
+        </div>
+      </div>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
@@ -196,25 +209,27 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/bulk-uploads&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;rows&quot;:[{&quot;senderName&quot;:&quot;Bulk Sender&quot;,&quot;senderMobile&quot;:&quot;9000000099&quot;,&quot;courierId&quot;:1,&quot;receivers&quot;:[{&quot;receiverName&quot;:&quot;Bulk Receiver&quot;,&quot;receiverPhone&quot;:&quot;9000000098&quot;,&quot;products&quot;:[{&quot;productId&quot;:1,&quot;qty&quot;:1,&quot;unitPrice&quot;:100}]}]}]}'</code></pre>
+  -d '{&quot;sessionHash&quot;:&quot;d41d8cd98f00b204e9800998ecf8427e&quot;,&quot;fileName&quot;:&quot;april_orders.json&quot;,&quot;rows&quot;:[{&quot;senderId&quot;:1,&quot;senderAddressId&quot;:1,&quot;courierId&quot;:1,&quot;receivers&quot;:[{&quot;receiverId&quot;:2,&quot;receiverAddressId&quot;:2,&quot;receiverPhone&quot;:&quot;9123456780&quot;,&quot;products&quot;:[{&quot;variationId&quot;:1,&quot;quantity&quot;:5}]}]}]}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
+  &quot;sessionHash&quot;: &quot;d41d8cd98f00b204e9800998ecf8427e&quot;,
+  &quot;fileName&quot;: &quot;april_orders.json&quot;,
   &quot;rows&quot;: [
     {
-      &quot;senderName&quot;: &quot;Bulk Sender&quot;,
-      &quot;senderMobile&quot;: &quot;9000000099&quot;,
+      &quot;senderId&quot;: <span class="json-number">1</span>,
+      &quot;senderAddressId&quot;: <span class="json-number">1</span>,
       &quot;courierId&quot;: <span class="json-number">1</span>,
       &quot;receivers&quot;: [
         {
-          &quot;receiverName&quot;: &quot;Bulk Receiver&quot;,
-          &quot;receiverPhone&quot;: &quot;9000000098&quot;,
+          &quot;receiverId&quot;: <span class="json-number">2</span>,
+          &quot;receiverAddressId&quot;: <span class="json-number">2</span>,
+          &quot;receiverPhone&quot;: &quot;9123456780&quot;,
           &quot;products&quot;: [
             {
-              &quot;productId&quot;: <span class="json-number">1</span>,
-              &quot;qty&quot;: <span class="json-number">1</span>,
-              &quot;unitPrice&quot;: <span class="json-number">100</span>
+              &quot;variationId&quot;: <span class="json-number">1</span>,
+              &quot;quantity&quot;: <span class="json-number">5</span>
             }
           ]
         }
@@ -229,8 +244,9 @@
         <pre class="code-block"><code>{
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: {
-    &quot;sessionId&quot;: <span class="json-number">1</span>,
-    &quot;totalOrders&quot;: <span class="json-number">1</span>
+    &quot;sessionId&quot;: <span class="json-number">7</span>,
+    &quot;successfulOrders&quot;: <span class="json-number">1</span>,
+    &quot;failedRows&quot;: <span class="json-number">0</span>
   }
 }</code></pre>
       </div>
@@ -245,7 +261,7 @@
           <code class="endpoint-path">/bulk-uploads</code>
         </div>
         <h3 class="endpoint-name">List Sessions</h3>
-        <p class="endpoint-desc">Lists all bulk upload sessions.</p>
+        <p class="endpoint-desc">Returns a summary list of all bulk upload sessions ordered by most recent first.</p>
         
         
           <div class="meta-grid">
@@ -269,7 +285,22 @@
         
         
       <div class="section-group">
-        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;sessionId&quot;: <span class="json-number">7</span>,
+      &quot;sessionHash&quot;: &quot;d41d8cd98f00b204e9800998ecf8427e&quot;,
+      &quot;fileName&quot;: &quot;april_orders.json&quot;,
+      &quot;totalRows&quot;: <span class="json-number">10</span>,
+      &quot;successCount&quot;: <span class="json-number">9</span>,
+      &quot;failedCount&quot;: <span class="json-number">1</span>,
+      &quot;createdBy&quot;: &quot;EMP-001&quot;,
+      &quot;createdAt&quot;: &quot;2026-05-10T09: <span class="json-number">00</span>: <span class="json-number">00</span>Z&quot;
+    }
+  ]
+}</code></pre>
       </div>
       </div>
       
@@ -282,7 +313,7 @@
           <code class="endpoint-path">/bulk-uploads/:id</code>
         </div>
         <h3 class="endpoint-name">Get Session by ID</h3>
-        <p class="endpoint-desc">Retrieves details of a bulk upload session.</p>
+        <p class="endpoint-desc">Returns the session header and its associated error detail rows. Use this to inspect what failed after a batch run.</p>
         
         
           <div class="meta-grid">
@@ -297,6 +328,22 @@
           </div>
 
         
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Bulk upload session primary key</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
       </div>
 
       <div class="endpoint-example">
@@ -306,14 +353,134 @@
         
         
       <div class="section-group">
-        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: {
+    &quot;session&quot;: {
+      &quot;sessionId&quot;: <span class="json-number">7</span>,
+      &quot;sessionHash&quot;: &quot;d41d8cd98f00b204e9800998ecf8427e&quot;,
+      &quot;fileName&quot;: &quot;april_orders.json&quot;,
+      &quot;totalRows&quot;: <span class="json-number">10</span>,
+      &quot;successCount&quot;: <span class="json-number">9</span>,
+      &quot;failedCount&quot;: <span class="json-number">1</span>,
+      &quot;createdBy&quot;: &quot;EMP-001&quot;,
+      &quot;createdAt&quot;: &quot;2026-05-10T09: <span class="json-number">00</span>: <span class="json-number">00</span>Z&quot;
+    },
+    &quot;details&quot;: [
+      {
+        &quot;bulkUploadErrorId&quot;: <span class="json-number">3</span>,
+        &quot;bulkUploadId&quot;: <span class="json-number">7</span>,
+        &quot;rowNumber&quot;: <span class="json-number">4</span>,
+        &quot;errorMessage&quot;: &quot;Receiver address not found for receiverAddressId: <span class="json-number">99</span>&quot;,
+        &quot;rowData&quot;: {
+          &quot;senderId&quot;: <span class="json-number">1</span>,
+          &quot;senderAddressId&quot;: <span class="json-number">1</span>,
+          &quot;courierId&quot;: <span class="json-number">1</span>,
+          &quot;receivers&quot;: [
+            {
+              &quot;receiverId&quot;: <span class="json-number">2</span>,
+              &quot;receiverAddressId&quot;: <span class="json-number">99</span>,
+              &quot;receiverPhone&quot;: &quot;9000000098&quot;,
+              &quot;products&quot;: [
+                {
+                  &quot;variationId&quot;: <span class="json-number">1</span>,
+                  &quot;quantity&quot;: <span class="json-number">2</span>
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}</code></pre>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-3">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/bulk-uploads/:sessionId/errors</code>
+        </div>
+        <h3 class="endpoint-name">Get Session Errors</h3>
+        <p class="endpoint-desc">Returns only the failed rows for a session. Each item includes the original row payload (parsed) and the error message. Use this to identify, fix, and re-submit failed rows.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>sessionId</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Bulk upload session primary key</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/bulk-uploads/:sessionId/errors&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;rowData&quot;: {
+        &quot;senderId&quot;: <span class="json-number">1</span>,
+        &quot;senderAddressId&quot;: <span class="json-number">1</span>,
+        &quot;courierId&quot;: <span class="json-number">1</span>,
+        &quot;receivers&quot;: [
+          {
+            &quot;receiverId&quot;: <span class="json-number">2</span>,
+            &quot;receiverAddressId&quot;: <span class="json-number">99</span>,
+            &quot;receiverPhone&quot;: &quot;9000000098&quot;,
+            &quot;products&quot;: [
+              {
+                &quot;variationId&quot;: <span class="json-number">1</span>,
+                &quot;quantity&quot;: <span class="json-number">2</span>
+              }
+            ]
+          }
+        ]
+      },
+      &quot;errorMessage&quot;: &quot;Receiver address not found for receiverAddressId: <span class="json-number">99</span>&quot;
+    }
+  ]
+}</code></pre>
       </div>
       </div>
       
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-05
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
       </footer>
     </main>
   </div>
