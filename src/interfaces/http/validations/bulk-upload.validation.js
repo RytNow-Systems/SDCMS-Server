@@ -24,6 +24,10 @@ const bulkUploadRowSchema = z.object({
   receivers: z.array(bulkUploadRowReceiverSchema).min(1, 'Each row must have at least one receiver'),
 });
 
+export const sessionIdParamSchema = z.object({
+  sessionId: z.coerce.number().int().positive('sessionId must be a positive integer'),
+});
+
 export const bulkUploadSchema = z.object({
   sessionHash: z.string().min(1, 'Session hash is required to prevent duplicate uploads'),
   fileName: z.string().optional().default('bulk_upload.json'),

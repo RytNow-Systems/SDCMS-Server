@@ -34,3 +34,13 @@ export const handleGetSessionById = asyncHandler(async (req, res) => {
   const result = await bulkUploadService.getSessionWithDetails(req.params.id);
   res.json({ success: true, data: result });
 });
+
+/**
+ * GET /api/v1/bulk-uploads/:sessionId/errors
+ * Returns all failed rows for a specific upload session, with RowData parsed.
+ */
+export const handleGetSessionErrors = asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+  const errors = await bulkUploadService.getErrorsBySessionId(sessionId);
+  res.json({ success: true, data: errors });
+});

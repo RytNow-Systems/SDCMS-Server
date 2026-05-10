@@ -155,6 +155,30 @@ class BulkUploadRepository {
   }
 
   // ============================================================================
+  // ERROR RETRIEVAL (READ)
+  // ============================================================================
+
+  /**
+   * Get all error rows logged for a specific bulk upload session.
+   * Procedure: CALL prc_BulkUploadErrors_get(0, pFkBulkUploadId)
+   *
+   * @param {number} sessionId - FK to bulk_upload_sessions.
+   * @returns {Promise<Array>} Raw error rows containing stringified RowData.
+   */
+  async getErrorsBySessionId(sessionId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_BulkUploadErrors_get(?, ?)',
+        [0, sessionId],
+      );
+      return rows[0];
+    }
+    return mockErrors.filter(
+      (e) => e.FkBulkUploadId === parseInt(sessionId),
+    );
+  }
+
+  // ============================================================================
   // ORDER MAPPING
   // ============================================================================
 

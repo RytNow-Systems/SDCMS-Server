@@ -109,6 +109,33 @@ class BulkUploadService {
   }
 
   // ============================================================================
+  // ERROR RETRIEVAL
+  // ============================================================================
+
+  /**
+   * Retrieve all error rows for a bulk upload session with RowData parsed into objects.
+   *
+   * @param {number} sessionId - The bulk upload session ID.
+   * @returns {Promise<Array<{rowData: object, errorMessage: string}>>}
+   */
+  async getErrorsBySessionId(sessionId) {
+    const errors = await bulkUploadRepository.getErrorsBySessionId(sessionId);
+    return errors.map((e) => {
+      const raw = e.RowData || e.rowData;
+      let rowData;
+      try {
+        rowData = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      } catch {
+        rowData = raw;
+      }
+      return {
+        rowData,
+        errorMessage: e.ErrorMessage || e.errorMessage,
+      };
+    });
+  }
+
+  // ============================================================================
   // MAPPERS
   // ============================================================================
 
