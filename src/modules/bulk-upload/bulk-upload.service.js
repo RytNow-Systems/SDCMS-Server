@@ -59,7 +59,8 @@ class BulkUploadService {
           orderResult?.id;
 
         // 4. Zero-touch junction: link OrderId → BulkUploadSession
-        await bulkUploadRepository.mapOrder(sessionId, orderId);
+        // TODO: Restore order mapping once bulk_upload_order_mapping table schema is finalized and approved.
+        // await bulkUploadRepository.mapOrder(sessionId, orderId);
         successfulOrders++;
       } catch (err) {
         // 5. Persist failed row verbatim for downstream review
