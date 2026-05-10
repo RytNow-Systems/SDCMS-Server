@@ -12,8 +12,8 @@ import bulkUploadService from '../../../modules/bulk-upload/bulk-upload.service.
  * Submits bulk order data (JSON).
  */
 export const handleBulkUpload = asyncHandler(async (req, res) => {
-  const { fileName, rows } = req.body;
-  const result = await bulkUploadService.processBulkUpload(rows, req.user, fileName);
+  const { sessionHash, fileName, rows } = req.body;
+  const result = await bulkUploadService.processBulkUpload(sessionHash, fileName, rows, req.user);
   res.status(201).json({ success: true, data: result });
 });
 
