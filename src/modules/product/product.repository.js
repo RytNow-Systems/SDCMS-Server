@@ -340,7 +340,11 @@ class ProductRepository {
         "CALL prc_product_master_search(?, ?, ?)",
         [0, categoryId, unitId],
       );
-      products = pRows[0] || [];
+      const _isActiveRow = (val) => {
+        if (Buffer.isBuffer(val)) return val[0] === 1;
+        return val === 1 || val === true || val === "1" || val === "Active";
+      };
+      products = (pRows[0] || []).filter((p) => _isActiveRow(p.IsActive));
       matrices = await this.getAllColorMatrix();
     } else {
       // Apply filters in mock mode
@@ -471,7 +475,7 @@ class ProductRepository {
       );
       const _isActiveRow = (val) => {
         if (Buffer.isBuffer(val)) return val[0] === 1;
-        return val === 1 || val === true || val === "1";
+        return val === 1 || val === true || val === "1" || val === "Active";
       };
       products = (pRows[0] || []).filter((p) => _isActiveRow(p.IsActive));
       matrices = await this.getAllColorMatrix();
