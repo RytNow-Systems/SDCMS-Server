@@ -263,7 +263,8 @@ export const updateReceiverSchema = updateSenderSchema;
 export const createAddressSchema = z.object({
   partyName: z.string().optional(),
   phoneNo: z.string().optional(),
-  // emailId removed - email should always come from party_master, not party_details
+  // emailId is intentionally excluded: the server auto-populates it from party_master
+  // to guarantee party_details.EmailId always matches party_master.EmailId
   address: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
