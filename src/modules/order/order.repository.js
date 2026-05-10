@@ -516,7 +516,7 @@ class OrderRepository {
         FkPartyId: r.FkReceiverId,
         PkPartyDetailsId: r.FkPartyDetailsId || r.PkPartyDetailsId,
         ReceiverEmail:
-          receiverParty?.email || r.ReceiverEmail || sender?.EmailId || null,
+          receiverParty?.email || r.ReceiverEmail || null,
         ReceiverName: receiverParty?.name || r.ReceiverName || null,
         ReceiverPhone: receiverParty?.phone || r.ReceiverPhone || null,
         Address: r.Address,
