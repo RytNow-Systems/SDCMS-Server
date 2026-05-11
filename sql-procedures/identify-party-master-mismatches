@@ -1,0 +1,10 @@
+SELECT
+    ROUTINE_NAME,
+    ROUTINE_TYPE,
+    ROUTINE_DEFINITION
+FROM
+    information_schema.ROUTINES
+WHERE
+    ROUTINE_SCHEMA = 'sdcms_db_testing'
+    AND (ROUTINE_DEFINITION LIKE '%Party_master%'
+         OR ROUTINE_DEFINITION LIKE '%party_master%');

@@ -1,0 +1,58 @@
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_party_details_get`(pAction INT, pLookupId INT)
+BEGIN
+
+
+    IF pAction = 0 THEN
+        SELECT party_details.PkPartyDetailsId, party_details.FkPartyId, party_details.EmailId, party_details.Address, party_details.City, party_details.State, party_details.Pincode, party_details.Country, party_details.CreatedBy, party_details.CreatedDate, party_details.UpdatedBy, party_details.UpdatedDate, party_details.IsActive, party_details.IsDefault,
+               IFNULL(party_master.CustomerName, '') AS CustomerName
+        FROM party_details
+        LEFT JOIN party_master ON party_master.PkPartyId = party_details.FkPartyId
+        ORDER BY party_details.PkPartyDetailsId DESC;
+    END IF;
+
+    IF pAction = 1 THEN
+        SELECT party_details.PkPartyDetailsId, party_details.FkPartyId, party_details.EmailId, party_details.Address, party_details.City, party_details.State, party_details.Pincode, party_details.Country, party_details.CreatedBy, party_details.CreatedDate, party_details.UpdatedBy, party_details.UpdatedDate, party_details.IsActive, party_details.IsDefault,
+               IFNULL(party_master.CustomerName, '') AS CustomerName
+        FROM party_details
+        LEFT JOIN party_master ON party_master.PkPartyId = party_details.FkPartyId
+        WHERE party_details.FkPartyId = pLookupId
+		ORDER BY party_details.PkPartyDetailsId;
+    END IF;
+
+END
+
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_party_details_set`(pPkPartyDetailsId INT, pFkPartyId INT, pEmailId VARCHAR(100), pAddress VARCHAR(255), pCity VARCHAR(80), pState VARCHAR(80), pPincode VARCHAR(10), pCountry VARCHAR(60), pIsDefault INT, pCreatedBy INT, pIsActive INT)
+BEGIN
+
+
+DECLARE pPartyDetailsId INT;
+
+	IF pPkPartyDetailsId = 0 THEN
+		INSERT INTO party_details (FkPartyId, EmailId, Address, City, State, Pincode, Country, IsDefault, CreatedBy, CreatedDate, IsActive)
+						VALUES (pFkPartyId, pEmailId, pAddress, pCity, pState, pPincode, pCountry, pIsDefault, pCreatedBy, NOW(), pIsActive);
+
+		SELECT LAST_INSERT_ID() INTO pPartyDetailsId;
+
+	ELSE
+		UPDATE party_details SET
+		FkPartyId = pFkPartyId, EmailId = pEmailId, Address = pAddress, City = pCity, State = pState, Pincode = pPincode, Country = pCountry, IsDefault = pIsDefault, UpdatedBy = pCreatedBy, UpdatedDate = NOW(), IsActive = pIsActive
+		WHERE PkPartyDetailsId = pPkPartyDetailsId;
+
+
+		SET pPartyDetailsId = pPkPartyDetailsId;
+
+	END IF;
+
+
+	SELECT  party_details.PkPartyDetailsId,  party_details.FkPartyId,  party_details.EmailId,  party_details.Address,  party_details.City,  party_details.State,  party_details.Pincode,  party_details.Country,
+		    party_details.CreatedBy,  party_details.CreatedDate,  party_details.UpdatedBy,  party_details.UpdatedDate,  party_details.IsActive,  party_details.IsDefault,
+		   IFNULL( party_master.CustomerName, '') AS CustomerName
+	FROM party_details
+	LEFT JOIN party_master ON  party_master.PkPartyId =  party_details.FkPartyId
+	WHERE  party_details.PkPartyDetailsId = pPartyDetailsId;
+
+END
+
+---

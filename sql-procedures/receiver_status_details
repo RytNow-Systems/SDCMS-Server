@@ -1,0 +1,56 @@
+prc_receiver_status_details_get:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_get`(pAction INT, pFkParcelDetailsId INT)
+BEGIN
+    IF pAction = 0 THEN
+        SELECT PkReceiverStatusDetailsId, FkParcelDetailsId, FkReceiverDetailsId, FkOrderStatusId, ActionType, AWBNumber, PreviousStatus, CreatedDate, CreatedBy
+        FROM receiver_status_details
+        ORDER BY CreatedDate DESC;
+    END IF;
+    IF pAction = 1 THEN
+        SELECT PkReceiverStatusDetailsId, FkParcelDetailsId, ActionType, AWBNumber, CreatedDate
+        FROM receiver_status_details
+        WHERE FkParcelDetailsId = pFkParcelDetailsId
+        ORDER BY CreatedDate DESC;
+    END IF;
+END
+
+---
+
+prc_receiver_status_details_search:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_search`(pFkReceiverStatusDetailsId int(11), pFkReceiverDetailsId int(11), pFkOrderStatusId int(11))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Transaction
+File name in solution	: Transaction/receiver_status_details.aspx
+UserControl/Field Name : model-receiverstatus
+Input Parameter	: pFkReceiverStatusDetailsId, pFkReceiverDetailsId, pFkOrderStatusId
+Output Parameter : FkReceiverStatusDetailsId, FkReceiverDetailsId, FkOrderStatusId, CreatedDate, CreatedBy, ActionType, AWBNumber, PreviousStatus, PrintFormat, StatusName, CreatedByName, ReceiverName, ReceiverPhone
+Description : used to display audit trail of receiver status changes as per given constraints
+****************************************************/
+		SELECT  receiver_status_details.FkReceiverStatusDetailsId, receiver_status_details.FkReceiverDetailsId, receiver_status_details.FkOrderStatusId, receiver_status_details.CreatedDate, receiver_status_details.CreatedBy, receiver_status_details.ActionType, receiver_status_details.AWBNumber, receiver_status_details.PreviousStatus, receiver_status_details.PrintFormat,
+					IFNULL(status_name.LuDetails,'') as StatusName,
+					IFNULL(CretedUser.FullName,'') as CreatedByName,
+					IFNULL(receiver_details.ReceiverName,'') as ReceiverName, IFNULL(receiver_details.ReceiverPhone,'') as ReceiverPhone
+		FROM    receiver_status_details
+			LEFT JOIN lu_details status_name ON status_name.LuDetailsId = receiver_status_details.FkOrderStatusId
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = receiver_status_details.CreatedBy
+			LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = receiver_status_details.FkReceiverDetailsId
+		WHERE receiver_status_details.FkReceiverStatusDetailsId = CASE WHEN pFkReceiverStatusDetailsId = 0 THEN receiver_status_details.FkReceiverStatusDetailsId ELSE pFkReceiverStatusDetailsId END AND
+					receiver_status_details.FkReceiverDetailsId = CASE WHEN pFkReceiverDetailsId = 0 THEN receiver_status_details.FkReceiverDetailsId ELSE pFkReceiverDetailsId END AND
+					receiver_status_details.FkOrderStatusId = CASE WHEN pFkOrderStatusId = 0 THEN receiver_status_details.FkOrderStatusId ELSE pFkOrderStatusId END
+		ORDER BY receiver_status_details.FkReceiverStatusDetailsId DESC;
+
+END
+
+---
+
+prc_receiver_status_details_set:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_set`(pFkParcelDetailsId INT, pFkReceiverDetailsId INT, pActionType VARCHAR(50), pAWBNumber VARCHAR(100), pCreatedBy INT)
+BEGIN
+    INSERT INTO receiver_status_details (FkParcelDetailsId, FkReceiverDetailsId, ActionType, AWBNumber, CreatedDate, CreatedBy)
+    VALUES (pFkParcelDetailsId, pFkReceiverDetailsId, pActionType, pAWBNumber, NOW(), pCreatedBy);
+END

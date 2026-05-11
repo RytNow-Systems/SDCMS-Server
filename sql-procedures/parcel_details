@@ -1,0 +1,178 @@
+prc_parcel_details_set:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_parcel_details_set`(pPkParcelDetailsId  INT,pTriggerType INT, /* 0=CREATE | 1=PRINT_LABEL | 2=SCAN_LINK_AWB | 3=DISPATCH | 4=DELIVERED | 5=Cancelled*/pFkReceiverDetailsId INT,/* Required only for pTriggerType = 0 (CREATE). Pass NULL for all other triggers.*/ pAWBNumber VARCHAR(100),pFkCourierId INT,pCreatedBy INT)
+BEGIN
+    DECLARE pReceiverDetailsId INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    START TRANSACTION;
+    -- -------------------------------------------------------
+    -- Trigger 0: CREATE PARCEL (Execution layer — explicit call)
+    -- lu_details: 1 = 'Pending'
+    -- Called by backend AFTER order + receivers + items are fully defined.
+    -- -------------------------------------------------------
+    IF pTriggerType = 0 THEN
+        INSERT INTO parcel_details (FkReceiverDetailsId, FkCourierId, TrackingNo, QRCode, FkParcelStatusId, ParcelCode,LabelPrintCount, DispatchDate, CreatedDate, CreatedBy) VALUES (pFkReceiverDetailsId, NULL, NULL, UUID(), 1,NULL, NULL, NULL, NOW(), pCreatedBy);
+        SET pPkParcelDetailsId = LAST_INSERT_ID();
+        UPDATE parcel_details SET ParcelCode = FnGenerateParcelCode() WHERE PkParcelDetailsId = pPkParcelDetailsId;
+        SELECT pPkParcelDetailsId AS GeneratedParcelId;
+    ELSE
+        -- Resolve receiver for audit logging (only needed for update triggers 1-5)
+        SELECT FkReceiverDetailsId INTO pReceiverDetailsId
+        FROM parcel_details WHERE PkParcelDetailsId = pPkParcelDetailsId;
+    -- -------------------------------------------------------
+    -- Trigger 1: PRINT LABEL
+    -- lu_details: 2 = 'Label Printed'
+    -- -------------------------------------------------------
+    IF pTriggerType = 1 THEN
+        UPDATE parcel_details SET LabelPrintCount  = IFNULL(LabelPrintCount, 0) + 1,FkParcelStatusId = 2
+        WHERE PkParcelDetailsId = pPkParcelDetailsId;
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'PRINT_LABEL', NULL, pCreatedBy);
+    -- -------------------------------------------------------
+    -- Trigger 2: SCAN & LINK AWB
+    -- lu_details: 3 = 'AWB Linked'
+    -- -------------------------------------------------------
+    ELSEIF pTriggerType = 2 THEN
+        UPDATE parcel_details SET TrackingNo= pAWBNumber,FkCourierId= pFkCourierId,FkParcelStatusId = 3
+        WHERE PkParcelDetailsId = pPkParcelDetailsId;
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'AWB_LINK', pAWBNumber, pCreatedBy);
+    -- -------------------------------------------------------
+    -- Trigger 3: DISPATCH
+    -- lu_details: 4 = 'Dispatched'
+    -- -------------------------------------------------------
+    ELSEIF pTriggerType = 3 THEN
+        UPDATE parcel_details SET DispatchDate = NOW(),FkParcelStatusId = 4
+        WHERE PkParcelDetailsId = pPkParcelDetailsId;
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'DISPATCH', pAWBNumber, pCreatedBy);
+    -- -------------------------------------------------------
+    -- Trigger 4: DELIVERED
+    -- lu_details: 5 = 'Delivered'
+    -- -------------------------------------------------------
+    ELSEIF pTriggerType = 4 THEN
+        UPDATE parcel_details SET FkParcelStatusId = 5
+        WHERE PkParcelDetailsId = pPkParcelDetailsId;
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'DELIVERED', NULL, pCreatedBy);
+    -- -------------------------------------------------------
+    -- Trigger 5: Cancelled
+    -- lu_details: 6 = 'Cancelled'
+    -- -------------------------------------------------------
+    ELSEIF pTriggerType = 5 THEN
+        UPDATE parcel_details SET FkParcelStatusId = 6
+        WHERE PkParcelDetailsId = pPkParcelDetailsId;
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'RETURNED', NULL, pCreatedBy);
+    END IF; -- close inner trigger (1-5) IF block
+    END IF; -- close outer: IF pTriggerType = 0 ... ELSE ... END IF
+    COMMIT;
+END
+---
+
+prc_parcel_details_get:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_parcel_details_get`(pAction INT, pPkParcelDetailsId INT)
+BEGIN
+    IF pAction = 0 THEN
+        SELECT PkParcelDetailsId, FkReceiverDetailsId, FkCourierId, TrackingNo, QRCode, FkParcelStatusId,ParcelCode, LabelPrintCount, DispatchDate, CreatedDate, CreatedBy
+        FROM parcel_details
+        ORDER BY PkParcelDetailsId DESC;
+    END IF;
+    IF pAction = 1 THEN
+        SELECT PkParcelDetailsId, FkReceiverDetailsId, FkCourierId, TrackingNo, QRCode, FkParcelStatusId,ParcelCode, LabelPrintCount, DispatchDate, CreatedDate, CreatedBy
+        FROM parcel_details
+        WHERE PkParcelDetailsId = pPkParcelDetailsId;
+    END IF;
+    IF pAction = 2 THEN -- Label Data
+        SELECT parcel_details.PkParcelDetailsId, parcel_details.TrackingNo, parcel_details.QRCode,ParcelCode,
+               receiver_details.ReceiverName, receiver_details.ReceiverPhone, receiver_details.Address, receiver_details.City, receiver_details.Pincode
+        FROM parcel_details
+        INNER JOIN receiver_details ON receiver_details.PkReceiverDetailsId = parcel_details.FkReceiverDetailsId
+        WHERE parcel_details.PkParcelDetailsId = pPkParcelDetailsId;
+END IF;
+END
+---
+
+prc_parcel_details_search:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_parcel_details_search`(pPkParcelDetailsId int(11), pFkReceiverDetailsId int(11), pFkCourierId int(11), pFkParcelStatusId int(11))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Transaction
+File name in solution	: Transaction/parcel_details.aspx
+UserControl/Field Name : model-parcel
+Input Parameter	: pPkParcelDetailsId, pFkReceiverDetailsId, pFkCourierId, pFkParcelStatusId
+Output Parameter : PkParcelDetailsId, FkReceiverDetailsId, FkCourierId, TrackingNo, QRCode, FkParcelStatusId, LabelPrintCount, DispatchDate, CreatedDate, CreatedBy, CreateUserName, ReceiverName, ReceiverPhone, ReceiverCity, ReceiverState, ReceiverPincode, FkOrderId, CourierName, TrackingUrlTemplate, ParcelStatusName, OrderCode
+Description : used to display list of parcel details as per given constraints
+****************************************************/
+		SELECT  parcel_details.PkParcelDetailsId, parcel_details.FkReceiverDetailsId, parcel_details.FkCourierId, parcel_details.TrackingNo, parcel_details.QRCode, parcel_details.FkParcelStatusId, parcel_details.LabelPrintCount, parcel_details.DispatchDate,
+						 parcel_details.CreatedDate, parcel_details.CreatedBy,
+					IFNULL(CretedUser.FullName,'') as CreateUserName,
+					IFNULL(receiver_details.ReceiverName,'') as ReceiverName, IFNULL(receiver_details.ReceiverPhone,'') as ReceiverPhone, IFNULL(receiver_details.City,'') as ReceiverCity, IFNULL(receiver_details.State,'') as ReceiverState, IFNULL(receiver_details.Pincode,'') as ReceiverPincode,
+					IFNULL(receiver_details.FkOrderId,0) as FkOrderId,
+					IFNULL(courier_partner_master.CourierName,'') as CourierName, IFNULL(courier_partner_master.TrackingUrlTemplate,'') as TrackingUrlTemplate,
+					IFNULL(parcel_status.LuDetails,'') as ParcelStatusName,
+					IFNULL(order_master.OrderCode,'') as OrderCode
+		FROM    parcel_details
+			LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = parcel_details.FkReceiverDetailsId
+			LEFT JOIN courier_partner_master ON courier_partner_master.CourierId = parcel_details.FkCourierId
+			LEFT JOIN lu_details parcel_status ON parcel_status.LuDetailsId = parcel_details.FkParcelStatusId
+			LEFT JOIN order_master ON order_master.PkOrderId = receiver_details.FkOrderId
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = parcel_details.CreatedBy
+		WHERE parcel_details.PkParcelDetailsId = CASE WHEN pPkParcelDetailsId = 0 THEN parcel_details.PkParcelDetailsId ELSE pPkParcelDetailsId END AND
+					parcel_details.FkReceiverDetailsId = CASE WHEN pFkReceiverDetailsId = 0 THEN parcel_details.FkReceiverDetailsId ELSE pFkReceiverDetailsId END AND
+					parcel_details.FkCourierId = CASE WHEN pFkCourierId = 0 THEN parcel_details.FkCourierId ELSE pFkCourierId END AND
+					parcel_details.FkParcelStatusId = CASE WHEN pFkParcelStatusId = 0 THEN parcel_details.FkParcelStatusId ELSE pFkParcelStatusId END
+		ORDER BY parcel_details.PkParcelDetailsId DESC;
+
+END
+
+---
+
+prc_parcel_details_search_by_awb:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_parcel_details_search_by_awb`(pTrackingNo varchar(100))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Mobile Scanner
+File name in solution	: Mobile/parcel_awb.aspx
+UserControl/Field Name : model-parcelawb
+Input Parameter	: pTrackingNo
+Output Parameter : PkParcelDetailsId, FkReceiverDetailsId, FkCourierId, TrackingNo, QRCode, FkParcelStatusId, LabelPrintCount, DispatchDate, ReceiverName, ReceiverPhone, ReceiverCity, FkOrderId, CourierName, ParcelStatusName, OrderCode
+Description : used to search a parcel by its AWB tracking number
+****************************************************/
+		SELECT  parcel_details.PkParcelDetailsId, parcel_details.FkReceiverDetailsId, parcel_details.FkCourierId, parcel_details.TrackingNo, parcel_details.QRCode, parcel_details.FkParcelStatusId, parcel_details.LabelPrintCount, parcel_details.DispatchDate,
+						 parcel_details.CreatedDate, parcel_details.CreatedBy,
+					IFNULL(receiver_details.ReceiverName,'') as ReceiverName, IFNULL(receiver_details.ReceiverPhone,'') as ReceiverPhone, IFNULL(receiver_details.City,'') as ReceiverCity,
+					IFNULL(receiver_details.FkOrderId,0) as FkOrderId,
+					IFNULL(courier_partner_master.CourierName,'') as CourierName,
+					IFNULL(parcel_status.LuDetails,'') as ParcelStatusName,
+					IFNULL(order_master.OrderCode,'') as OrderCode
+		FROM    parcel_details
+			LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = parcel_details.FkReceiverDetailsId
+			LEFT JOIN courier_partner_master ON courier_partner_master.CourierId = parcel_details.FkCourierId
+			LEFT JOIN lu_details parcel_status ON parcel_status.LuDetailsId = parcel_details.FkParcelStatusId
+			LEFT JOIN order_master ON order_master.PkOrderId = receiver_details.FkOrderId
+		WHERE parcel_details.TrackingNo = pTrackingNo;
+
+END
+---
+
+FnGenerateParcelCode:
+
+CREATE DEFINER=`user`@`%` FUNCTION `FnGenerateParcelCode`() RETURNS varchar(30) CHARSET utf8
+    DETERMINISTIC
+BEGIN
+    DECLARE pOrderId INT;
+    DECLARE pParcelId INT;
+
+    SELECT order_master.PkOrderId, parcel_details.PkParcelDetailsId INTO pOrderId, pParcelId FROM parcel_details
+    INNER JOIN receiver_details ON parcel_details.FkReceiverDetailsId = receiver_details.PkReceiverDetailsId
+    INNER JOIN order_master ON receiver_details.FkOrderId = order_master.PkOrderId
+    ORDER BY parcel_details.PkParcelDetailsId DESC LIMIT 1;
+
+    RETURN CONCAT('UC-', pOrderId, '-', pParcelId);
+END

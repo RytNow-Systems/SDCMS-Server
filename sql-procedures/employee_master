@@ -1,0 +1,26 @@
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_employee_master_set`(pEmployeeCode INT, pFullName VARCHAR(100), pContactNumber VARCHAR(50), pEmailAddress VARCHAR(50), pUserName VARCHAR(100), pPassword VARCHAR(255), pFkRoleId INT, pAllowLogin INT, pCreatedBy INT, pIsActive INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:admin
+Input Parameter	: pEmployeeCode, pFullName, pContactNumber, pEmailAddress, pUserName, pPassword, pFkRoleId, pAllowLogin, pCreatedBy, pIsActive
+Output Parameter : employee details
+Description : used to insert and update employee details
+****************************************************/
+DECLARE pEmpId INT;
+
+	IF pEmployeeCode = 0 THEN -- Insert Called
+		INSERT INTO employee_master (FullName, ContactNumber, EmailAddress, UserName, Password, FkRoleId, AllowLogin, IsActive, CreatedDate, CreatedBy)
+						VALUES (pFullName, pContactNumber, pEmailAddress, pUserName, pPassword, pFkRoleId, pAllowLogin, pIsActive, NOW(), pCreatedBy);
+
+		SELECT LAST_INSERT_ID() INTO pEmpId;
+
+	ELSE -- Update Called
+		UPDATE employee_master SET
+		FullName = pFullName, ContactNumber = pContactNumber, EmailAddress = pEmailAddress, UserName = pUserName,
+		Password = IFNULL(pPassword, Password), FkRoleId = pFkRoleId, AllowLogin = IFNULL(pAllowLogin, AllowLogin), IsActive = IFNULL(pIsActive, IsActive), UpdatedDate = NOW(), UpdatedBy = pCreatedBy
+		WHERE EmployeeCode = pEmployeeCode;
+
+	END IF;
+
+END

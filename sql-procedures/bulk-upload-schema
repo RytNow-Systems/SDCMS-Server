@@ -1,0 +1,28 @@
+Based on DBA requirements, we are using PascalCase, Logical Foreign Keys (enforced by Node.js, not the DB), and a Zero-Touch Mapping Table to protect core tables.
+
+### **Table 1: `BulkUploadSessions`**
+```sql
+CREATE TABLE BulkUploadSessions (
+  PkBulkUploadId INT PRIMARY KEY AUTO_INCREMENT,
+  FkUploadedByEmployeeCode INT NOT NULL, -- LOGICAL KEY
+  FileName VARCHAR(255) NOT NULL,
+  UploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  TotalRows INT DEFAULT 0,
+  SuccessfulOrders INT DEFAULT 0,
+  FailedRows INT DEFAULT 0,
+  Status ENUM('VALIDATING', 'COMPLETED', 'FAILED', 'PARTIAL_SUCCESS') DEFAULT 'VALIDATING'
+);
+```
+
+### **Table 2: `BulkUploadErrors`**
+```sql
+CREATE TABLE BulkUploadErrors (
+  PkErrorId INT PRIMARY KEY AUTO_INCREMENT,
+  FkBulkUploadId INT NOT NULL, -- LOGICAL KEY
+  RowNumber INT NOT NULL,
+  ErrorType ENUM('VALIDATION', 'DUPLICATE_PHONE', 'PRODUCT_NOT_FOUND', 'COURIER_NOT_FOUND', 'MISSING_DATA', 'DUPLICATE_ORDER') DEFAULT 'VALIDATION',
+  ErrorMessage TEXT NOT NULL,
+  RowData TEXT, -- Stores stringified JSON (MySQL 5.6 compatibility)
+  CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```

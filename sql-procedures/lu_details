@@ -1,0 +1,48 @@
+prc_lu_details_get:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_lu_details_get`(pAction INT, pLookUpId INT)
+BEGIN
+IF pAction = 0 THEN
+		SELECT lu_details.LuDetailsId, lu_details.LuMasterId, lu_details.LuDetails, lu_details.LuDetails_1, lu_details.LuDetails_2, lu_details.LuDetails_3, IFNULL(lu_master.LuMaster,'') as LuMasterName,
+					(CASE WHEN lu_details.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM lu_details
+			LEFT JOIN lu_master ON lu_master.LuMasterId = lu_details.LuMasterId
+		ORDER BY lu_details.LuMasterId, lu_details.LuDetailsId;
+	END IF;
+	IF pAction = 1 THEN
+		SELECT lu_details.LuDetailsId, lu_details.LuMasterId, lu_details.LuDetails, lu_details.LuDetails_1, lu_details.LuDetails_2, lu_details.LuDetails_3, IFNULL(lu_master.LuMaster,'') as LuMasterName,
+					(CASE WHEN lu_details.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM lu_details
+			LEFT JOIN lu_master ON lu_master.LuMasterId = lu_details.LuMasterId
+		WHERE lu_details.LuDetailsId = pLookUpId
+		ORDER BY lu_details.LuMasterId, lu_details.LuDetailsId;
+	END IF;
+END
+
+---
+
+prc_lu_details_search:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_lu_details_search`(pLuDetailsId int(11), pLuMasterId int(11))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Admin
+File name in solution	: Admin/lu_details.aspx
+UserControl/Field Name : model-lookupdetails
+Input Parameter	: pLuDetailsId, pLuMasterId
+Output Parameter : LuDetailsId, LuMasterId, LuDetails, LuDetails_1, LuDetails_2, LuDetails_3, LuMasterName, IsActive
+Description : used to display list of lookup detail values as per given constraints
+****************************************************/
+		SELECT  lu_details.LuDetailsId, lu_details.LuMasterId, lu_details.LuDetails, lu_details.LuDetails_1, lu_details.LuDetails_2, lu_details.LuDetails_3,
+					IFNULL(lu_master.LuMaster,'') as LuMasterName,
+					(CASE WHEN lu_details.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM    lu_details
+			LEFT JOIN lu_master ON lu_master.LuMasterId = lu_details.LuMasterId
+		WHERE lu_details.LuDetailsId = CASE WHEN pLuDetailsId = 0 THEN lu_details.LuDetailsId ELSE pLuDetailsId END AND
+					lu_details.LuMasterId = CASE WHEN pLuMasterId = 0 THEN lu_details.LuMasterId ELSE pLuMasterId END
+		ORDER BY lu_details.LuMasterId, lu_details.LuDetailsId;
+
+END
+
+---
