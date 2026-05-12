@@ -74,16 +74,34 @@ class ParcelRepository {
         );
       }
 
-      // Client-side search filtering (SP does not support text search)
+      // Client-side search — checks parcelId, ParcelCode (UC code), and TrackingNo
       if (filters.search) {
         const q = filters.search.toLowerCase();
         data = data.filter(
           (p) =>
             (p.PkParcelDetailsId &&
               p.PkParcelDetailsId.toString().includes(q)) ||
+            (p.ParcelCode && p.ParcelCode.toLowerCase().includes(q)) ||
             (p.TrackingNo && p.TrackingNo.toLowerCase().includes(q)),
         );
       }
+
+      // Client-side sort — SP always returns DESC by PkParcelDetailsId
+      const sortFieldMap = {
+        created_at: "CreatedDate",
+        createdAt: "CreatedDate",
+        status: "ParcelStatusName",
+        trackingNo: "TrackingNo",
+        parcelId: "PkParcelDetailsId",
+        parcelCode: "ParcelCode",
+      };
+      const sortCol = sortFieldMap[filters.sortBy] || "PkParcelDetailsId";
+      const sortDir = filters.sortOrder?.toLowerCase() === "asc" ? 1 : -1;
+      data.sort((a, b) => {
+        const av = a[sortCol] ?? "";
+        const bv = b[sortCol] ?? "";
+        return av < bv ? -sortDir : av > bv ? sortDir : 0;
+      });
 
       const total = data.length;
       const page = filters.page || 1;
@@ -98,7 +116,6 @@ class ParcelRepository {
     const results = this._filterMockParcels(filters);
     const total = results.length;
 
-    // Pagination
     const page = filters.page || 1;
     const limit = filters.limit || 20;
     const start = (page - 1) * limit;
