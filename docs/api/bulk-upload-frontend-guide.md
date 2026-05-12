@@ -222,6 +222,7 @@ Authorization: Bearer <token>
           }
         ]
       },
+      "errorType": "VALIDATION",
       "errorMessage": "Receiver address not found for receiverAddressId: 99"
     }
   ]

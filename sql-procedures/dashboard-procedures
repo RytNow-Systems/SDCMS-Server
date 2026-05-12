@@ -1,0 +1,85 @@
+prc_dashboard_metrics_get:
+
+CREATE DEFINER=user@% PROCEDURE prc_dashboard_metrics_get(pAction INT) BEGIN
+/***************************************************
+Author: Aditya Mulay
+Module Name :dashboard Input Parameter : pAction Output
+Parameter : dashboard metrics
+Description : used to retrieve dashboard summary metrics for orders and parcel statuses
+****************************************************/
+
+DECLARE pCurrentDate DATE DEFAULT NOW();
+DECLARE pWeeklyFromDate DATE;
+DECLARE pMonthlyFromDate DATE;
+
+SET pWeeklyFromDate = DATE_SUB(pCurrentDate, INTERVAL WEEKDAY(pCurrentDate) DAY);
+SET pMonthlyFromDate = DATE_SUB(pCurrentDate, INTERVAL DAYOFMONTH(pCurrentDate) - 1 DAY);
+
+IF pAction = 0 THEN -- Overall Summary Counts
+    SELECT
+        (SELECT COUNT(*) FROM order_master WHERE IsActive = 1) AS TotalOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1) AS PendingOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4) AS DispatchedOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5) AS DeliveredOrders;
+END IF;
+
+IF pAction = 1 THEN -- Daily Summary Counts
+    SELECT
+        (SELECT COUNT(*) FROM order_master WHERE IsActive = 1 AND DATE(CreatedDate) = pCurrentDate) AS TotalOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1 AND DATE(CreatedDate) = pCurrentDate) AS PendingOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4 AND DATE(CreatedDate) = pCurrentDate) AS DispatchedOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5 AND DATE(CreatedDate) = pCurrentDate) AS DeliveredOrders;
+END IF;
+
+IF pAction = 2 THEN -- Weekly Summary Counts
+    SELECT
+        (SELECT COUNT(*) FROM order_master WHERE IsActive = 1 AND DATE(CreatedDate) >= pWeeklyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS TotalOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1 AND DATE(CreatedDate) >= pWeeklyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS PendingOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4 AND DATE(CreatedDate) >= pWeeklyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS DispatchedOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5 AND DATE(CreatedDate) >= pWeeklyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS DeliveredOrders;
+END IF;
+
+IF pAction = 3 THEN -- Monthly Summary Counts
+    SELECT
+        (SELECT COUNT(*) FROM order_master WHERE IsActive = 1 AND DATE(CreatedDate) >= pMonthlyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS TotalOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1 AND DATE(CreatedDate) >= pMonthlyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS PendingOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4 AND DATE(CreatedDate) >= pMonthlyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS DispatchedOrders,
+        (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5 AND DATE(CreatedDate) >= pMonthlyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS DeliveredOrders;
+END IF;
+/* IF pAction = 4 THEN -- Recent Logins SELECT FullName, ContactNumber, UserName, CreatedDate FROM employee_master WHERE IsActive = 1 ORDER BY CreatedDate DESC LIMIT 10; END IF;*/ END
+
+---
+
+CREATE DEFINER=user@% PROCEDURE prc_dashboard_graph_get(pAction INT, pMonth INT) BEGIN
+/*************************************************** Author: Aditya Mulay
+Module Name :dashboard Input Parameter : pAction, pMonth Output
+Parameter : dashboard graph data
+Description : used to retrieve dashboard graph data for orders
+****************************************************/
+
+DECLARE pCurrentDate DATE;
+DECLARE pCurrentYear INT;
+
+SET pCurrentDate = CURDATE();
+SET pCurrentYear = YEAR(pCurrentDate);
+
+IF pAction = 0 THEN -- All Months Graph Data
+
+    SELECT MONTH(OrderDate) AS MonthNo, COUNT(PkOrderId) AS TotalOrders FROM order_master
+    WHERE IsActive = 1 AND YEAR(OrderDate) = pCurrentYear
+    GROUP BY MONTH(OrderDate)
+    ORDER BY MONTH(OrderDate);
+
+END IF;
+
+IF pAction = 1 THEN -- Specific Month Graph Data
+
+    SELECT MONTH(OrderDate) AS MonthNo, COUNT(PkOrderId) AS TotalOrders FROM order_master
+    WHERE IsActive = 1 AND YEAR(OrderDate) = pCurrentYear AND MONTH(OrderDate) = pMonth
+    GROUP BY MONTH(OrderDate)
+    ORDER BY MONTH(OrderDate);
+
+END IF;
+END
+
+---

@@ -108,8 +108,8 @@ Output Parameter : PkParcelDetailsId, FkReceiverDetailsId, FkCourierId, Tracking
 Description : used to display list of parcel details as per given constraints
 ****************************************************/
 		-- FIX 2: receiver_details.ReceiverName/Phone/Address/City/State/Pincode are NULL for Mode A
-		-- (sender-to-self) orders — the actual values live in Party_master via FkReceiverId.
-		-- Added LEFT JOIN Party_master and COALESCE to fall back to party fields when receiver_details fields are null/empty.
+		-- (sender-to-self) orders — the actual values live in party_master via FkReceiverId.
+		-- Added LEFT JOIN party_master and COALESCE to fall back to party fields when receiver_details fields are null/empty.
 		SELECT  parcel_details.PkParcelDetailsId, parcel_details.FkReceiverDetailsId, parcel_details.FkCourierId, parcel_details.TrackingNo, parcel_details.QRCode, parcel_details.FkParcelStatusId, parcel_details.LabelPrintCount, parcel_details.DispatchDate,
 						 parcel_details.CreatedDate, parcel_details.CreatedBy,
 					IFNULL(CretedUser.FullName,'') as CreateUserName,
@@ -125,7 +125,7 @@ Description : used to display list of parcel details as per given constraints
 					IFNULL(order_master.OrderCode,'') as OrderCode
 		FROM    parcel_details
 			LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = parcel_details.FkReceiverDetailsId
-			LEFT JOIN Party_master receiver_party ON receiver_party.PkPartyId = receiver_details.FkReceiverId
+			LEFT JOIN party_master receiver_party ON receiver_party.PkPartyId = receiver_details.FkReceiverId
 			LEFT JOIN courier_partner_master ON courier_partner_master.CourierId = parcel_details.FkCourierId
 			LEFT JOIN lu_details parcel_status ON parcel_status.LuDetailsId = parcel_details.FkParcelStatusId
 			LEFT JOIN order_master ON order_master.PkOrderId = receiver_details.FkOrderId

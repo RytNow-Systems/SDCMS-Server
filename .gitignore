@@ -35,14 +35,13 @@ sdcms-server.md
 antigravity-output/
 .clauderc
 
-# Serena MCP
-.serena/
-!.serena/config.yaml
-!.serena/settings.json
+# Serena MCP (share project.yml + memories; ignore local overrides + cache)
+.serena/cache/
+.serena/project.local.yml
 
 # Agentic Context
 .agents/logs/
 .agents/cache/
 
-# Claude Code specific (if applicable)
-.claude/
+# Claude Code (share project settings; ignore local overrides)
+.claude/settings.local.json
