@@ -8,120 +8,82 @@ import bulkUploadRepository from "./bulk-upload.repository.js";
 import orderService from "../order/order.service.js";
 
 class BulkUploadService {
-  /**
-   * Internal mapper for bulk upload session
-   */
-  _mapSession(session) {
-    if (!session) return null;
-    return {
-      sessionId: session.PkBulkUploadId || session.id,
-      fileName: session.FileName || session.fileName,
-      totalRows: session.TotalRows || session.totalRows,
-      successCount:
-        session.SuccessCount !== undefined
-          ? session.SuccessCount
-          : session.successCount,
-      errorCount:
-        session.ErrorCount !== undefined
-          ? session.ErrorCount
-          : session.errorCount,
-      status: session.Status || session.status,
-      createdBy: session.CreatedBy || session.createdBy,
-      createdAt:
-        session.CreatedDate || session.createdDate || session.createdAt,
-    };
-  }
+  // ============================================================================
+  // INGESTION
+  // ============================================================================
 
   /**
-   * Internal mapper for bulk upload row detail
+   * Core ingestion pipeline for a bulk upload batch.
+   *
+   * @param {string} sessionHash - Content hash; used to detect duplicate submissions.
+   * @param {string} fileName    - Source filename for audit trail.
+   * @param {Array}  rows        - Zod-validated array of order payloads.
+   * @param {object} user        - Authenticated user from auth middleware.
+   * @returns {Promise<object>} { sessionId, successfulOrders, failedRows }
    */
-  _mapDetail(detail) {
-    if (!detail) return null;
+  async processBulkUpload(sessionHash, fileName, rows, user) {
+    const uploadedByEmployeeId = user?.id ?? 0;
 
-    let responseJson = null;
-    const rawJson = detail.ResponseJson || detail.responseJson;
-    try {
-      responseJson =
-        typeof rawJson === "string" ? JSON.parse(rawJson) : rawJson;
-    } catch (e) {
-      responseJson = rawJson;
+    // 1. Duplicate-batch guard
+    const duplicateCount = await bulkUploadRepository.checkDuplicate(sessionHash);
+    if (duplicateCount > 0) {
+      const error = new Error(
+        'Duplicate upload detected: a session with this sessionHash already exists.',
+      );
+      error.statusCode = 409;
+      throw error;
     }
 
-    return {
-      bulkUploadDetailId: detail.PkDetailId || detail.id,
-      bulkUploadId: detail.FkBulkUploadId || detail.bulkUploadId,
-      rowNumber: detail.RowNumber || detail.rowNumber,
-      status: detail.Status || detail.status,
-      responseJson,
-    };
-  }
-
-  /**
-   * Process a list of orders from a bulk upload.
-   *
-   * @param {Array} rows - Array of order objects.
-   * @param {object} user - Authenticated user.
-   * @param {string} fileName - Optional filename if provided by client.
-   * @returns {object} The created session ID and execution summary.
-   */
-  async processBulkUpload(rows, user, fileName = "bulk_upload.json") {
-    const createdBy = user?.employeeCode || "SYSTEM";
-    const totalRows = rows.length;
-
-    // 1. Initialize Session
+    // 2. Open session record (SuccessCount / FailedCount start at 0)
     const session = await bulkUploadRepository.createSession(
-      0,
+      sessionHash,
       fileName,
-      totalRows,
-      createdBy,
+      rows.length,
+      uploadedByEmployeeId,
     );
     const sessionId = session.PkBulkUploadId || session.id;
 
-    const results = {
-      sessionId,
-      total: totalRows,
-      processed: 0,
-      success: 0,
-      errors: 0,
-    };
+    let successfulOrders = 0;
+    let failedRows = 0;
 
-    // 2. Iterate and Process Rows
+    // 3. Process each row independently — one failure must not abort the batch
     for (let i = 0; i < rows.length; i++) {
       const rowData = rows[i];
       const rowNumber = i + 1;
-      let status = "SUCCESS";
-      let responseJson = "";
 
       try {
         const orderResult = await orderService.createOrder(rowData, user);
-        responseJson = JSON.stringify(orderResult);
-        results.success++;
-      } catch (error) {
-        status = "ERROR";
-        responseJson = JSON.stringify({
-          error: error.message,
-          data: error.data || null,
-        });
-        results.errors++;
-      }
+        const orderId =
+          orderResult?.orderId ||
+          orderResult?.data?.orderId ||
+          orderResult?.id;
 
-      // 3. Log row-level execution status
-      await bulkUploadRepository.logRowDetail(
-        0,
-        sessionId,
-        rowNumber,
-        status,
-        responseJson,
-      );
-      results.processed++;
+        // 4. Zero-touch junction: link OrderId → BulkUploadSession
+        // TODO: Restore order mapping once bulk_upload_order_mapping table schema is finalized and approved.
+        // await bulkUploadRepository.mapOrder(sessionId, orderId);
+        successfulOrders++;
+      } catch (err) {
+        // 5. Persist failed row verbatim for downstream review
+        await bulkUploadRepository.logError(
+          sessionId,
+          rowNumber,
+          err.message,
+          JSON.stringify(rowData),
+        );
+        failedRows++;
+      }
     }
 
-    return results;
+    return { sessionId, successfulOrders, failedRows };
   }
 
+  // ============================================================================
+  // READ OPERATIONS
+  // ============================================================================
+
   /**
-   * Get all bulk upload sessions.
-   * @returns {Array}
+   * List all bulk upload sessions.
+   * @returns {Promise<Array>}
    */
   async getSessions() {
     const sessions = await bulkUploadRepository.getSessions(0);
@@ -129,23 +91,90 @@ class BulkUploadService {
   }
 
   /**
-   * Get a specific session with its processed row details.
-   * @param {number} id - Session ID.
-   * @returns {object} { session, details }
+   * Get a specific session with its error detail rows.
+   * @param {number|string} id - Session ID.
+   * @returns {Promise<object>} { session, details }
    */
   async getSessionWithDetails(id) {
     const session = await bulkUploadRepository.getSessions(1, id);
     if (!session) {
-      const error = new Error("Upload session not found");
+      const error = new Error('Upload session not found');
       error.statusCode = 404;
       throw error;
     }
-
     const details = await bulkUploadRepository.getSessionDetails(0, id);
-
     return {
       session: this._mapSession(session),
       details: details.map((d) => this._mapDetail(d)),
+    };
+  }
+
+  // ============================================================================
+  // ERROR RETRIEVAL
+  // ============================================================================
+
+  /**
+   * Retrieve all error rows for a bulk upload session with RowData parsed into objects.
+   *
+   * @param {number} sessionId - The bulk upload session ID.
+   * @returns {Promise<Array<{rowData: object, errorMessage: string}>>}
+   */
+  async getErrorsBySessionId(sessionId) {
+    const errors = await bulkUploadRepository.getErrorsBySessionId(sessionId);
+    return errors.map((e) => {
+      const raw = e.RowData;
+      let rowData;
+      try {
+        rowData = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      } catch {
+        rowData = raw;
+      }
+      return {
+        rowData,
+        errorType: e.ErrorType,
+        errorMessage: e.ErrorMessage,
+      };
+    });
+  }
+
+  // ============================================================================
+  // MAPPERS
+  // ============================================================================
+
+  /** @private */
+  _mapSession(session) {
+    if (!session) return null;
+    return {
+      sessionId: session.PkBulkUploadId,
+      sessionHash: session.SessionHash,
+      fileName: session.FileName,
+      totalRows: session.TotalRows,
+      successfulOrders: session.SuccessfulOrders,
+      failedRows: session.FailedRows,
+      status: session.Status,
+      uploadedByEmployeeId: session.FkUploadedByEmployeeCode,
+      uploadedAt: session.UploadedAt,
+    };
+  }
+
+  /** @private */
+  _mapDetail(detail) {
+    if (!detail) return null;
+    let rowData = null;
+    const raw = detail.RowData;
+    try {
+      rowData = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch {
+      rowData = raw;
+    }
+    return {
+      errorId: detail.PkErrorId,
+      bulkUploadId: detail.FkBulkUploadId,
+      rowNumber: detail.RowNumber,
+      errorType: detail.ErrorType,
+      errorMessage: detail.ErrorMessage,
+      rowData,
+      createdAt: detail.CreatedAt,
     };
   }
 }

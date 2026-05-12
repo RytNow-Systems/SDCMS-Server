@@ -824,33 +824,167 @@ collections:
   # ========== 14. BULK UPLOAD ==========
   - name: Bulk Upload
     slug: bulk-upload
-    description: Batch order creation via array upload
+    description: Batch order creation via JSON array upload with per-row error isolation
+    guide: "Bulk upload is a two-phase workflow. Phase 1 — POST /bulk-uploads submits the batch; each row is processed independently so a bad row never aborts the rest. Phase 2 — GET /bulk-uploads/:id/errors lets you fetch the failed rows with their original payloads and error messages for correction and re-submission. The sessionHash field is a client-generated content hash (e.g. MD5 of the raw JSON) used to prevent duplicate submissions — the backend will return 409 if the same hash is submitted twice. All IDs (senderId, receiverId, etc.) must be pre-existing Party Master records."
     endpoints:
       - name: Create Bulk Session
         method: POST
         path: /bulk-uploads
         roles: [ADMIN, OPERATOR]
-        description: Processes an array of orders in a single batch.
+        description: "Submits a batch of orders. Each row is processed independently — failures are logged per-row and do not abort the batch. Returns a session summary with success/failure counts."
+        notes: "sessionHash is required and must be a client-generated content hash (e.g. MD5 of the stringified rows array). Submitting the same sessionHash twice returns 409 Conflict. Each row requires IDs from the Party Master (senderId, senderAddressId, receiverId, receiverAddressId) — free-text names are not accepted. courierId per row is optional and defaults to null. receiverPhone is stored as a snapshot and must be at least 10 characters."
         headers: { Content-Type: application/json }
         body: |
-          { "rows": [{ "senderName": "Bulk Sender", "senderMobile": "9000000099", "courierId": 1, "receivers": [{ "receiverName": "Bulk Receiver", "receiverPhone": "9000000098", "products": [{ "productId": 1, "qty": 1, "unitPrice": 100 }] }] }] }
+          {
+            "sessionHash": "d41d8cd98f00b204e9800998ecf8427e",
+            "fileName": "april_orders.json",
+            "rows": [
+              {
+                "senderId": 1,
+                "senderAddressId": 1,
+                "courierId": 1,
+                "receivers": [
+                  {
+                    "receiverId": 2,
+                    "receiverAddressId": 2,
+                    "receiverPhone": "9123456780",
+                    "products": [
+                      { "variationId": 1, "quantity": 5 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
         responseStatus: 201
         responseBody: |
-          { "success": true, "data": { "sessionId": 1, "totalOrders": 1 } }
+          {
+            "success": true,
+            "data": {
+              "sessionId": 7,
+              "successfulOrders": 1,
+              "failedRows": 0
+            }
+          }
+        assertions:
+          - "res.status equals 201"
+          - "res.body.success is true"
+          - "res.body.data.sessionId is a positive integer"
+          - "res.body.data.successfulOrders + res.body.data.failedRows equals total rows submitted"
+          - "Submitting the same sessionHash again returns 409 Conflict"
 
       - name: List Sessions
         method: GET
         path: /bulk-uploads
         roles: [ADMIN, OPERATOR]
-        description: Lists all bulk upload sessions.
+        description: "Returns a summary list of all bulk upload sessions ordered by most recent first."
         responseStatus: 200
+        responseBody: |
+          {
+            "success": true,
+            "data": [
+              {
+                "sessionId": 7,
+                "sessionHash": "d41d8cd98f00b204e9800998ecf8427e",
+                "fileName": "april_orders.json",
+                "totalRows": 10,
+                "successfulOrders": 9,
+                "failedRows": 1,
+                "status": "PARTIAL_SUCCESS",
+                "uploadedByEmployeeId": 1,
+                "uploadedAt": "2026-05-10T09:00:00Z"
+              }
+            ]
+          }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+          - "Each item contains sessionId, totalRows, successfulOrders, failedRows, status"
 
       - name: Get Session by ID
         method: GET
         path: /bulk-uploads/:id
         roles: [ADMIN, OPERATOR]
-        description: Retrieves details of a bulk upload session.
+        description: "Returns the session header and its associated error detail rows. Use this to inspect what failed after a batch run."
+        parameters:
+          id: { type: 'number', description: 'Bulk upload session primary key' }
         responseStatus: 200
+        responseBody: |
+          {
+            "success": true,
+            "data": {
+              "session": {
+                "sessionId": 7,
+                "sessionHash": "d41d8cd98f00b204e9800998ecf8427e",
+                "fileName": "april_orders.json",
+                "totalRows": 10,
+                "successfulOrders": 9,
+                "failedRows": 1,
+                "status": "PARTIAL_SUCCESS",
+                "uploadedByEmployeeId": 1,
+                "uploadedAt": "2026-05-10T09:00:00Z"
+              },
+              "details": [
+                {
+                  "errorId": 3,
+                  "bulkUploadId": 7,
+                  "rowNumber": 4,
+                  "errorType": "VALIDATION",
+                  "errorMessage": "Receiver address not found for receiverAddressId: 99",
+                  "createdAt": "2026-05-10T09:01:00Z",
+                  "rowData": {
+                    "senderId": 1,
+                    "senderAddressId": 1,
+                    "courierId": 1,
+                    "receivers": [{ "receiverId": 2, "receiverAddressId": 99, "receiverPhone": "9000000098", "products": [{ "variationId": 1, "quantity": 2 }] }]
+                  }
+                }
+              ]
+            }
+          }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data.session.sessionId equals :id"
+          - "res.body.data.details is Array"
+          - "Each detail.rowData is a parsed object (not a string)"
+          - "404 returned if session does not exist"
+
+      - name: Get Session Errors
+        method: GET
+        path: /bulk-uploads/:sessionId/errors
+        roles: [ADMIN, OPERATOR]
+        description: "Returns only the failed rows for a session. Each item includes the original row payload (parsed) and the error message. Use this to identify, fix, and re-submit failed rows."
+        parameters:
+          sessionId: { type: 'number', description: 'Bulk upload session primary key' }
+        responseStatus: 200
+        responseBody: |
+          {
+            "success": true,
+            "data": [
+              {
+                "rowData": {
+                  "senderId": 1,
+                  "senderAddressId": 1,
+                  "courierId": 1,
+                  "receivers": [
+                    {
+                      "receiverId": 2,
+                      "receiverAddressId": 99,
+                      "receiverPhone": "9000000098",
+                      "products": [{ "variationId": 1, "quantity": 2 }]
+                    }
+                  ]
+                },
+                "errorMessage": "Receiver address not found for receiverAddressId: 99"
+              }
+            ]
+          }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+          - "Each item has rowData (object) and errorMessage (string)"
+          - "rowData is always a parsed JSON object, never a raw string"
+          - "Returns empty array if session has no errors"
 
   # ========== 15. NOTIFICATION ==========
   - name: Notification

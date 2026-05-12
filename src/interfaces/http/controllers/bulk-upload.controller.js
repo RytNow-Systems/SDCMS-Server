@@ -12,8 +12,8 @@ import bulkUploadService from '../../../modules/bulk-upload/bulk-upload.service.
  * Submits bulk order data (JSON).
  */
 export const handleBulkUpload = asyncHandler(async (req, res) => {
-  const { fileName, rows } = req.body;
-  const result = await bulkUploadService.processBulkUpload(rows, req.user, fileName);
+  const { sessionHash, fileName, rows } = req.body;
+  const result = await bulkUploadService.processBulkUpload(sessionHash, fileName, rows, req.user);
   res.status(201).json({ success: true, data: result });
 });
 
@@ -33,4 +33,14 @@ export const handleGetSessions = asyncHandler(async (req, res) => {
 export const handleGetSessionById = asyncHandler(async (req, res) => {
   const result = await bulkUploadService.getSessionWithDetails(req.params.id);
   res.json({ success: true, data: result });
+});
+
+/**
+ * GET /api/v1/bulk-uploads/:sessionId/errors
+ * Returns all failed rows for a specific upload session, with RowData parsed.
+ */
+export const handleGetSessionErrors = asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+  const errors = await bulkUploadService.getErrorsBySessionId(sessionId);
+  res.json({ success: true, data: errors });
 });

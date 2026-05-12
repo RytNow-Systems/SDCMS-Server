@@ -29,12 +29,19 @@ Thumbs.db
 coverage/
 
 #Agents/ LLM
-Agents.md
-API_Contract.md
-Database_Procedures_Requirements.md
-Systemflow.md
 sdcms-server.xml
+sdcms-server.md
 .codex
 antigravity-output/
+.clauderc
 
-sql-procedures/
+# Serena MCP (share project.yml + memories; ignore local overrides + cache)
+.serena/cache/
+.serena/project.local.yml
+
+# Agentic Context
+.agents/logs/
+.agents/cache/
+
+# Claude Code (share project settings; ignore local overrides)
+.claude/settings.local.json

@@ -53,29 +53,55 @@ class ParcelRepository {
    */
   async findAll(filters = {}) {
     if (process.env.USE_MOCK_DB !== "true") {
-      // pAction=0: List all parcels
       const [rows] = await db.execute(
         "CALL prc_parcel_details_search(?, ?, ?, ?)",
         [
-          0, // pAction
-          0, // pPkParcelDetailsId
-          0, // pFkReceiverDetailsId
-          0, // pFkCourierId
+          0, // pPkParcelDetailsId=0: match all
+          0, // pFkReceiverDetailsId=0: match all
+          0, // pFkCourierId=0: match all
+          0, // pFkParcelStatusId=0: match all
         ],
       );
 
       let data = rows[0] || [];
 
-      // Client-side search filtering (SP does not support text search)
+      // Client-side status filter — case-insensitive because API uses uppercase ("PENDING")
+      // while lu_details returns proper case ("Pending").
+      if (filters.status) {
+        const statusLower = filters.status.toLowerCase();
+        data = data.filter(
+          (p) => p.ParcelStatusName?.toLowerCase() === statusLower,
+        );
+      }
+
+      // Client-side search — checks parcelId, ParcelCode (UC code), and TrackingNo
       if (filters.search) {
         const q = filters.search.toLowerCase();
         data = data.filter(
           (p) =>
             (p.PkParcelDetailsId &&
               p.PkParcelDetailsId.toString().includes(q)) ||
+            (p.ParcelCode && p.ParcelCode.toLowerCase().includes(q)) ||
             (p.TrackingNo && p.TrackingNo.toLowerCase().includes(q)),
         );
       }
+
+      // Client-side sort — SP always returns DESC by PkParcelDetailsId
+      const sortFieldMap = {
+        created_at: "CreatedDate",
+        createdAt: "CreatedDate",
+        status: "ParcelStatusName",
+        trackingNo: "TrackingNo",
+        parcelId: "PkParcelDetailsId",
+        parcelCode: "ParcelCode",
+      };
+      const sortCol = sortFieldMap[filters.sortBy] || "PkParcelDetailsId";
+      const sortDir = filters.sortOrder?.toLowerCase() === "asc" ? 1 : -1;
+      data.sort((a, b) => {
+        const av = a[sortCol] ?? "";
+        const bv = b[sortCol] ?? "";
+        return av < bv ? -sortDir : av > bv ? sortDir : 0;
+      });
 
       const total = data.length;
       const page = filters.page || 1;
@@ -90,7 +116,6 @@ class ParcelRepository {
     const results = this._filterMockParcels(filters);
     const total = results.length;
 
-    // Pagination
     const page = filters.page || 1;
     const limit = filters.limit || 20;
     const start = (page - 1) * limit;
@@ -114,10 +139,10 @@ class ParcelRepository {
       const [rows] = await db.execute(
         "CALL prc_parcel_details_search(?, ?, ?, ?)",
         [
-          1, // pAction: get by ID
-          id, // pPkParcelDetailsId
-          0,
-          0,
+          id, // pPkParcelDetailsId: filter by specific parcel
+          0,  // pFkReceiverDetailsId=0: match all
+          0,  // pFkCourierId=0: match all
+          0,  // pFkParcelStatusId=0: match all
         ],
       );
       return rows[0]?.[0] || null;
@@ -146,21 +171,22 @@ class ParcelRepository {
   }
 
   /**
-   * Get label data for a parcel (parcel + receiver details join).
-   * Procedure: CALL prc_parcel_details_get(pAction, pPkParcelDetailsId)
-   * pAction=2 returns parcel fields joined with receiver address data:
-   *   PkParcelDetailsId, TrackingNo, QRCode,
-   *   ReceiverName, ReceiverPhone, Address, City, Pincode
+   * Get label data for a parcel (full enriched join including Party_master fallback).
+   * Procedure: CALL prc_parcel_details_search(pPkParcelDetailsId, 0, 0, 0)
+   * Returns all fields needed for label rendering: status, receiver info, address, orderCode.
    *
    * @param {number|string} id - PkParcelDetailsId
    * @returns {Promise<object|null>}
    */
   async getLabelData(id) {
     if (process.env.USE_MOCK_DB !== "true") {
-      const [rows] = await db.execute("CALL prc_parcel_details_get(?, ?)", [
-        2, // pAction: label data (parcel + receiver join)
-        id, // pPkParcelDetailsId
-      ]);
+      // prc_parcel_details_get(pAction=2) only returns bare receiver_details columns —
+      // no ParcelStatusName, State, OrderCode, and no Party_master fallback for Mode A orders.
+      // prc_parcel_details_search returns all enriched fields via full JOINs.
+      const [rows] = await db.execute(
+        "CALL prc_parcel_details_search(?, ?, ?, ?)",
+        [id, 0, 0, 0],
+      );
       return rows[0]?.[0] || null;
     }
 
@@ -168,6 +194,62 @@ class ParcelRepository {
     const parcel = seedParcels.find((p) => p.id === parseInt(id));
     if (!parcel) return null;
     return this._mapMockParcel(parcel);
+  }
+
+  /**
+   * Get order header to resolve FkSenderId for label data.
+   * Procedure: CALL prc_order_master_get(1, orderId)
+   *
+   * @param {number} orderId
+   * @returns {Promise<object|null>}
+   */
+  async getOrderHeader(orderId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute("CALL prc_order_master_get(?, ?)", [
+        1,
+        orderId,
+      ]);
+      return rows[0]?.[0] || null;
+    }
+    return seedOrders.find((o) => o.id === parseInt(orderId)) || null;
+  }
+
+  /**
+   * Get sender party details by PkPartyId.
+   * Procedure: CALL prc_Party_master_get(1, NULL, senderId)
+   * pFkPartyTypeId=NULL skips type filter, matches any party type.
+   *
+   * @param {number} senderId - PkPartyId
+   * @returns {Promise<object|null>}
+   */
+  async getSenderById(senderId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_Party_master_get(?, ?, ?)",
+        [1, null, senderId],
+      );
+      return rows[0]?.[0] || null;
+    }
+    return seedParties.find((p) => p.id === parseInt(senderId)) || null;
+  }
+
+  /**
+   * Get all order items for a specific receiver (for label product list).
+   * Procedure: CALL prc_order_items_get(0, 0) — returns all items; filter by FkReceiverDetailsId.
+   * prc_order_items_get includes ColorName; prc_order_items_search does not.
+   *
+   * @param {number} receiverDetailsId
+   * @returns {Promise<Array>}
+   */
+  async getItemsForReceiver(receiverDetailsId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute("CALL prc_order_items_get(?, ?)", [0, 0]);
+      const all = rows[0] || [];
+      return all.filter(
+        (item) => item.FkReceiverDetailsId === parseInt(receiverDetailsId),
+      );
+    }
+    return [];
   }
 
   /**
@@ -179,11 +261,16 @@ class ParcelRepository {
    */
   async getTimeline(parcelId) {
     if (process.env.USE_MOCK_DB !== "true") {
+      // pAction=1 only returns 5 bare columns (no PreviousStatus, CreatedBy).
+      // pAction=0 returns all columns; filter by FkParcelDetailsId client-side.
       const [rows] = await db.execute(
         "CALL prc_receiver_status_details_get(?, ?)",
-        [1, parcelId],
+        [0, 0],
       );
-      return rows[0] || [];
+      const all = rows[0] || [];
+      return all
+        .filter((e) => e.FkParcelDetailsId === parseInt(parcelId))
+        .sort((a, b) => new Date(a.CreatedDate) - new Date(b.CreatedDate));
     }
 
     return seedStatusLog

@@ -756,6 +756,7 @@ class OrderService {
           unitPrice: i.UnitPrice || i.unitPrice,
           materialName: i.MaterialName || i.materialName || null,
           materialCode: i.MaterialCode || i.materialCode || null,
+          materialDescription: i.MaterialDescription || i.materialDescription || null,
           unitTitle: i.UnitTitle || i.unitTitle || null,
           colorId: i.PkLuColorId || i.ColorId || i.colorId || null,
           colorName: i.ColorName || i.colorName || null,

@@ -53,19 +53,19 @@ class ParcelService {
   async _mapParcel(parcel) {
     if (!parcel) return null;
 
-    const parcelDetailsId =
+    const parcelId =
       parcel.PkParcelDetailsId || parcel.id || parcel.parcelDetailsId;
     const receiverDetailsId =
       parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId;
 
     return {
-      parcelDetailsId,
-      parcelId:
+      parcelId,
+      parcelCode:
         parcel.ParcelCode ||
         parcel.parcelCode ||
         (await ParcelCodeService.generateCodeAsync({
           orderId: parcel.FkOrderId || parcel.orderId,
-          parcelId: parcelDetailsId,
+          parcelId,
           receiverDetailsId,
         })),
       trackingNo: parcel.TrackingNo || parcel.trackingNo || null,
@@ -82,7 +82,7 @@ class ParcelService {
       dispatchDate: parcel.DispatchDate || parcel.dispatchDate || null,
       receiverName: parcel.ReceiverName || parcel.receiverName || null,
       receiverPhone: parcel.ReceiverPhone || parcel.receiverPhone || null,
-      address: parcel.Address || parcel.address || null,
+      address: parcel.ReceiverAddress || parcel.Address || parcel.address || null,
       city: parcel.ReceiverCity || parcel.City || parcel.city || null,
       state: parcel.ReceiverState || parcel.State || parcel.state || null,
       pincode:
@@ -96,18 +96,31 @@ class ParcelService {
 
   _mapEvent(event) {
     if (!event) return null;
+    const actionType = event.ActionType || event.actionType;
+    // FkOrderStatusId is not set by prc_receiver_status_details_set, so StatusName is empty.
+    // Derive newStatus from actionType as fallback.
+    const ACTION_STATUS_MAP = {
+      PRINT_LABEL: "Label Printed",
+      AWB_LINK: "AWB Linked",
+      DISPATCH: "Dispatched",
+      DELIVERED: "Delivered",
+      RETURNED: "Cancelled",
+    };
     return {
-      receiverStatusDetailsId:
+      eventId:
         event.PkReceiverStatusDetailsId ||
         event.id ||
         event.receiverStatusDetailsId,
-      parcelId: event.QRCode || event.parcelId, // Still uses QRCode from event log if available, but we'll transition this too if needed.
-      orderCode: event.OrderCode || event.orderCode,
-      actionType: event.ActionType || event.actionType,
-      awbNumber: event.AwbNumber || event.awbNumber,
-      previousStatus: event.PreviousStatus || event.previousStatus,
-      newStatus: event.StatusDescription || event.newStatus,
-      scannedBy: event.CreatedBy || event.scannedBy,
+      parcelId: event.FkParcelDetailsId || event.fkParcelDetailsId || null,
+      actionType,
+      awbNumber: event.AWBNumber || event.awbNumber || null,
+      previousStatus: event.PreviousStatus || event.previousStatus || null,
+      newStatus:
+        event.StatusDescription ||
+        event.newStatus ||
+        ACTION_STATUS_MAP[actionType] ||
+        null,
+      performedBy: event.CreatedBy || event.scannedBy || null,
       timestamp: event.CreatedDate || event.timestamp,
     };
   }
@@ -135,13 +148,57 @@ class ParcelService {
   }
 
   async getLabelData(id) {
-    const data = await parcelRepository.getLabelData(id);
-    if (!data) {
+    const parcel = await parcelRepository.getLabelData(id);
+    if (!parcel) {
       const error = new Error("Parcel not found");
       error.statusCode = 404;
       throw error;
     }
-    return await this._mapParcel(data);
+
+    const mapped = await this._mapParcel(parcel);
+    const orderId = parcel.FkOrderId || parcel.orderId;
+    const receiverDetailsId =
+      parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId;
+
+    // Fetch sender: order header for FkSenderId → party for name/phone/address
+    let sender = null;
+    const orderHeader = orderId
+      ? await parcelRepository.getOrderHeader(orderId)
+      : null;
+    if (orderHeader?.FkSenderId) {
+      const senderParty = await parcelRepository.getSenderById(
+        orderHeader.FkSenderId,
+      );
+      if (senderParty) {
+        sender = {
+          senderId: senderParty.PkPartyId || senderParty.id,
+          name: senderParty.CustomerName || senderParty.customerName || null,
+          phone: senderParty.PhoneNo || senderParty.phoneNo || null,
+          email: senderParty.EmailId || senderParty.emailId || null,
+          address: senderParty.Address || senderParty.address || null,
+          city: senderParty.City || senderParty.city || null,
+          state: senderParty.State || senderParty.state || null,
+          pincode: senderParty.Pincode || senderParty.pincode || null,
+        };
+      }
+    }
+
+    // Fetch products for this receiver
+    const rawItems = receiverDetailsId
+      ? await parcelRepository.getItemsForReceiver(receiverDetailsId)
+      : [];
+    const products = rawItems.map((item) => ({
+      productId: item.FkProductId,
+      materialName: item.MaterialName || null,
+      materialCode: item.MaterialCode || null,
+      quantity: item.OutwardQty,
+      unitPrice: item.UnitPrice,
+      unitTitle: item.UnitTitle || null,
+      colorId: item.PkLuColorId || null,
+      colorName: item.ColorName || null,
+    }));
+
+    return { ...mapped, sender, products };
   }
 
   async getTimeline(id) {

@@ -30,7 +30,7 @@ class SenderService {
       city: sender.City || null,
       state: sender.State || null,
       pincode: sender.Pincode || null,
-      isActive: sender.IsActive == true,
+      isActive: sender.IsActive !== 0,
       createdAt: sender.CreatedDate
     };
   }

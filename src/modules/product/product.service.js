@@ -39,6 +39,7 @@ class ProductService {
 
     return {
       productId: product.PkProductId || product.id,
+      variationId: product.PkProductColorId ?? null,
       materialName: matName,
       materialRate: product.MaterialRate || product.materialRate,
       cuItemCode: product.cu_item_code || product.cuItemCode || null,
@@ -358,13 +359,17 @@ class ProductService {
     if (insertedId) {
       newProduct = (await productRepository.findById(insertedId)) || newProduct;
     } else if (!newProduct || (!newProduct.PkProductId && !newProduct.id)) {
-      const searchRes = await productRepository.findAll(0, 0);
+      const searchRes = await productRepository.findAll({});
       newProduct =
-        searchRes.find((p) => p.cu_item_code === internalData.cu_item_code) ||
-        newProduct;
+        searchRes.data.find(
+          (p) => p.cu_item_code === internalData.cu_item_code,
+        ) || newProduct;
     }
 
     const productId = newProduct?.PkProductId || newProduct?.id;
+    if (!productId) {
+      throw new Error("Product was created but its ID could not be resolved.");
+    }
 
     // Process inline variations if provided
     const variations = await this._processCreateVariations(

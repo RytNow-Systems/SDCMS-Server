@@ -1,0 +1,85 @@
+prc_receiver_details_get:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_details_get`(pAction INT, pLookUpId INT)
+BEGIN
+IF pAction = 0 THEN
+		SELECT receiver_details.PkReceiverDetailsId, receiver_details.FkOrderId, receiver_details.FkReceiverId, party_details.PkPartyDetailsId,receiver_details.ReceiverName, receiver_details.ReceiverPhone, receiver_details.ReceiverEmail, /*receiver_details.Address, receiver_details.City, receiver_details.State, receiver_details.Pincode, receiver_details.Country,*/party_details.Address,party_details.City,party_details.State,party_details.Pincode,party_details.Country, IFNULL(order_master.OrderCode,'') as OrderCode, IFNULL(party_master.CustomerName,'') as ReceiverPartyName, IFNULL(party_master.PhoneNo,'') as ReceiverPartyPhone,
+					(CASE WHEN receiver_details.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM receiver_details
+			LEFT JOIN order_master ON order_master.PkOrderId = receiver_details.FkOrderId
+			LEFT JOIN party_master ON party_master.PkPartyId = receiver_details.FkReceiverId
+            LEFT JOIN party_details ON receiver_details.FkPartyDetailsId = party_details.PkPartyDetailsId
+		ORDER BY receiver_details.PkReceiverDetailsId;
+	END IF;
+	IF pAction = 1 THEN
+		SELECT receiver_details.PkReceiverDetailsId, receiver_details.FkOrderId, receiver_details.FkReceiverId, party_details.PkPartyDetailsId,receiver_details.ReceiverName, receiver_details.ReceiverPhone, receiver_details.ReceiverEmail, /*receiver_details.Address,receiver_details.City, receiver_details.State, receiver_details.Pincode, receiver_details.Country,*/party_details.Address,party_details.City,party_details.State,party_details.Pincode,party_details.Country, IFNULL(order_master.OrderCode,'') as OrderCode, IFNULL(party_master.CustomerName,'') as ReceiverPartyName, IFNULL(party_master.PhoneNo,'') as ReceiverPartyPhone,
+					(CASE WHEN receiver_details.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM receiver_details
+			LEFT JOIN order_master ON order_master.PkOrderId = receiver_details.FkOrderId
+			LEFT JOIN party_master ON party_master.PkPartyId = receiver_details.FkReceiverId
+            LEFT JOIN party_details ON receiver_details.FkPartyDetailsId = party_details.PkPartyDetailsId
+		WHERE receiver_details.PkReceiverDetailsId = pLookUpId
+		ORDER BY receiver_details.PkReceiverDetailsId;
+	END IF;
+END
+
+---
+prc_receiver_details_search:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_details_search`(pPkReceiverDetailsId int(11), pFkOrderId int(11))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Transaction
+File name in solution	: Transaction/receiver_details.aspx
+UserControl/Field Name : model-receiver
+Input Parameter	: pPkReceiverDetailsId, pFkOrderId
+Output Parameter : PkReceiverDetailsId, FkOrderId, FkReceiverId, ReceiverName, ReceiverPhone, ReceiverEmail, AddressLine1, AddressLine2, City, State, Pincode, Country, OrderCode, ReceiverPartyName, ReceiverPartyPhone, IsActive
+Description : used to display list of receiver details for an order as per given constraints
+****************************************************/
+		SELECT  receiver_details.PkReceiverDetailsId, receiver_details.FkOrderId, receiver_details.FkReceiverId, receiver_details.ReceiverName, receiver_details.ReceiverPhone, receiver_details.ReceiverEmail,
+						 receiver_details.AddressLine1, receiver_details.AddressLine2, receiver_details.City, receiver_details.State, receiver_details.Pincode, receiver_details.Country,
+					IFNULL(order_master.OrderCode,'') as OrderCode,
+					IFNULL(party_master.CustomerName,'') as ReceiverPartyName, IFNULL(party_master.PhoneNo,'') as ReceiverPartyPhone,
+                    (CASE WHEN receiver_details.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM    receiver_details
+			LEFT JOIN order_master ON order_master.PkOrderId = receiver_details.FkOrderId
+			LEFT JOIN party_master ON party_master.PkPartyId = receiver_details.FkReceiverId
+		WHERE receiver_details.PkReceiverDetailsId = CASE WHEN pPkReceiverDetailsId = 0 THEN receiver_details.PkReceiverDetailsId ELSE pPkReceiverDetailsId END AND
+					receiver_details.FkOrderId = CASE WHEN pFkOrderId = 0 THEN receiver_details.FkOrderId ELSE pFkOrderId END
+		ORDER BY receiver_details.PkReceiverDetailsId;
+
+END
+
+---
+prc_receiver_details_set:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_details_set`(pPkReceiverDetailsId INT,pFkOrderId INT,pReceiverId INT,pFkPartyDetailsId int, pCreatedBy INT,pIsActive INT)
+BEGIN
+    /*IF pReceiverId = -1 THEN
+        INSERT INTO party_master (FkPartyTypeId, CustomerName, PhoneNo, Address, City, State, Pincode, CreatedBy, CreatedDate, IsActive)
+        VALUES (2, pReceiverName, pReceiverPhone, pAddress, pCity, pState, pPincode, pCreatedBy, NOW(), 1);
+        SET pReceiverId = LAST_INSERT_ID();
+
+        INSERT INTO party_details (FkPartyId, Address, City, State, Pincode, IsDefault, CreatedBy, CreatedDate, IsActive)
+        VALUES (pReceiverId, pAddress, pCity, pState, pPincode, 1, pCreatedBy, NOW(), 1);
+
+        UPDATE party_master SET Address = pAddress,City = pCity, State = pState,Pincode = pPincode WHERE PkPartyId = pReceiverId;
+    END IF;*/
+
+		IF pPkReceiverDetailsId = 0 THEN
+        INSERT INTO receiver_details (FkOrderId, FkReceiverId, FkPartyDetailsId, IsActive)
+        VALUES (pFkOrderId, pReceiverId,pFkPartyDetailsId, pIsActive);
+
+        SELECT LAST_INSERT_ID() AS GeneratedReceiverId, pReceiverId AS ReceiverId;
+
+    ELSE
+        UPDATE receiver_details SET FkOrderId = pFkOrderId, FkReceiverId = pFkReceiverId, FkPartyDetailsId = pFkPartyDetailsId, IsActive = pIsActive
+				WHERE PkReceiverDetailsId = pPkReceiverDetailsId;
+
+        SELECT pPkReceiverDetailsId AS UpdatedReceiverId, pReceiverId AS ReceiverId;
+    END IF;
+
+END
+
+---

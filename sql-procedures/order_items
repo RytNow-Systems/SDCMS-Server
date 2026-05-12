@@ -1,0 +1,79 @@
+prc_order_items_get:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_order_items_get`(pAction INT, pLookUpId INT)
+BEGIN
+IF pAction = 0 THEN
+		SELECT order_items.PkOrderItemId, order_items.FkReceiverDetailsId, order_items.FkProductId,lu_color_code.PkLuColorId,lu_color_code.ColorName, order_items.OutwardQty, order_items.FkUnitId, order_items.UnitPrice, order_items.TransactionDate, order_items.CreatedDate, order_items.CreatedBy, IFNULL(CretedUser.FullName,'') as CreateUserName, IFNULL(product_master.MaterialName,'') as MaterialName, IFNULL(product_master.MaterialCode,'') as MaterialCode, IFNULL(product_master.MaterialRate,0) as MaterialRate, IFNULL(lu_unit.UnitTitle,'') as UnitTitle, IFNULL(lu_unit.UnitCode,'') as UnitCode, IFNULL(receiver_details.ReceiverName,'') as ReceiverName,
+					(CASE WHEN order_items.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM order_items
+			LEFT JOIN product_master ON product_master.PkProductId = order_items.FkProductId
+			LEFT JOIN lu_unit ON lu_unit.PkUnitId = order_items.FkUnitId
+			LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = order_items.FkReceiverDetailsId
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = order_items.CreatedBy
+            LEFT JOIN lu_color_code ON order_items.FkLuColorId = lu_color_code.PkLuColorId
+		ORDER BY order_items.PkOrderItemId;
+	END IF;
+	IF pAction = 1 THEN
+		SELECT order_items.PkOrderItemId, order_items.FkReceiverDetailsId, order_items.FkProductId,lu_color_code.PkLuColorId,lu_color_code.ColorName, order_items.OutwardQty, order_items.FkUnitId, order_items.UnitPrice, order_items.TransactionDate, order_items.CreatedDate, order_items.CreatedBy, IFNULL(CretedUser.FullName,'') as CreateUserName, IFNULL(product_master.MaterialName,'') as MaterialName, IFNULL(product_master.MaterialCode,'') as MaterialCode, IFNULL(product_master.MaterialRate,0) as MaterialRate, IFNULL(lu_unit.UnitTitle,'') as UnitTitle, IFNULL(lu_unit.UnitCode,'') as UnitCode, IFNULL(receiver_details.ReceiverName,'') as ReceiverName,
+					(CASE WHEN order_items.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM order_items
+			LEFT JOIN product_master ON product_master.PkProductId = order_items.FkProductId
+			LEFT JOIN lu_unit ON lu_unit.PkUnitId = order_items.FkUnitId
+			LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = order_items.FkReceiverDetailsId
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = order_items.CreatedBy
+            LEFT JOIN lu_color_code ON order_items.FkLuColorId = lu_color_code.PkLuColorId
+		WHERE order_items.PkOrderItemId = pLookUpId
+		ORDER BY order_items.PkOrderItemId;
+	END IF;
+END
+
+---
+prc_order_items_search:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_order_items_search`(pPkOrderItemId int(11), pFkReceiverDetailsId int(11), pFkProductId int(11))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Transaction
+File name in solution	: Transaction/order_items.aspx
+UserControl/Field Name : model-orderitems
+Input Parameter	: pPkOrderItemId, pFkReceiverDetailsId, pFkProductId
+Output Parameter : PkOrderItemId, FkReceiverDetailsId, FkProductId, OutwardQty, FkUnitId, UnitPrice, TransactionDate, CreatedDate, CreatedBy, CreateUserName, MaterialName, MaterialCode, MaterialRate, UnitTitle, UnitCode, ReceiverName, IsActive
+Description : used to display list of order line items as per given constraints
+****************************************************/
+		SELECT  order_items.PkOrderItemId, order_items.FkReceiverDetailsId, order_items.FkProductId, order_items.OutwardQty, order_items.FkUnitId, order_items.UnitPrice, order_items.TransactionDate,
+						 order_items.CreatedDate, order_items.CreatedBy,
+					IFNULL(CretedUser.FullName,'') as CreateUserName,
+					IFNULL(product_master.MaterialName,'') as MaterialName, IFNULL(product_master.MaterialCode,'') as MaterialCode, IFNULL(product_master.MaterialRate,0) as MaterialRate,
+					IFNULL(lu_unit.UnitTitle,'') as UnitTitle, IFNULL(lu_unit.UnitCode,'') as UnitCode,
+					IFNULL(receiver_details.ReceiverName,'') as ReceiverName,
+                    (CASE WHEN order_items.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM    order_items
+			LEFT JOIN product_master ON product_master.PkProductId = order_items.FkProductId
+			LEFT JOIN lu_unit ON lu_unit.PkUnitId = order_items.FkUnitId
+			LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = order_items.FkReceiverDetailsId
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = order_items.CreatedBy
+		WHERE order_items.PkOrderItemId = CASE WHEN pPkOrderItemId = 0 THEN order_items.PkOrderItemId ELSE pPkOrderItemId END AND
+					order_items.FkReceiverDetailsId = CASE WHEN pFkReceiverDetailsId = 0 THEN order_items.FkReceiverDetailsId ELSE pFkReceiverDetailsId END AND
+					order_items.FkProductId = CASE WHEN pFkProductId = 0 THEN order_items.FkProductId ELSE pFkProductId END
+		ORDER BY order_items.PkOrderItemId;
+
+END
+
+---
+
+prc_order_items_set:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_order_items_set`(pPkOrderItemId INT,pFkReceiverDetailsId INT,pFkProductId INT, pFkLuColorId int, pOutwardQty INT,pFkUnitId INT,pUnitPrice DECIMAL(10,2),pCreatedBy INT,pIsActive INT)
+BEGIN
+
+    IF pPkOrderItemId = 0 THEN
+        INSERT INTO order_items (FkReceiverDetailsId, FkProductId, FkLuColorId, OutwardQty, FkUnitId, UnitPrice, TransactionDate, IsActive, CreatedDate, CreatedBy)
+        VALUES (pFkReceiverDetailsId, pFkProductId,pFkLuColorId, pOutwardQty, pFkUnitId, pUnitPrice, NOW(), pIsActive, NOW(), pCreatedBy);
+    ELSE
+        UPDATE order_items SET
+            FkProductId = pFkProductId,FkLuColorId = pFkLuColorId, OutwardQty = pOutwardQty, FkUnitId = pFkUnitId,
+            UnitPrice = pUnitPrice, IsActive = pIsActive
+        WHERE PkOrderItemId = pPkOrderItemId;
+    END IF;
+END

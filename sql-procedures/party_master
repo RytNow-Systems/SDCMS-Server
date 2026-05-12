@@ -1,0 +1,94 @@
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_Party_master_set`(pPkPartyId INT,pFkPartyTypeId INT,pCustomerName VARCHAR(100),pPhoneNo VARCHAR(20),pEmailId VARCHAR(100),pAddress TEXT,pCity VARCHAR(100),pState VARCHAR(100),pPincode VARCHAR(20),pCreatedBy INT, pIsActive INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pPkPartyId, pFkPartyTypeId, pCustomerName, pPhoneNo, pEmailId, pAddress, pCity, pState, pPincode, pCreatedBy, pIsActive
+Output Parameter : party master details
+Description : used to insert and update party master details
+****************************************************/
+
+DECLARE pId INT;
+
+		IF pPkPartyId = 0 THEN -- Insert Called
+				INSERT INTO party_master (FkPartyTypeId, CustomerName, PhoneNo, EmailId, Address, City, State, Pincode, CreatedDate, CreatedBy, IsActive)
+								VALUES (pFkPartyTypeId, pCustomerName, pPhoneNo, pEmailId, pAddress, pCity, pState, pPincode, now(), pCreatedBy, pIsActive);
+
+				SELECT LAST_INSERT_ID() INTO pId;
+
+				SELECT pId AS PkPartyId,pCustomerName AS CustomerName,pPhoneNo AS PhoneNo,pEmailId AS EmailId,pAddress AS Address,pCity AS City,pState AS State,pPincode AS Pincode,1 AS IsNewParty;
+
+				ELSE -- Update Called
+					UPDATE party_master SET FkPartyTypeId = pFkPartyTypeId, CustomerName = pCustomerName, PhoneNo = pPhoneNo, EmailId = pEmailId, Address = pAddress, City = pCity, State = pState, Pincode = pPincode, UpdatedDate = now(), UpdatedBy = pCreatedBy, IsActive = pIsActive
+					WHERE PkPartyId = pPkPartyId;
+
+					SELECT pPkPartyId AS PkPartyId,pCustomerName AS CustomerName,pPhoneNo AS PhoneNo,pEmailId AS EmailId,pAddress AS Address,pCity AS City,pState AS State,pPincode AS Pincode,0 AS IsNewParty;
+
+		END IF;
+
+END
+
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_Party_master_get`(pAction INT, pFkPartyTypeId INT, pPkPartyId INT)
+BEGIN
+
+
+    IF pAction = 0 THEN
+        SELECT PkPartyId, FkPartyTypeId, CustomerName, PhoneNo, EmailId, Address,City, State, Pincode, CreatedBy, CreatedDate, UpdatedBy, UpdatedDate, IsActive
+        FROM party_master
+
+        ORDER BY PkPartyId DESC;
+    END IF;
+
+    IF pAction = 1 THEN
+    SELECT PkPartyId, FkPartyTypeId, CustomerName, PhoneNo, EmailId, Address, City, State, Pincode, CreatedBy, CreatedDate, UpdatedBy, UpdatedDate, IsActive
+    FROM party_master
+    WHERE PkPartyId = pPkPartyId
+    AND (FkPartyTypeId = pFkPartyTypeId OR pFkPartyTypeId IS NULL)
+	ORDER BY PkPartyId;
+END IF;
+
+    IF pAction = 2 THEN
+        SELECT PkPartyId, FkPartyTypeId, CustomerName, PhoneNo, EmailId, Address,City, State, Pincode, CreatedBy, CreatedDate, UpdatedBy, UpdatedDate, IsActive
+        FROM party_master
+      WHERE (FkPartyTypeId = pFkPartyTypeId OR pFkPartyTypeId IS NULL)
+        ORDER BY PkPartyId DESC;
+    END IF;
+
+END
+
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_party_master_search`(pPkPartyId int(11), pFkPartyTypeId int(11))
+BEGIN
+
+
+		SELECT  party_master.PkPartyId, party_master.FkPartyTypeId, party_master.CustomerName, party_master.PhoneNo, party_master.EmailId,
+						 party_master.Address, party_master.City, party_master.State, party_master.Pincode,
+						 party_master.CreatedDate, party_master.CreatedBy, party_master.UpdatedDate, party_master.UpdatedBy,
+					IFNULL(CretedUser.FullName,'') as CreateUserName, IFNULL(UpdatedUser.FullName,'') as UpdateUserName,
+					IFNULL(lu_details.LuDetails,'') as PartyTypeName,
+                    (CASE WHEN party_master.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM    party_master
+			LEFT JOIN lu_details ON lu_details.LuDetailsId = party_master.FkPartyTypeId
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = party_master.CreatedBy
+			LEFT JOIN employee_master UpdatedUser ON UpdatedUser.EmployeeCode = party_master.UpdatedBy
+		WHERE party_master.PkPartyId = CASE WHEN pPkPartyId = 0 THEN party_master.PkPartyId ELSE pPkPartyId END AND
+					party_master.FkPartyTypeId = CASE WHEN pFkPartyTypeId = 0 THEN party_master.FkPartyTypeId ELSE pFkPartyTypeId END
+		ORDER BY party_master.PkPartyId;
+
+END
+
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_check_duplicate_Party_master`(pPkPartyId INT, pPhoneNo VARCHAR(20), pEmailId varchar(100))
+BEGIN
+	IF pPkPartyId = 0 THEN
+		SELECT COUNT(*) AS DataCount FROM party_master WHERE PhoneNo = pPhoneNo and EmailId = pEmailId AND IsActive = 1;
+	END IF;
+
+	IF pPkPartyId > 0 THEN
+		SELECT COUNT(*) AS DataCount FROM party_master WHERE PhoneNo = pPhoneNo and EmailId = pEmailId AND IsActive = 1 AND PkPartyId <> pPkPartyId;
+	END IF;
+END

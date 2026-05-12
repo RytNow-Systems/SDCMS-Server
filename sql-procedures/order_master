@@ -1,0 +1,115 @@
+prc_order_master_get:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_order_master_get`(pAction INT, pPkOrderId INT)
+BEGIN
+IF pAction = 0 THEN
+		SELECT order_master.PkOrderId, order_master.OrderCode, order_master.FkSenderId, party_details.PkPartyDetailsId,party_details.EmailId,party_details.Address,party_details.city,party_details.State, party_details.Pincode,party_details.Country, order_master.OrderDate, order_master.ExpectedDeliveryDate, order_master.TotalAmount,
+				order_master.CreatedDate, order_master.CreatedBy, IFNULL(CreatedUser.FullName,'') as CreateUserName,
+				order_master.UpdatedDate, order_master.UpdatedBy, IFNULL(UpdatedUser.FullName,'') as UpdatedUserName,
+                COUNT(DISTINCT parcel_details.PkParcelDetailsId) AS TotalParcels,
+				(CASE WHEN order_master.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM order_master
+			LEFT JOIN employee_master CreatedUser ON CreatedUser.EmployeeCode = order_master.CreatedBy
+			LEFT JOIN employee_master UpdatedUser ON UpdatedUser.EmployeeCode = order_master.UpdatedBy
+            LEFT JOIN receiver_details ON receiver_details.FkOrderId = order_master.PkOrderId
+            left join party_details on order_master.FkPartyDetailsId = party_details.PkPartyDetailsId
+			LEFT JOIN parcel_details ON parcel_details.FkReceiverDetailsId = receiver_details.PkReceiverDetailsId
+		GROUP BY order_master.PkOrderId, order_master.OrderCode, order_master.FkSenderId,party_details.PkPartyDetailsId,party_details.EmailId,party_details.Address,party_details.city,party_details.State, party_details.Pincode,party_details.Country, order_master.OrderDate, order_master.ExpectedDeliveryDate, order_master.TotalAmount, order_master.CreatedDate, order_master.CreatedBy, CreatedUser.FullName, order_master.UpdatedDate, order_master.UpdatedBy, UpdatedUser.FullName, order_master.IsActive
+		ORDER BY order_master.PkOrderId DESC;
+END IF;
+
+IF pAction = 1 THEN
+		SELECT order_master.PkOrderId, order_master.OrderCode, order_master.FkSenderId,party_details.PkPartyDetailsId,party_details.EmailId,party_details.Address,party_details.city,party_details.State, party_details.Pincode,party_details.Country, order_master.OrderDate, order_master.ExpectedDeliveryDate, order_master.TotalAmount,
+				order_master.CreatedDate, order_master.CreatedBy, IFNULL(CreatedUser.FullName,'') as CreateUserName,
+				order_master.UpdatedDate, order_master.UpdatedBy, IFNULL(UpdatedUser.FullName,'') as UpdatedUserName,
+				(CASE WHEN order_master.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM order_master
+			LEFT JOIN employee_master CreatedUser ON CreatedUser.EmployeeCode = order_master.CreatedBy
+			LEFT JOIN employee_master UpdatedUser ON UpdatedUser.EmployeeCode = order_master.UpdatedBy
+            LEFT JOIN receiver_details ON receiver_details.FkOrderId = order_master.PkOrderId
+            left join party_details on order_master.FkPartyDetailsId = party_details.PkPartyDetailsId
+		WHERE order_master.PkOrderId = pPkOrderId
+		ORDER BY order_master.PkOrderId DESC;
+END IF;
+END
+
+---
+
+prc_order_master_search:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_order_master_search`(pPkOrderId int(11), pFkPartyId int(11), pFkCourierId int(11), pFkOrderStatusId int(11))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Transaction
+File name in solution	: Transaction/order_master.aspx
+UserControl/Field Name : model-order
+Input Parameter	: pPkOrderId, pFkPartyId, pFkCourierId, pFkOrderStatusId
+Output Parameter : PkOrderId, OrderCode, FkPartyId, SenderMobile, SenderAddress, FkCourierId, FkOrderStatusId, OrderDate, ExpectedDeliveryDate, TotalAmount, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy, CreateUserName, UpdateUserName, SenderName, SenderPhone, CourierName, OrderStatusName, IsActive
+Description : used to display list of order details as per given constraints
+****************************************************/
+		SELECT  order_master.PkOrderId, order_master.OrderCode, order_master.FkPartyId, order_master.SenderMobile, order_master.SenderAddress, order_master.FkCourierId, order_master.FkOrderStatusId, order_master.OrderDate, order_master.ExpectedDeliveryDate, order_master.TotalAmount,
+						 order_master.CreatedDate, order_master.CreatedBy, order_master.UpdatedDate, order_master.UpdatedBy,
+					IFNULL(CretedUser.FullName,'') as CreateUserName, IFNULL(UpdatedUser.FullName,'') as UpdateUserName,
+					IFNULL(party_master.CustomerName,'') as SenderName, IFNULL(party_master.PhoneNo,'') as SenderPhone,
+					IFNULL(courier_partner_master.CourierName,'') as CourierName,
+					IFNULL(order_status.LuDetails,'') as OrderStatusName,
+                    (CASE WHEN order_master.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM    order_master
+			LEFT JOIN party_master ON party_master.PkPartyId = order_master.FkPartyId
+			LEFT JOIN courier_partner_master ON courier_partner_master.CourierId = order_master.FkCourierId
+			LEFT JOIN lu_details order_status ON order_status.LuDetailsId = order_master.FkOrderStatusId
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = order_master.CreatedBy
+			LEFT JOIN employee_master UpdatedUser ON UpdatedUser.EmployeeCode = order_master.UpdatedBy
+		WHERE order_master.PkOrderId = CASE WHEN pPkOrderId = 0 THEN order_master.PkOrderId ELSE pPkOrderId END AND
+					order_master.FkPartyId = CASE WHEN pFkPartyId = 0 THEN order_master.FkPartyId ELSE pFkPartyId END AND
+					order_master.FkCourierId = CASE WHEN pFkCourierId = 0 THEN order_master.FkCourierId ELSE pFkCourierId END AND
+					order_master.FkOrderStatusId = CASE WHEN pFkOrderStatusId = 0 THEN order_master.FkOrderStatusId ELSE pFkOrderStatusId END
+		ORDER BY order_master.PkOrderId DESC;
+
+END
+
+---
+
+prc_order_master_set:
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_order_master_set`(pPkOrderId INT,pSenderId INT,pFkPartyDetailsId int, pTotalAmount DECIMAL(10,2),pCreatedBy INT, pIsActive INT)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    /*IF pSenderId = -1 THEN
+        INSERT INTO party_master (FkPartyTypeId, CustomerName, PhoneNo, Address, City, State, Pincode, CreatedBy, CreatedDate, IsActive)
+        VALUES (1, pSenderName, pSenderPhone, pAddress, pCity, pState, pPincode, pCreatedBy, NOW(), 1);
+        SET pSenderId = LAST_INSERT_ID();
+
+        INSERT INTO party_details (FkPartyId, Address, City, State, Pincode, IsDefault, CreatedBy, CreatedDate, IsActive)
+        VALUES (pSenderId, pAddress, pCity, pState, pPincode, 1, pCreatedBy, NOW(), 1);
+
+        UPDATE party_master
+        SET Address = pAddress,City = pCity, State = pState,Pincode = pPincode
+        WHERE PkPartyId = pSenderId;
+    END IF;*/
+
+        IF pPkOrderId = 0 THEN -- Insert Order Header
+                INSERT INTO order_master (OrderCode,FkSenderId,FkPartyDetailsId,OrderDate, TotalAmount, CreatedBy, CreatedDate, IsActive)
+                                VALUES (FnGenerateOrderCode(),pSenderId,pFkPartyDetailsId,NOW(), pTotalAmount, pCreatedBy, NOW(), pIsActive);
+
+                SELECT LAST_INSERT_ID() AS GeneratedOrderId, pSenderId AS SenderId;
+        ELSE -- Update Order Header
+                UPDATE order_master SET FkSenderId = pSenderId, FkPartyDetailsId = pFkPartyDetailsId, TotalAmount = pTotalAmount, UpdatedBy = pCreatedBy, UpdatedDate = NOW(), IsActive = pIsActive
+								WHERE PkOrderId = pPkOrderId;
+
+                SELECT pPkOrderId AS UpdatedOrderId, pSenderId AS SenderId;
+
+        END IF;
+
+    COMMIT;
+END
+
+---

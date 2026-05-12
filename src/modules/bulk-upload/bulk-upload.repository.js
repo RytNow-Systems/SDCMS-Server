@@ -1,15 +1,11 @@
 // ============================================================================
 // File: src/modules/bulk-upload/bulk-upload.repository.js
 // Description: Data access layer for Bulk Upload module.
-// Documents and executes `CALL prc_...` stored procedures.
+// All write operations MUST go through CALL statements — no raw INSERT/SELECT.
 //
 // Dual-Mode: Controlled by USE_MOCK_DB environment variable.
-//   - USE_MOCK_DB=true  → In-memory mock data (frontend development)
-//   - USE_MOCK_DB=false → Live MySQL stored procedures
-//
-// SP Convention:
-//   - prc_bulk_order_upload_log_set / prc_bulk_order_upload_log_get
-//   - prc_bulk_order_upload_detail_set / prc_bulk_order_upload_detail_get
+//   USE_MOCK_DB=true  → In-memory mock data
+//   USE_MOCK_DB=false → Live MySQL stored procedures
 // ============================================================================
 
 import db from '../../infrastructure/database/db.js';
@@ -20,159 +16,228 @@ import db from '../../infrastructure/database/db.js';
 let mockSessions = [
   {
     PkBulkUploadId: 1,
+    SessionHash: 'abc123seed',
     FileName: 'sample_orders.xlsx',
     TotalRows: 5,
-    SuccessCount: 4,
-    ErrorCount: 1,
-    Status: 'COMPLETED',
-    CreatedBy: 'admin@example.com',
-    CreatedDate: '2026-04-10T10:00:00Z'
-  }
+    SuccessfulOrders: 4,
+    FailedRows: 1,
+    FkUploadedByEmployeeCode: 1,
+    Status: 'PARTIAL_SUCCESS',
+    UploadedAt: '2026-04-10T10:00:00Z',
+  },
 ];
 
-let mockDetails = [
-  { PkDetailId: 1, FkBulkUploadId: 1, RowNumber: 1, Status: 'Success', ResponseJson: '{"orderId":1}' },
-  { PkDetailId: 2, FkBulkUploadId: 1, RowNumber: 2, Status: 'Success', ResponseJson: '{"orderId":2}' },
-  { PkDetailId: 3, FkBulkUploadId: 1, RowNumber: 3, Status: 'Error', ResponseJson: '{"error":"Invalid sender"}' }
-];
+let mockErrors = [];
+let mockMappings = [];
 
 class BulkUploadRepository {
+  // ============================================================================
+  // DUPLICATE CHECK
+  // ============================================================================
+
   /**
-   * Create a bulk upload session log.
-   * Procedure: CALL prc_bulk_order_upload_log_set(?, ?, ?, ?)
-   * 
-   * @param {number} pkId - 0 for insert.
-   * @param {string} fileName - Name of the uploaded file.
-   * @param {number} totalRows - Total orders in the file.
-   * @param {string} createdBy - EmployeeCode of the uploader.
-   * @returns {Promise<object>} The created log record.
+   * Check if a session with the given hash already exists.
+   * Procedure: CALL prc_checkduplicate_BulkUploadSessions(pSessionHash)
+   *
+   * @param {string} sessionHash - MD5/SHA hash of the upload content.
+   * @returns {Promise<number>} DuplicateCount (0 = unique, >0 = duplicate).
    */
-  async createSession(pkId, fileName, totalRows, createdBy) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_bulk_order_upload_log_set
-    // ------------------------------------------------------------------
+  async checkDuplicate(sessionHash) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_bulk_order_upload_log_set(?, ?, ?, ?)', [
-        pkId,
-        fileName,
-        totalRows,
-        createdBy
-      ]);
+      const [rows] = await db.execute(
+        'CALL prc_checkduplicate_BulkUploadSessions(?)',
+        [sessionHash],
+      );
+      return rows[0]?.[0]?.DuplicateCount ?? 0;
+    }
+    return mockSessions.filter((s) => s.SessionHash === sessionHash).length;
+  }
+
+  // ============================================================================
+  // SESSION OPERATIONS
+  // ============================================================================
+
+  /**
+   * Create a new bulk upload session record.
+   * Procedure: CALL prc_BulkUploadSessions_set(0, pSessionHash, pFileName, pTotalRows, 0, 0, pFkUploadedByEmployeeCode)
+   *
+   * @param {string} sessionHash           - Unique content hash for deduplication.
+   * @param {string} fileName              - Name of the uploaded file.
+   * @param {number} totalRows             - Total order rows submitted.
+   * @param {number} uploadedByEmployeeId  - PK of the uploading employee.
+   * @returns {Promise<object>} { PkBulkUploadId }
+   */
+  async createSession(sessionHash, fileName, totalRows, uploadedByEmployeeId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_BulkUploadSessions_set(?, ?, ?, ?, ?, ?, ?)',
+        [0, sessionHash, fileName, totalRows, 0, 0, uploadedByEmployeeId],
+      );
       return rows[0][0];
     }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory session creation
-    // ------------------------------------------------------------------
-    const newId = mockSessions.length > 0 ? Math.max(...mockSessions.map(s => s.PkBulkUploadId)) + 1 : 1;
+    const newId =
+      mockSessions.length > 0
+        ? Math.max(...mockSessions.map((s) => s.PkBulkUploadId)) + 1
+        : 1;
     const session = {
       PkBulkUploadId: newId,
+      SessionHash: sessionHash,
       FileName: fileName,
       TotalRows: totalRows,
-      SuccessCount: 0,
-      ErrorCount: 0,
-      Status: 'PROCESSING',
-      CreatedBy: createdBy,
-      CreatedDate: new Date().toISOString()
+      SuccessfulOrders: 0,
+      FailedRows: 0,
+      FkUploadedByEmployeeCode: uploadedByEmployeeId,
+      Status: 'VALIDATING',
+      UploadedAt: new Date().toISOString(),
     };
     mockSessions.push(session);
     return session;
   }
 
   /**
-   * Log the status of an individual row (order) in a bulk upload session.
-   * Procedure: CALL prc_bulk_order_upload_detail_set(?, ?, ?, ?, ?)
-   * 
-   * @param {number} pkId - 0 for insert.
-   * @param {number} sessionId - FK to bulk_order_upload_log.
-   * @param {number} rowNumber - Excel row number.
-   * @param {string} status - Result (Success/Error).
-   * @param {string} responseJson - JSON string of the order create response or error.
-   * @returns {Promise<object>} The created detail record.
-   */
-  async logRowDetail(pkId, sessionId, rowNumber, status, responseJson) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_bulk_order_upload_detail_set
-    // ------------------------------------------------------------------
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_bulk_order_upload_detail_set(?, ?, ?, ?, ?)', [
-        pkId,
-        sessionId,
-        rowNumber,
-        status,
-        responseJson
-      ]);
-      return rows[0][0];
-    }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory detail logging
-    // ------------------------------------------------------------------
-    const newId = mockDetails.length > 0 ? Math.max(...mockDetails.map(d => d.PkDetailId)) + 1 : 1;
-    const detail = {
-      PkDetailId: newId,
-      FkBulkUploadId: sessionId,
-      RowNumber: rowNumber,
-      Status: status,
-      ResponseJson: responseJson
-    };
-    mockDetails.push(detail);
-    return detail;
-  }
-
-  /**
    * Get bulk upload sessions.
-   * Procedure: CALL prc_bulk_order_upload_log_get(?, ?)
-   * 
-   * @param {number} pAction - 0: Get all, 1: Get by ID.
-   * @param {number|null} pId - Session ID if pAction=1.
-   * @returns {Promise<Array|object>} List of sessions or a single session record.
+   * Procedure: CALL prc_bulk_order_upload_log_get(pAction, pId)
+   *
+   * @param {number} pAction - 0: all, 1: by ID.
+   * @param {number|null} pId - Session ID when pAction=1.
+   * @returns {Promise<Array|object>}
    */
   async getSessions(pAction, pId = null) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_bulk_order_upload_log_get
-    // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_bulk_order_upload_log_get(?, ?)', [
-        pAction,
-        pId
-      ]);
+      const [rows] = await db.execute(
+        'CALL prc_bulk_order_upload_log_get(?, ?)',
+        [pAction, pId],
+      );
       return pAction === 1 ? rows[0][0] : rows[0];
     }
-
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory session retrieval
-    // ------------------------------------------------------------------
     if (pAction === 1) {
-      return mockSessions.find(s => s.PkBulkUploadId === parseInt(pId)) || null;
+      return (
+        mockSessions.find((s) => s.PkBulkUploadId === parseInt(pId)) || null
+      );
     }
     return mockSessions;
   }
 
+  // ============================================================================
+  // ERROR LOGGING
+  // ============================================================================
+
   /**
-   * Get individual row details for a bulk upload session.
-   * Procedure: CALL prc_bulk_order_upload_detail_get(?, ?)
-   * 
-   * @param {number} pAction - 0: Get by Session ID.
-   * @param {number} sessionId - The session ID.
-   * @returns {Promise<Array>} List of row details.
+   * Log a failed row's data as a stringified JSON blob.
+   * Procedure: CALL prc_BulkUploadErrors_set(0, pFkBulkUploadId, pRowNumber, pErrorMessage, pRowData)
+   *
+   * @param {number} sessionId     - FK to bulk_upload_sessions.
+   * @param {number} rowNumber     - 1-based row index in the upload.
+   * @param {string} errorMessage  - Human-readable error description.
+   * @param {string} rowData       - JSON.stringify() of the original row payload.
+   * @returns {Promise<object>}
    */
-  async getSessionDetails(pAction, sessionId) {
-    // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_bulk_order_upload_detail_get
-    // ------------------------------------------------------------------
+  async logError(sessionId, rowNumber, errorMessage, rowData) {
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_bulk_order_upload_detail_get(?, ?)', [
-        pAction,
-        sessionId
-      ]);
+      const [rows] = await db.execute(
+        'CALL prc_BulkUploadErrors_set(?, ?, ?, ?, ?)',
+        [0, sessionId, rowNumber, errorMessage, rowData],
+      );
+      return rows[0][0];
+    }
+    const newId =
+      mockErrors.length > 0
+        ? Math.max(...mockErrors.map((e) => e.PkBulkUploadErrorId)) + 1
+        : 1;
+    const entry = {
+      PkErrorId: newId,
+      FkBulkUploadId: sessionId,
+      RowNumber: rowNumber,
+      ErrorType: 'VALIDATION',
+      ErrorMessage: errorMessage,
+      RowData: rowData,
+      CreatedAt: new Date().toISOString(),
+    };
+    mockErrors.push(entry);
+    return entry;
+  }
+
+  // ============================================================================
+  // ERROR RETRIEVAL (READ)
+  // ============================================================================
+
+  /**
+   * Get all error rows logged for a specific bulk upload session.
+   * Procedure: CALL prc_BulkUploadErrors_get(0, pFkBulkUploadId)
+   *
+   * @param {number} sessionId - FK to bulk_upload_sessions.
+   * @returns {Promise<Array>} Raw error rows containing stringified RowData.
+   */
+  async getErrorsBySessionId(sessionId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_BulkUploadErrors_get(?, ?)',
+        [0, sessionId],
+      );
       return rows[0];
     }
+    return mockErrors.filter(
+      (e) => e.FkBulkUploadId === parseInt(sessionId),
+    );
+  }
 
-    // ------------------------------------------------------------------
-    // MOCK MODE: In-memory detail retrieval
-    // ------------------------------------------------------------------
-    return mockDetails.filter(d => d.FkBulkUploadId === parseInt(sessionId));
+  // ============================================================================
+  // ORDER MAPPING
+  // ============================================================================
+
+  /**
+   * Map a successfully created OrderId to this bulk upload session (junction table).
+   * Procedure: CALL prc_BulkUploadOrderMapping_set(0, pFkBulkUploadId, pFkOrderId)
+   *
+   * @param {number} sessionId - FK to bulk_upload_sessions.
+   * @param {number} orderId   - FK to order_master.
+   * @returns {Promise<object>}
+   */
+  async mapOrder(sessionId, orderId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_BulkUploadOrderMapping_set(?, ?, ?)',
+        [0, sessionId, orderId],
+      );
+      return rows[0][0];
+    }
+    const newId =
+      mockMappings.length > 0
+        ? Math.max(...mockMappings.map((m) => m.PkMappingId)) + 1
+        : 1;
+    const mapping = {
+      PkMappingId: newId,
+      FkBulkUploadId: sessionId,
+      FkOrderId: orderId,
+      CreatedDate: new Date().toISOString(),
+    };
+    mockMappings.push(mapping);
+    return mapping;
+  }
+
+  // ============================================================================
+  // DETAIL RETRIEVAL (READ)
+  // ============================================================================
+
+  /**
+   * Get individual row details for a bulk upload session.
+   * Procedure: CALL prc_bulk_order_upload_detail_get(pAction, pSessionId)
+   *
+   * @param {number} pAction    - 0: by Session ID.
+   * @param {number} sessionId  - The session ID.
+   * @returns {Promise<Array>}
+   */
+  async getSessionDetails(pAction, sessionId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_bulk_order_upload_detail_get(?, ?)',
+        [pAction, sessionId],
+      );
+      return rows[0];
+    }
+    return mockErrors.filter(
+      (e) => e.FkBulkUploadId === parseInt(sessionId),
+    );
   }
 }
 

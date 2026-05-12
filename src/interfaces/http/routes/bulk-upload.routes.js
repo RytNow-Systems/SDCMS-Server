@@ -8,11 +8,12 @@ import express from 'express';
 import {
   handleBulkUpload,
   handleGetSessions,
-  handleGetSessionById
+  handleGetSessionById,
+  handleGetSessionErrors,
 } from '../controllers/bulk-upload.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
-import { validate } from '../../../shared/middleware/validate.middleware.js';
-import { bulkUploadSchema } from '../validations/bulk-upload.validation.js';
+import { validate, validateParams } from '../../../shared/middleware/validate.middleware.js';
+import { bulkUploadSchema, sessionIdParamSchema } from '../validations/bulk-upload.validation.js';
 
 const router = express.Router();
 
@@ -37,5 +38,11 @@ router.get('/', handleGetSessions);
  * @desc    Get session result with row details
  */
 router.get('/:id', handleGetSessionById);
+
+/**
+ * @route   GET /api/v1/bulk-uploads/:sessionId/errors
+ * @desc    Get all failed rows for a specific upload session
+ */
+router.get('/:sessionId/errors', validateParams(sessionIdParamSchema), handleGetSessionErrors);
 
 export default router;
