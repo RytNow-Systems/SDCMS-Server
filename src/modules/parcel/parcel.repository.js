@@ -53,18 +53,22 @@ class ParcelRepository {
    */
   async findAll(filters = {}) {
     if (process.env.USE_MOCK_DB !== "true") {
-      // pAction=0: List all parcels
       const [rows] = await db.execute(
         "CALL prc_parcel_details_search(?, ?, ?, ?)",
         [
-          0, // pAction
-          0, // pPkParcelDetailsId
-          0, // pFkReceiverDetailsId
-          0, // pFkCourierId
+          0, // pPkParcelDetailsId=0: match all
+          0, // pFkReceiverDetailsId=0: match all
+          0, // pFkCourierId=0: match all
+          0, // pFkParcelStatusId=0: match all
         ],
       );
 
       let data = rows[0] || [];
+
+      // Client-side status filter (SP uses integer FK; filter by resolved name instead)
+      if (filters.status) {
+        data = data.filter((p) => p.ParcelStatusName === filters.status);
+      }
 
       // Client-side search filtering (SP does not support text search)
       if (filters.search) {
@@ -114,10 +118,10 @@ class ParcelRepository {
       const [rows] = await db.execute(
         "CALL prc_parcel_details_search(?, ?, ?, ?)",
         [
-          1, // pAction: get by ID
-          id, // pPkParcelDetailsId
-          0,
-          0,
+          id, // pPkParcelDetailsId: filter by specific parcel
+          0,  // pFkReceiverDetailsId=0: match all
+          0,  // pFkCourierId=0: match all
+          0,  // pFkParcelStatusId=0: match all
         ],
       );
       return rows[0]?.[0] || null;

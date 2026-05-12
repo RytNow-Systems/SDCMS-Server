@@ -82,7 +82,7 @@ class ParcelService {
       dispatchDate: parcel.DispatchDate || parcel.dispatchDate || null,
       receiverName: parcel.ReceiverName || parcel.receiverName || null,
       receiverPhone: parcel.ReceiverPhone || parcel.receiverPhone || null,
-      address: parcel.Address || parcel.address || null,
+      address: parcel.ReceiverAddress || parcel.Address || parcel.address || null,
       city: parcel.ReceiverCity || parcel.City || parcel.city || null,
       state: parcel.ReceiverState || parcel.State || parcel.state || null,
       pincode:
