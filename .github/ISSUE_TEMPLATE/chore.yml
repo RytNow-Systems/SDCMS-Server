@@ -1,0 +1,55 @@
+name: Chore / Tech Debt
+description: Refactoring, dependency updates, performance improvements, or maintenance tasks
+title: "[Chore]: "
+labels: ["maintenance"]
+assignees:
+  - aditya-bachawad
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Chore Type
+      options:
+        - Refactor
+        - Dependency update
+        - Performance improvement
+        - Security patch
+        - Documentation
+        - Test coverage
+        - CI/CD
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be done and why?
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this solve? Link any related bugs or PRs.
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Notes
+      description: Files/modules affected, approach, any gotchas.
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk Level
+      options:
+        - Low (isolated change, easy to revert)
+        - Medium (touches shared utilities)
+        - High (cross-module impact)
+    validations:
+      required: true

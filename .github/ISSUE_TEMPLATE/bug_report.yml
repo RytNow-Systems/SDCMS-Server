@@ -1,0 +1,95 @@
+name: Bug Report
+description: Report a bug in the SDCMS backend API
+title: "[Bug]: "
+labels: ["bug"]
+assignees:
+  - aditya-bachawad
+body:
+  - type: dropdown
+    id: affected-domain
+    attributes:
+      label: Affected Domain
+      description: Which backend module is affected?
+      options:
+        - auth
+        - user
+        - order
+        - parcel
+        - product
+        - bulk-upload
+        - courier
+        - middleware
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: endpoint
+    attributes:
+      label: Affected Endpoint
+      description: The full API path and method
+      placeholder: "e.g. POST /api/v1/orders"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: Clear description of what is going wrong.
+      placeholder: What went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: request
+    attributes:
+      label: Request Payload
+      description: The exact request body / query params sent (redact sensitive data).
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual-response
+    attributes:
+      label: Actual Response
+      description: The response body or error received.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-response
+    attributes:
+      label: Expected Response
+      description: What should the API have returned?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical (data loss / system down)
+        - High (feature broken, no workaround)
+        - Medium (feature broken, workaround exists)
+        - Low (cosmetic / minor)
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "e.g. Node 20.x, MySQL 8.0, staging"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server Logs / Stack Trace
+      description: Paste relevant log output here.
+      render: shell
