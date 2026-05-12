@@ -176,6 +176,62 @@ class ParcelRepository {
   }
 
   /**
+   * Get order header to resolve FkSenderId for label data.
+   * Procedure: CALL prc_order_master_get(1, orderId)
+   *
+   * @param {number} orderId
+   * @returns {Promise<object|null>}
+   */
+  async getOrderHeader(orderId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute("CALL prc_order_master_get(?, ?)", [
+        1,
+        orderId,
+      ]);
+      return rows[0]?.[0] || null;
+    }
+    return seedOrders.find((o) => o.id === parseInt(orderId)) || null;
+  }
+
+  /**
+   * Get sender party details by PkPartyId.
+   * Procedure: CALL prc_Party_master_get(1, NULL, senderId)
+   * pFkPartyTypeId=NULL skips type filter, matches any party type.
+   *
+   * @param {number} senderId - PkPartyId
+   * @returns {Promise<object|null>}
+   */
+  async getSenderById(senderId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_Party_master_get(?, ?, ?)",
+        [1, null, senderId],
+      );
+      return rows[0]?.[0] || null;
+    }
+    return seedParties.find((p) => p.id === parseInt(senderId)) || null;
+  }
+
+  /**
+   * Get all order items for a specific receiver (for label product list).
+   * Procedure: CALL prc_order_items_get(0, 0) — returns all items; filter by FkReceiverDetailsId.
+   * prc_order_items_get includes ColorName; prc_order_items_search does not.
+   *
+   * @param {number} receiverDetailsId
+   * @returns {Promise<Array>}
+   */
+  async getItemsForReceiver(receiverDetailsId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute("CALL prc_order_items_get(?, ?)", [0, 0]);
+      const all = rows[0] || [];
+      return all.filter(
+        (item) => item.FkReceiverDetailsId === parseInt(receiverDetailsId),
+      );
+    }
+    return [];
+  }
+
+  /**
    * Get chronological timeline of events.
    * Procedure: CALL prc_receiver_status_details_get(1, parcelId)
    *
