@@ -1,0 +1,66 @@
+name: Feature Request
+description: Propose a new API feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees:
+  - aditya-bachawad
+body:
+  - type: dropdown
+    id: domain
+    attributes:
+      label: Domain / Module
+      options:
+        - auth
+        - user
+        - order
+        - parcel
+        - product
+        - bulk-upload
+        - courier
+        - middleware
+        - new module
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What gap or limitation does this address?
+      placeholder: "Currently, there is no way to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the new endpoint, stored procedure, or behaviour change.
+      placeholder: "Add POST /api/v1/... that calls prc_..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: contract
+    attributes:
+      label: API Contract (if applicable)
+      description: Proposed request/response shape.
+      render: json
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Other approaches you evaluated and why you ruled them out.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Critical (blocking release)
+        - High (needed this sprint)
+        - Medium (next sprint)
+        - Low (backlog)
+    validations:
+      required: true
