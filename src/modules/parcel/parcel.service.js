@@ -96,18 +96,31 @@ class ParcelService {
 
   _mapEvent(event) {
     if (!event) return null;
+    const actionType = event.ActionType || event.actionType;
+    // FkOrderStatusId is not set by prc_receiver_status_details_set, so StatusName is empty.
+    // Derive newStatus from actionType as fallback.
+    const ACTION_STATUS_MAP = {
+      PRINT_LABEL: "Label Printed",
+      AWB_LINK: "AWB Linked",
+      DISPATCH: "Dispatched",
+      DELIVERED: "Delivered",
+      RETURNED: "Cancelled",
+    };
     return {
-      receiverStatusDetailsId:
+      eventId:
         event.PkReceiverStatusDetailsId ||
         event.id ||
         event.receiverStatusDetailsId,
-      parcelId: event.QRCode || event.parcelId, // Still uses QRCode from event log if available, but we'll transition this too if needed.
-      orderCode: event.OrderCode || event.orderCode,
-      actionType: event.ActionType || event.actionType,
-      awbNumber: event.AwbNumber || event.awbNumber,
-      previousStatus: event.PreviousStatus || event.previousStatus,
-      newStatus: event.StatusDescription || event.newStatus,
-      scannedBy: event.CreatedBy || event.scannedBy,
+      parcelId: event.FkParcelDetailsId || event.fkParcelDetailsId || null,
+      actionType,
+      awbNumber: event.AWBNumber || event.awbNumber || null,
+      previousStatus: event.PreviousStatus || event.previousStatus || null,
+      newStatus:
+        event.StatusDescription ||
+        event.newStatus ||
+        ACTION_STATUS_MAP[actionType] ||
+        null,
+      performedBy: event.CreatedBy || event.scannedBy || null,
       timestamp: event.CreatedDate || event.timestamp,
     };
   }

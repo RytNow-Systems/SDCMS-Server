@@ -261,11 +261,16 @@ class ParcelRepository {
    */
   async getTimeline(parcelId) {
     if (process.env.USE_MOCK_DB !== "true") {
+      // pAction=1 only returns 5 bare columns (no PreviousStatus, CreatedBy).
+      // pAction=0 returns all columns; filter by FkParcelDetailsId client-side.
       const [rows] = await db.execute(
         "CALL prc_receiver_status_details_get(?, ?)",
-        [1, parcelId],
+        [0, 0],
       );
-      return rows[0] || [];
+      const all = rows[0] || [];
+      return all
+        .filter((e) => e.FkParcelDetailsId === parseInt(parcelId))
+        .sort((a, b) => new Date(a.CreatedDate) - new Date(b.CreatedDate));
     }
 
     return seedStatusLog
