@@ -65,9 +65,13 @@ class ParcelRepository {
 
       let data = rows[0] || [];
 
-      // Client-side status filter (SP uses integer FK; filter by resolved name instead)
+      // Client-side status filter — case-insensitive because API uses uppercase ("PENDING")
+      // while lu_details returns proper case ("Pending").
       if (filters.status) {
-        data = data.filter((p) => p.ParcelStatusName === filters.status);
+        const statusLower = filters.status.toLowerCase();
+        data = data.filter(
+          (p) => p.ParcelStatusName?.toLowerCase() === statusLower,
+        );
       }
 
       // Client-side search filtering (SP does not support text search)
