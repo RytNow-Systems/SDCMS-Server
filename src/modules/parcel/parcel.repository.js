@@ -150,21 +150,22 @@ class ParcelRepository {
   }
 
   /**
-   * Get label data for a parcel (parcel + receiver details join).
-   * Procedure: CALL prc_parcel_details_get(pAction, pPkParcelDetailsId)
-   * pAction=2 returns parcel fields joined with receiver address data:
-   *   PkParcelDetailsId, TrackingNo, QRCode,
-   *   ReceiverName, ReceiverPhone, Address, City, Pincode
+   * Get label data for a parcel (full enriched join including Party_master fallback).
+   * Procedure: CALL prc_parcel_details_search(pPkParcelDetailsId, 0, 0, 0)
+   * Returns all fields needed for label rendering: status, receiver info, address, orderCode.
    *
    * @param {number|string} id - PkParcelDetailsId
    * @returns {Promise<object|null>}
    */
   async getLabelData(id) {
     if (process.env.USE_MOCK_DB !== "true") {
-      const [rows] = await db.execute("CALL prc_parcel_details_get(?, ?)", [
-        2, // pAction: label data (parcel + receiver join)
-        id, // pPkParcelDetailsId
-      ]);
+      // prc_parcel_details_get(pAction=2) only returns bare receiver_details columns —
+      // no ParcelStatusName, State, OrderCode, and no Party_master fallback for Mode A orders.
+      // prc_parcel_details_search returns all enriched fields via full JOINs.
+      const [rows] = await db.execute(
+        "CALL prc_parcel_details_search(?, ?, ?, ?)",
+        [id, 0, 0, 0],
+      );
       return rows[0]?.[0] || null;
     }
 
