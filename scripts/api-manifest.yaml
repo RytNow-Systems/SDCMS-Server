@@ -803,23 +803,52 @@ collections:
   # ========== 13. DASHBOARD ==========
   - name: Dashboard
     slug: dashboard
-    description: Admin-only dashboard metrics
+    description: Admin-only dashboard analytics — summary metrics and orders-over-time graph data.
     endpoints:
       - name: Get Metrics
         method: GET
         path: /dashboard/metrics
         roles: [ADMIN]
-        description: Aggregated dashboard statistics.
+        description: Returns aggregated order and parcel counts for a given time period.
+        notes: "period query param controls the time window: 'overall' (default) = all-time, 'daily' = today, 'weekly' = current week, 'monthly' = current month, 'custom' = explicit date range. When period=custom, both from and to (YYYY-MM-DD) are required. pendingParcels/dispatchedParcels/deliveredParcels reflect parcel-level status counts, not order-level."
         responseStatus: 200
         responseBody: |
-          { 
-            "success": true, 
-            "data": { 
-              "TotalOrders": 150, "PendingOrders": 45, "DispatchedOrders": 80, "DeliveredOrders": 25,
-              "totalOrders": 150, // @deprecated
-              "parcelsByStatus": { "PENDING": 45, "DISPATCHED": 80, "DELIVERED": 25 } // @deprecated
-            } 
+          {
+            "success": true,
+            "data": {
+              "totalOrders": 150,
+              "pendingParcels": 45,
+              "dispatchedParcels": 80,
+              "deliveredParcels": 25
+            }
           }
+        examples:
+          - label: Monthly view
+            path: /dashboard/metrics?period=monthly
+          - label: Custom date range
+            path: /dashboard/metrics?period=custom&from=2025-01-01&to=2025-05-13
+
+      - name: Get Graph Data
+        method: GET
+        path: /dashboard/graph
+        roles: [ADMIN]
+        description: Returns monthly order counts for the orders-over-time chart. Always returns all 12 months; months with no orders have totalOrders=0.
+        notes: "Omit year to get current year data. Pass year (e.g. ?year=2024) to get a specific year. month values are 1-based (1=January, 12=December)."
+        responseStatus: 200
+        responseBody: |
+          {
+            "success": true,
+            "data": [
+              { "month": 1, "totalOrders": 10 },
+              { "month": 3, "totalOrders": 22 },
+              { "month": 5, "totalOrders": 53 }
+            ]
+          }
+        examples:
+          - label: Current year
+            path: /dashboard/graph
+          - label: Specific year
+            path: /dashboard/graph?year=2025
 
   # ========== 14. BULK UPLOAD ==========
   - name: Bulk Upload
