@@ -30,7 +30,7 @@ class AuthService {
     ) {
       // Enforce the Toggle-Access restriction
       const canLogin = employee.AllowLogin ?? employee.allowLogin;
-      if (canLogin === false) {
+      if (canLogin !== null && canLogin !== undefined && !canLogin) {
         const error = new Error(
           "Your account has been locked. Contact your Admin.",
         );
