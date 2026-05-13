@@ -47,6 +47,8 @@ class ProductService {
       unitId: product.FkUnitId || product.unitId || null,
       categoryName: product.CategoryName || null,
       unitTitle: product.UnitTitle || null,
+      colorName: product.ColorName || null,
+      size: product.Size || null,
       isActive: (() => {
         const val =
           product.IsActive !== undefined ? product.IsActive : product.isActive;
