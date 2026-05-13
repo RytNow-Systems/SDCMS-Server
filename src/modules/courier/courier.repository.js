@@ -24,6 +24,7 @@ const initializeSeedData = () => {
     {
       CourierId: 1,
       CourierName: 'Delhivery',
+      PhoneNumber: null,
       TrackingUrlTemplate: 'https://delhivery.com/track/{AWB}',
       IsActive: true,
       CreatedDate: new Date().toISOString()
@@ -31,6 +32,7 @@ const initializeSeedData = () => {
     {
       CourierId: 2,
       CourierName: 'BlueDart',
+      PhoneNumber: null,
       TrackingUrlTemplate: 'https://bluedart.com/track/{AWB}',
       IsActive: true,
       CreatedDate: new Date().toISOString()
@@ -158,10 +160,10 @@ class CourierRepository {
 
   /**
    * Creates a new courier partner.
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)
    * Convention: CourierId=0 triggers insert.
    *
-   * @param {object} courierData - { courierName, trackingUrlTemplate }
+   * @param {object} courierData - { courierName, phoneNo, trackingUrlTemplate }
    * @param {number|string} adminId - ID of the creating admin
    * @returns {Promise<object>} The newly created courier record.
    */
@@ -173,9 +175,10 @@ class CourierRepository {
       // Use a dedicated connection so LAST_INSERT_ID() is reliable
       const connection = await db.getConnection();
       try {
-        await connection.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
+        await connection.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
           0, // CourierId=0 → Insert new courier
           courierData.courierName,
+          courierData.phoneNo || null,
           courierData.trackingUrlTemplate || null,
           adminId || null,
           1  // IsActive=1
@@ -196,6 +199,7 @@ class CourierRepository {
     const newCourier = {
       CourierId: newId,
       CourierName: courierData.courierName,
+      PhoneNumber: courierData.phoneNo || null,
       TrackingUrlTemplate: courierData.trackingUrlTemplate || null,
       IsActive: true,
       CreatedDate: new Date().toISOString()
@@ -207,7 +211,7 @@ class CourierRepository {
 
   /**
    * Updates an existing courier partner.
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)
    * Convention: CourierId>0 triggers update.
    *
    * @param {number|string} id - CourierId.
@@ -224,9 +228,10 @@ class CourierRepository {
       const existing = await this.findById(id);
       if (!existing) return null;
 
-      await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
+      await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
         id, // CourierId>0 → Update existing courier
         updates.courierName ?? existing.CourierName,
+        updates.phoneNo ?? existing.PhoneNumber ?? null,
         updates.trackingUrlTemplate ?? existing.TrackingUrlTemplate ?? null,
         adminId || null,
         updates.isActive !== undefined ? (updates.isActive ? 1 : 0) : 1
@@ -242,6 +247,7 @@ class CourierRepository {
     if (index === -1) return null;
 
     if (updates.courierName) seedCouriers[index].CourierName = updates.courierName;
+    if (updates.phoneNo !== undefined) seedCouriers[index].PhoneNumber = updates.phoneNo;
     if (updates.trackingUrlTemplate) seedCouriers[index].TrackingUrlTemplate = updates.trackingUrlTemplate;
 
     return seedCouriers[index];
@@ -249,7 +255,7 @@ class CourierRepository {
 
   /**
    * Soft-deletes a courier partner (sets IsActive=0).
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)
    * Convention: Pass IsActive=0 for soft-delete.
    *
    * @param {number|string} id - CourierId.
@@ -264,9 +270,10 @@ class CourierRepository {
       const existing = await this.findById(id);
       if (!existing) return false;
 
-      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
+      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
         id,
         existing.CourierName,
+        existing.PhoneNumber ?? null,
         existing.TrackingUrlTemplate,
         adminId || null,
         0     // IsActive=0 → Soft delete

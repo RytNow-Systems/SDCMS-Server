@@ -11,6 +11,7 @@ class CourierService {
     return {
       courierId: courier.CourierId,
       courierName: courier.CourierName,
+      phoneNumber: courier.PhoneNumber || null,
       trackingUrlTemplate: courier.TrackingUrlTemplate,
       isActive: courier.IsActive == true,
       createdAt: courier.CreatedDate,

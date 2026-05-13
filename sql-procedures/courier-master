@@ -1,0 +1,60 @@
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_courier_partner_master_get`(pAction INT, pCourierId INT)
+BEGIN
+
+    IF pAction = 0 THEN
+        SELECT CourierId, CourierName, PhoneNumber, TrackingUrlTemplate, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy,IsActive
+        FROM courier_partner_master
+        where isactive = 1
+        ORDER BY CourierId DESC;
+    END IF;
+
+    IF pAction = 1 THEN
+        SELECT CourierId, CourierName, PhoneNumber, TrackingUrlTemplate, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy, IsActive
+        FROM courier_partner_master
+        WHERE CourierId = pCourierId and isactive = 1
+		ORDER BY CourierId;
+    END IF;
+
+END
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_courier_partner_master_search`(pCourierId int(11))
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	: Admin
+File name in solution	: Admin/courier_partner_master.aspx
+UserControl/Field Name : model-courier
+Input Parameter	: pCourierId
+Output Parameter : CourierId, CourierName, TrackingUrlTemplate, IsActive
+Description : used to display list of courier partner details as per given constraints
+****************************************************/
+		SELECT  courier_partner_master.CourierId, courier_partner_master.CourierName, courier_partner_master.PhoneNumber, courier_partner_master.TrackingUrlTemplate,
+                    (CASE WHEN courier_partner_master.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM    courier_partner_master
+		WHERE courier_partner_master.CourierId = CASE WHEN pCourierId = 0 THEN courier_partner_master.CourierId ELSE pCourierId END
+		ORDER BY courier_partner_master.CourierId;
+
+END
+
+---
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_courier_partner_master_set`(pCourierId INT, pCourierName VARCHAR(100), pPhoneNumber varchar(20), pTrackingUrlTemplate VARCHAR(255), pCreatedBy INT, pIsActive INT)
+BEGIN
+
+DECLARE pId INT;
+
+	IF pCourierId = 0 THEN
+		INSERT INTO courier_partner_master (CourierName, PhoneNumber, TrackingUrlTemplate, CreatedDate, CreatedBy, IsActive)
+						VALUES (pCourierName, PhoneNumber, pTrackingUrlTemplate, NOW(), pCreatedBy, pIsActive);
+
+		SELECT LAST_INSERT_ID() INTO pId;
+
+	ELSE
+		UPDATE courier_partner_master SET
+		CourierName = pCourierName, PhoneNumber = pPhoneNumber, TrackingUrlTemplate = pTrackingUrlTemplate, UpdatedDate = NOW(), UpdatedBy = pCreatedBy, IsActive = pIsActive
+		WHERE CourierId = pCourierId;
+
+	END IF;
+
+END
+---
