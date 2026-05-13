@@ -1,0 +1,16 @@
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (e.g. feat/bulk-upload, staging)'
+        required: true
+        default: 'staging'
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Deploy branch
+        run: /var/www/deploy.sh ${{ github.event.inputs.branch }}
