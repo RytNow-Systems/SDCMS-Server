@@ -174,7 +174,7 @@
           <code class="endpoint-path">/parcel-events</code>
         </div>
         <h3 class="endpoint-name">List Events</h3>
-        <p class="endpoint-desc">Paginated event log from receiver_status_details.</p>
+        <p class="endpoint-desc">Paginated event log from receiver_status_details with date and action filters.</p>
         
         
           <div class="meta-grid">
@@ -188,6 +188,52 @@
             </div>
           </div>
 
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>page</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Page number (default: 1)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>limit</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Items per page (default: 50)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>dateFrom</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Start date filter (YYYY-MM-DD)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>dateTo</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>End date filter (YYYY-MM-DD)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>actionType</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Filter by event type (e.g. AWB_LINK, STATUS_UPDATE)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>scannedBy</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Filter by employee code who performed the action</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 
@@ -215,7 +261,10 @@
     }
   ],
   &quot;meta&quot;: {
-    &quot;totalRows&quot;: <span class="json-number">50</span>
+    &quot;page&quot;: <span class="json-number">1</span>,
+    &quot;limit&quot;: <span class="json-number">50</span>,
+    &quot;totalRows&quot;: <span class="json-number">50</span>,
+    &quot;totalPages&quot;: <span class="json-number">1</span>
   }
 }</code></pre>
       </div>
@@ -230,7 +279,7 @@
           <code class="endpoint-path">/parcel-events/export</code>
         </div>
         <h3 class="endpoint-name">Export CSV</h3>
-        <p class="endpoint-desc">Downloads event log as CSV file.</p>
+        <p class="endpoint-desc">Downloads filtered event log as CSV. Accepts same filters as List Events (no pagination — exports all matching rows).</p>
         
         
           <div class="meta-grid">
@@ -244,6 +293,40 @@
             </div>
           </div>
 
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>dateFrom</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Start date filter (YYYY-MM-DD)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>dateTo</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>End date filter (YYYY-MM-DD)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>actionType</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Filter by event type</td>
+                </tr>
+              
+                <tr>
+                  <td><code>scannedBy</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Filter by employee code</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 
@@ -261,7 +344,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-13
       </footer>
     </main>
   </div>

@@ -152,10 +152,12 @@ collections:
         method: GET
         path: /products
         roles: [ADMIN, OPERATOR]
-        description: Retrieves products filtered by categoryId or unitId.
+        description: Retrieves products filtered by categoryId or unitId, paginated.
         parameters:
-          categoryId: { type: 'number', description: 'Filter by category primary key' }
-          unitId: { type: 'number', description: 'Filter by unit primary key' }
+          page: { type: 'number', description: 'Page number (default: 1)' }
+          limit: { type: 'number', description: 'Items per page (default: 20)' }
+          categoryId: { type: 'number', description: 'Filter by category primary key (0 = no filter)' }
+          unitId: { type: 'number', description: 'Filter by unit primary key (0 = no filter)' }
         responseStatus: 200
         responseBody: |
           { "success": true, "data": [{ "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryName": "Textiles" }] }
@@ -167,14 +169,14 @@ collections:
         method: POST
         path: /products
         roles: [ADMIN, OPERATOR]
-        description: Creates a new product with optional inline variations. categoryId and unitId are required. materialRate defaults to 0 if omitted (pricing is primarily per-variation).
+        description: Creates a new product with a single inline variation (color + size). categoryId, colorId, and size are required at the top level — no nested variations array.
         headers: { Content-Type: application/json }
         body: |
-          { "materialName": "Heavy Equipment", "categoryId": 1, "unitId": 1, "materialRate": 500, "variations": [{ "colorId": 1, "size": "M", "materialRate": 550 }, { "colorId": 2, "size": "L", "materialRate": 600 }] }
+          { "materialName": "Cotton Roll", "categoryId": 1, "colorId": 1, "size": "M", "materialRate": 500 }
         responseStatus: 201
         responseBody: |
-          { "success": true, "data": { "id": 2, "materialName": "Heavy Equipment", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "variationId": 1, "colorId": 1, "size": "M", "materialRate": 550 }, { "variationId": 2, "colorId": 2, "size": "L", "materialRate": 600 }] } }
-        notes: "categoryId and unitId are required. materialRate is optional (defaults to 0). The variations array is optional — omit it to create a product without variations."
+          { "success": true, "data": { "id": 2, "materialName": "Cotton Roll", "materialRate": 500, "categoryId": 1, "variations": [{ "variationId": 1, "colorId": 1, "size": "M", "materialRate": 500 }] } }
+        notes: "categoryId, colorId, and size are required. materialRate is optional (defaults to 0). unitId is not accepted on create. If a product with the same name already exists, the new variation is auto-linked to that existing product instead of creating a duplicate."
         assertions:
           - "res.status equals 201"
           - "res.body.success is true"
@@ -216,7 +218,9 @@ collections:
         method: GET
         path: /products/dropdown
         roles: [ADMIN, OPERATOR]
-        description: Combined product + category flat dropdown list for order forms.
+        description: Combined product + category flat dropdown list for order forms. Supports partial-match search.
+        parameters:
+          search: { type: 'string', description: 'Partial match against product name or category (optional)' }
         responseStatus: 200
         responseBody: |
           { "success": true, "data": [{ "value": { "productId": 1, "variationId": 1, "materialRate": 550 }, "label": "Cotton Roll — Red / M (Textiles) [CU-001]" }] }
@@ -249,7 +253,12 @@ collections:
         method: GET
         path: /employees
         roles: [ADMIN]
-        description: Retrieves all employees.
+        description: Paginated employee list with optional search and role filter.
+        parameters:
+          page: { type: 'number', description: 'Page number (default: 1)' }
+          limit: { type: 'number', description: 'Items per page (default: 20)' }
+          search: { type: 'string', description: 'Partial match against name or email' }
+          role: { type: 'string', description: 'Filter by role code (ADMIN, OPERATOR, COURIER)' }
         responseStatus: 200
 
       - name: Create Employee
@@ -305,7 +314,11 @@ collections:
         method: GET
         path: /courier-partners
         roles: [ADMIN, OPERATOR, COURIER]
-        description: Retrieves all courier partners.
+        description: Paginated courier partner list with optional search.
+        parameters:
+          page: { type: 'number', description: 'Page number (default: 1)' }
+          limit: { type: 'number', description: 'Items per page (default: 20)' }
+          search: { type: 'string', description: 'Partial match against courier name' }
         responseStatus: 200
 
       - name: Create Courier
@@ -315,7 +328,7 @@ collections:
         description: Registers a new courier partner.
         headers: { Content-Type: application/json }
         body: |
-          { "courierName": "TestCourier Express", "trackingUrlTemplate": "https://track.testcourier.com/awb/{AWB}" }
+          { "courierName": "TestCourier Express", "contactPerson": "John Doe", "phoneNo": "9876543210", "email": "courier@example.com", "trackingUrlTemplate": "https://track.testcourier.com/awb/{AWB}" }
         responseStatus: 201
 
       - name: Get Courier by ID
@@ -323,16 +336,18 @@ collections:
         path: /courier-partners/:id
         roles: [ADMIN, OPERATOR, COURIER]
         description: Retrieves a courier partner by ID.
+        parameters:
+          id: { type: 'number', description: 'Courier partner primary key' }
         responseStatus: 200
 
       - name: Update Courier
         method: PUT
         path: /courier-partners/:id
         roles: [ADMIN, OPERATOR]
-        description: Updates courier partner details.
+        description: Updates courier partner details. All fields optional.
         headers: { Content-Type: application/json }
         body: |
-          { "courierName": "Updated Courier" }
+          { "courierName": "Updated Courier", "phoneNo": "9876543210" }
         responseStatus: 200
 
       - name: Delete Courier
@@ -547,9 +562,12 @@ collections:
         roles: [ADMIN, OPERATOR, COURIER]
         description: Paginated order list with derived status.
         parameters:
-          page: { type: 'number', description: 'Current page number' }
-          limit: { type: 'number', description: 'Number of items per page' }
-          status: { type: 'string', description: 'Filter by derived status (PENDING, DISPATCHED, etc.)' }
+          page: { type: 'number', description: 'Page number (default: 1)' }
+          limit: { type: 'number', description: 'Items per page (default: 20)' }
+          search: { type: 'string', description: 'Partial match against order code or sender name' }
+          status: { type: 'string', description: 'Filter by derived status (PENDING, DISPATCHED, DELIVERED, CANCELLED)' }
+          sortBy: { type: 'string', description: 'Field to sort by (default: created_at)' }
+          sortOrder: { type: 'string', description: 'Sort direction: asc or desc (default: desc)' }
         responseStatus: 200
         responseBody: |
           { "success": true, "data": [{ "id": 1, "orderCode": "ORD-2026-001", "senderName": "Ramesh Textiles", "senderMobile": "9876543210", "totalAmount": 2100.00, "derivedStatus": "PENDING", "createdAt": "2026-04-24T10:00:00Z" }], "meta": { "page": 1, "limit": 20, "totalRows": 1, "totalPages": 1 } }
@@ -678,10 +696,12 @@ collections:
         roles: [ADMIN, OPERATOR, COURIER]
         description: Paginated parcel list.
         parameters:
-          page: { type: 'number', description: 'Page index' }
-          limit: { type: 'number', description: 'Items per page' }
-          orderCode: { type: 'string', description: 'Search by partial Order Code' }
-          parcelId: { type: 'string', description: 'Search by dynamic Parcel ID (PCL-X-Y)' }
+          page: { type: 'number', description: 'Page number (default: 1)' }
+          limit: { type: 'number', description: 'Items per page (default: 20)' }
+          search: { type: 'string', description: 'Partial match against parcel ID, order code, or receiver name' }
+          status: { type: 'string', description: 'Filter by status (PENDING, LABEL_PRINTED, AWB_LINKED, DISPATCHED, DELIVERED, CANCELLED)' }
+          sortBy: { type: 'string', description: 'Field to sort by (default: created_at)' }
+          sortOrder: { type: 'string', description: 'Sort direction: asc or desc (default: desc)' }
         responseStatus: 200
 
       - name: Get Parcel by ID
@@ -785,16 +805,28 @@ collections:
         method: GET
         path: /parcel-events
         roles: [ADMIN, OPERATOR]
-        description: Paginated event log from receiver_status_details.
+        description: Paginated event log from receiver_status_details with date and action filters.
+        parameters:
+          page: { type: 'number', description: 'Page number (default: 1)' }
+          limit: { type: 'number', description: 'Items per page (default: 50)' }
+          dateFrom: { type: 'string', description: 'Start date filter (YYYY-MM-DD)' }
+          dateTo: { type: 'string', description: 'End date filter (YYYY-MM-DD)' }
+          actionType: { type: 'string', description: 'Filter by event type (e.g. AWB_LINK, STATUS_UPDATE)' }
+          scannedBy: { type: 'string', description: 'Filter by employee code who performed the action' }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "receiverStatusDetailsId": 1, "parcelId": "PCL-1-1", "orderCode": "ORD-2026-001", "actionType": "AWB_LINK", "awbNumber": "AWB-DTDC-001", "previousStatus": "LABEL_PRINTED", "newStatus": "AWB_LINKED", "scannedBy": "EMP-001", "timestamp": "2026-04-24T12:00:00Z" }], "meta": { "totalRows": 50 } }
+          { "success": true, "data": [{ "receiverStatusDetailsId": 1, "parcelId": "PCL-1-1", "orderCode": "ORD-2026-001", "actionType": "AWB_LINK", "awbNumber": "AWB-DTDC-001", "previousStatus": "LABEL_PRINTED", "newStatus": "AWB_LINKED", "scannedBy": "EMP-001", "timestamp": "2026-04-24T12:00:00Z" }], "meta": { "page": 1, "limit": 50, "totalRows": 50, "totalPages": 1 } }
 
       - name: Export CSV
         method: GET
         path: /parcel-events/export
         roles: [ADMIN, OPERATOR]
-        description: Downloads event log as CSV file.
+        description: Downloads filtered event log as CSV. Accepts same filters as List Events (no pagination — exports all matching rows).
+        parameters:
+          dateFrom: { type: 'string', description: 'Start date filter (YYYY-MM-DD)' }
+          dateTo: { type: 'string', description: 'End date filter (YYYY-MM-DD)' }
+          actionType: { type: 'string', description: 'Filter by event type' }
+          scannedBy: { type: 'string', description: 'Filter by employee code' }
         responseStatus: 200
         assertions:
           - "Content-Type is text/csv"
@@ -810,7 +842,11 @@ collections:
         path: /dashboard/metrics
         roles: [ADMIN]
         description: Returns aggregated order and parcel counts for a given time period.
-        notes: "period query param controls the time window: 'overall' (default) = all-time, 'daily' = today, 'weekly' = current week, 'monthly' = current month, 'custom' = explicit date range. When period=custom, both from and to (YYYY-MM-DD) are required. pendingParcels/dispatchedParcels/deliveredParcels reflect parcel-level status counts, not order-level."
+        parameters:
+          period: { type: 'string', description: "Time window: 'overall' (default, all-time), 'daily' (today), 'weekly' (current week), 'monthly' (current month), 'custom' (explicit range — requires from and to)" }
+          from: { type: 'string', description: 'Start date (YYYY-MM-DD). Required when period=custom.' }
+          to: { type: 'string', description: 'End date (YYYY-MM-DD). Required when period=custom.' }
+        notes: "pendingParcels/dispatchedParcels/deliveredParcels reflect parcel-level status counts, not order-level."
         responseStatus: 200
         responseBody: |
           {
@@ -833,7 +869,9 @@ collections:
         path: /dashboard/graph
         roles: [ADMIN]
         description: Returns monthly order counts for the orders-over-time chart. Always returns all 12 months; months with no orders have totalOrders=0.
-        notes: "Omit year to get current year data. Pass year (e.g. ?year=2024) to get a specific year. month values are 1-based (1=January, 12=December)."
+        parameters:
+          year: { type: 'number', description: 'Year to fetch data for (e.g. 2025). Omit for current year.' }
+        notes: "month values are 1-based (1=January, 12=December)."
         responseStatus: 200
         responseBody: |
           {

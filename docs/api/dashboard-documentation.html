@@ -180,7 +180,7 @@
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> period query param controls the time window: 'overall' (default) = all-time, 'daily' = today, 'weekly' = current week, 'monthly' = current month, 'custom' = explicit date range. When period=custom, both from and to (YYYY-MM-DD) are required. pendingParcels/dispatchedParcels/deliveredParcels reflect parcel-level status counts, not order-level.
+          <strong>Developer Note:</strong> pendingParcels/dispatchedParcels/deliveredParcels reflect parcel-level status counts, not order-level.
         </div>
       </div>
           <div class="meta-grid">
@@ -194,6 +194,34 @@
             </div>
           </div>
 
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>period</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Time window: 'overall' (default, all-time), 'daily' (today), 'weekly' (current week), 'monthly' (current month), 'custom' (explicit range — requires from and to)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>from</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Start date (YYYY-MM-DD). Required when period=custom.</td>
+                </tr>
+              
+                <tr>
+                  <td><code>to</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>End date (YYYY-MM-DD). Required when period=custom.</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 
@@ -232,7 +260,7 @@
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> Omit year to get current year data. Pass year (e.g. ?year=2024) to get a specific year. month values are 1-based (1=January, 12=December).
+          <strong>Developer Note:</strong> month values are 1-based (1=January, 12=December).
         </div>
       </div>
           <div class="meta-grid">
@@ -246,6 +274,22 @@
             </div>
           </div>
 
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>year</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Year to fetch data for (e.g. 2025). Omit for current year.</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 

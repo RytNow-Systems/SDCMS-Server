@@ -174,7 +174,7 @@
           <code class="endpoint-path">/employees</code>
         </div>
         <h3 class="endpoint-name">List Employees</h3>
-        <p class="endpoint-desc">Retrieves all employees.</p>
+        <p class="endpoint-desc">Paginated employee list with optional search and role filter.</p>
         
         
           <div class="meta-grid">
@@ -188,6 +188,40 @@
             </div>
           </div>
 
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>page</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Page number (default: 1)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>limit</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Items per page (default: 20)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>search</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Partial match against name or email</td>
+                </tr>
+              
+                <tr>
+                  <td><code>role</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Filter by role code (ADMIN, OPERATOR, COURIER)</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 
@@ -417,7 +451,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-13
       </footer>
     </main>
   </div>

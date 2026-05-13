@@ -174,7 +174,7 @@
           <code class="endpoint-path">/courier-partners</code>
         </div>
         <h3 class="endpoint-name">List Couriers</h3>
-        <p class="endpoint-desc">Retrieves all courier partners.</p>
+        <p class="endpoint-desc">Paginated courier partner list with optional search.</p>
         
         
           <div class="meta-grid">
@@ -188,6 +188,34 @@
             </div>
           </div>
 
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>page</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Page number (default: 1)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>limit</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Items per page (default: 20)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>search</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Partial match against courier name</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 
@@ -233,12 +261,15 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/courier-partners&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;courierName&quot;:&quot;TestCourier Express&quot;,&quot;trackingUrlTemplate&quot;:&quot;https://track.testcourier.com/awb/{AWB}&quot;}'</code></pre>
+  -d '{&quot;courierName&quot;:&quot;TestCourier Express&quot;,&quot;contactPerson&quot;:&quot;John Doe&quot;,&quot;phoneNo&quot;:&quot;9876543210&quot;,&quot;email&quot;:&quot;courier@example.com&quot;,&quot;trackingUrlTemplate&quot;:&quot;https://track.testcourier.com/awb/{AWB}&quot;}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
   &quot;courierName&quot;: &quot;TestCourier Express&quot;,
+  &quot;contactPerson&quot;: &quot;John Doe&quot;,
+  &quot;phoneNo&quot;: &quot;9876543210&quot;,
+  &quot;email&quot;: &quot;courier@example.com&quot;,
   &quot;trackingUrlTemplate&quot;: &quot;https://track.testcourier.com/awb/{AWB}&quot;
 }</code></pre>
       </div>
@@ -272,6 +303,22 @@
           </div>
 
         
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Courier partner primary key</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
       </div>
 
       <div class="endpoint-example">
@@ -294,7 +341,7 @@
           <code class="endpoint-path">/courier-partners/:id</code>
         </div>
         <h3 class="endpoint-name">Update Courier</h3>
-        <p class="endpoint-desc">Updates courier partner details.</p>
+        <p class="endpoint-desc">Updates courier partner details. All fields optional.</p>
         
         
           <div class="meta-grid">
@@ -316,12 +363,13 @@
         <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/courier-partners/:id&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;courierName&quot;:&quot;Updated Courier&quot;}'</code></pre>
+  -d '{&quot;courierName&quot;:&quot;Updated Courier&quot;,&quot;phoneNo&quot;:&quot;9876543210&quot;}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;courierName&quot;: &quot;Updated Courier&quot;
+  &quot;courierName&quot;: &quot;Updated Courier&quot;,
+  &quot;phoneNo&quot;: &quot;9876543210&quot;
 }</code></pre>
       </div>
         
@@ -370,7 +418,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-13
       </footer>
     </main>
   </div>

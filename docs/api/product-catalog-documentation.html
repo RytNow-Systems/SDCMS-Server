@@ -491,7 +491,7 @@
           <code class="endpoint-path">/products</code>
         </div>
         <h3 class="endpoint-name">List Products</h3>
-        <p class="endpoint-desc">Retrieves products filtered by categoryId or unitId.</p>
+        <p class="endpoint-desc">Retrieves products filtered by categoryId or unitId, paginated.</p>
         
         
           <div class="meta-grid">
@@ -514,15 +514,27 @@
             <tbody>
               
                 <tr>
+                  <td><code>page</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Page number (default: 1)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>limit</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Items per page (default: 20)</td>
+                </tr>
+              
+                <tr>
                   <td><code>categoryId</code></td>
                   <td><span class="type-tag">number</span></td>
-                  <td>Filter by category primary key</td>
+                  <td>Filter by category primary key (0 = no filter)</td>
                 </tr>
               
                 <tr>
                   <td><code>unitId</code></td>
                   <td><span class="type-tag">number</span></td>
-                  <td>Filter by unit primary key</td>
+                  <td>Filter by unit primary key (0 = no filter)</td>
                 </tr>
               
             </tbody>
@@ -561,13 +573,13 @@
           <code class="endpoint-path">/products</code>
         </div>
         <h3 class="endpoint-name">Create Product</h3>
-        <p class="endpoint-desc">Creates a new product with optional inline variations. categoryId and unitId are required. materialRate defaults to 0 if omitted (pricing is primarily per-variation).</p>
+        <p class="endpoint-desc">Creates a new product with a single inline variation (color + size). categoryId, colorId, and size are required at the top level — no nested variations array.</p>
         
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> categoryId and unitId are required. materialRate is optional (defaults to 0). The variations array is optional — omit it to create a product without variations.
+          <strong>Developer Note:</strong> categoryId, colorId, and size are required. materialRate is optional (defaults to 0). unitId is not accepted on create. If a product with the same name already exists, the new variation is auto-linked to that existing product instead of creating a duplicate.
         </div>
       </div>
           <div class="meta-grid">
@@ -589,27 +601,16 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;materialName&quot;:&quot;Heavy Equipment&quot;,&quot;categoryId&quot;:1,&quot;unitId&quot;:1,&quot;materialRate&quot;:500,&quot;variations&quot;:[{&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:550},{&quot;colorId&quot;:2,&quot;size&quot;:&quot;L&quot;,&quot;materialRate&quot;:600}]}'</code></pre>
+  -d '{&quot;materialName&quot;:&quot;Cotton Roll&quot;,&quot;categoryId&quot;:1,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:500}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;materialName&quot;: &quot;Heavy Equipment&quot;,
+  &quot;materialName&quot;: &quot;Cotton Roll&quot;,
   &quot;categoryId&quot;: <span class="json-number">1</span>,
-  &quot;unitId&quot;: <span class="json-number">1</span>,
-  &quot;materialRate&quot;: <span class="json-number">500</span>,
-  &quot;variations&quot;: [
-    {
-      &quot;colorId&quot;: <span class="json-number">1</span>,
-      &quot;size&quot;: &quot;M&quot;,
-      &quot;materialRate&quot;: <span class="json-number">550</span>
-    },
-    {
-      &quot;colorId&quot;: <span class="json-number">2</span>,
-      &quot;size&quot;: &quot;L&quot;,
-      &quot;materialRate&quot;: <span class="json-number">600</span>
-    }
-  ]
+  &quot;colorId&quot;: <span class="json-number">1</span>,
+  &quot;size&quot;: &quot;M&quot;,
+  &quot;materialRate&quot;: <span class="json-number">500</span>
 }</code></pre>
       </div>
         
@@ -619,22 +620,15 @@
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: {
     &quot;id&quot;: <span class="json-number">2</span>,
-    &quot;materialName&quot;: &quot;Heavy Equipment&quot;,
+    &quot;materialName&quot;: &quot;Cotton Roll&quot;,
     &quot;materialRate&quot;: <span class="json-number">500</span>,
     &quot;categoryId&quot;: <span class="json-number">1</span>,
-    &quot;unitId&quot;: <span class="json-number">1</span>,
     &quot;variations&quot;: [
       {
         &quot;variationId&quot;: <span class="json-number">1</span>,
         &quot;colorId&quot;: <span class="json-number">1</span>,
         &quot;size&quot;: &quot;M&quot;,
-        &quot;materialRate&quot;: <span class="json-number">550</span>
-      },
-      {
-        &quot;variationId&quot;: <span class="json-number">2</span>,
-        &quot;colorId&quot;: <span class="json-number">2</span>,
-        &quot;size&quot;: &quot;L&quot;,
-        &quot;materialRate&quot;: <span class="json-number">600</span>
+        &quot;materialRate&quot;: <span class="json-number">500</span>
       }
     ]
   }
@@ -828,7 +822,7 @@
           <code class="endpoint-path">/products/dropdown</code>
         </div>
         <h3 class="endpoint-name">Product Dropdown</h3>
-        <p class="endpoint-desc">Combined product + category flat dropdown list for order forms.</p>
+        <p class="endpoint-desc">Combined product + category flat dropdown list for order forms. Supports partial-match search.</p>
         
         
           <div class="meta-grid">
@@ -842,6 +836,22 @@
             </div>
           </div>
 
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>search</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Partial match against product name or category (optional)</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 
@@ -935,7 +945,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-13
       </footer>
     </main>
   </div>

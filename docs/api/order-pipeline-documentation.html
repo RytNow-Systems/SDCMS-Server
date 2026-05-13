@@ -206,19 +206,37 @@
                 <tr>
                   <td><code>page</code></td>
                   <td><span class="type-tag">number</span></td>
-                  <td>Current page number</td>
+                  <td>Page number (default: 1)</td>
                 </tr>
               
                 <tr>
                   <td><code>limit</code></td>
                   <td><span class="type-tag">number</span></td>
-                  <td>Number of items per page</td>
+                  <td>Items per page (default: 20)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>search</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Partial match against order code or sender name</td>
                 </tr>
               
                 <tr>
                   <td><code>status</code></td>
                   <td><span class="type-tag">string</span></td>
-                  <td>Filter by derived status (PENDING, DISPATCHED, etc.)</td>
+                  <td>Filter by derived status (PENDING, DISPATCHED, DELIVERED, CANCELLED)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>sortBy</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Field to sort by (default: created_at)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>sortOrder</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Sort direction: asc or desc (default: desc)</td>
                 </tr>
               
             </tbody>
@@ -578,7 +596,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-13
       </footer>
     </main>
   </div>
