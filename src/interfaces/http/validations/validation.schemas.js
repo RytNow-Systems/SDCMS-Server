@@ -77,19 +77,21 @@ const updateVariationItemSchema = z.object({
 
 export const createProductSchema = z.object({
   materialName: z.string().min(1, "Material name is required"),
-  materialRate: z
-    .number()
-    .nonnegative("Rate cannot be negative")
-    .optional()
-    .default(0),
-  cuItemCode: z.string().optional(),
   categoryId: z
     .number({ required_error: "Category ID is required" })
     .int()
     .positive("Valid category ID is required"),
-  unitId: z.number().int().positive("Valid unit ID is required").optional().default(1),
+  colorId: z
+    .number({ required_error: "Color ID is required" })
+    .int()
+    .positive("Valid color ID is required"),
+  size: z.string({ required_error: "Size is required" }).min(1, "Size is required"),
+  materialRate: z
+    .number({ required_error: "Price is required" })
+    .nonnegative("Price cannot be negative"),
+  isActive: z.boolean().optional(),
+  cuItemCode: z.string().optional(),
   materialDescription: z.string().optional(),
-  variations: z.array(createVariationItemSchema).optional(),
 });
 
 export const updateProductSchema = z.object({

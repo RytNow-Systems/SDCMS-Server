@@ -51,7 +51,15 @@ export const getProductById = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/products
 // @access  Private/Admin,Operator
 export const createProduct = asyncHandler(async (req, res) => {
-  const product = await productService.createProduct(req.body, req.user.id);
+  const { size, colorId, materialRate, isActive, ...rest } = req.body;
+
+  const productData = {
+    ...rest,
+    ...(isActive !== undefined && { isActive }),
+    variations: [{ size, colorId, materialRate }],
+  };
+
+  const product = await productService.createProduct(productData, req.user.id);
 
   res.status(201).json({
     success: true,
