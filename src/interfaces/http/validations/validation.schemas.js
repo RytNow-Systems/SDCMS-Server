@@ -66,9 +66,9 @@ const createVariationItemSchema = z.object({
     .nonnegative("Rate cannot be negative"),
 });
 
-// Variation item shape for updates (diff strategy: matrixId present = update, absent = insert, isActive:false = delete)
+// Variation item shape for updates (diff strategy: variationId present = update, absent = insert, isActive:false = delete)
 const updateVariationItemSchema = z.object({
-  matrixId: z.number().int().nonnegative().optional(),
+  variationId: z.number().int().nonnegative().optional(),
   colorId: z.number().int().positive("Valid color ID is required").optional(),
   size: z.string().min(1, "Size is required").optional(),
   materialRate: z.number().nonnegative("Rate cannot be negative").optional(),
@@ -87,10 +87,7 @@ export const createProductSchema = z.object({
     .number({ required_error: "Category ID is required" })
     .int()
     .positive("Valid category ID is required"),
-  unitId: z
-    .number({ required_error: "Unit ID is required" })
-    .int()
-    .positive("Valid unit ID is required"),
+  unitId: z.number().int().positive("Valid unit ID is required").optional().default(1),
   materialDescription: z.string().optional(),
   variations: z.array(createVariationItemSchema).optional(),
 });
@@ -117,7 +114,7 @@ export const productMatrixSchema = z.object({
   size: z
     .string({ required_error: "Size is required" })
     .min(1, "Size is required"),
-  matrixId: z.number().int().nonnegative().optional(),
+  variationId: z.number().int().nonnegative().optional(),
 });
 
 // ----------------------------------------------------------------------------

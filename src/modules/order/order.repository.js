@@ -560,6 +560,8 @@ class OrderRepository {
             ColorName: colorMatrixEntry?.ColorName || i.ColorName || null,
             // Size: from product_color_matrix (not stored on order_items directly)
             Size: colorMatrixEntry?.Size || null,
+            // VariationId: PkProductColorId from product_color_matrix, needed by PUT /orders/:id
+            VariationId: colorMatrixEntry?.PkProductColorId || null,
           };
         }),
         parcel: parcelRow

@@ -751,6 +751,8 @@ class OrderService {
             }
           : null,
         products: (r.items || []).map((i) => ({
+          orderItemId: i.PkOrderItemId || i.orderItemId || null,
+          variationId: i.VariationId || i.variationId || null,
           productId: i.FkProductId || i.fkProductId,
           quantity: i.OutwardQty || i.outwardQty,
           unitPrice: i.UnitPrice || i.unitPrice,
