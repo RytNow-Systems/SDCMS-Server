@@ -464,6 +464,38 @@ class ProductRepository {
    * Fetches products joined with category names for selection dropdowns.
    * @param {string} search - Partial match for name or category.
    */
+
+  /**
+   * Finds a single product_master row by exact MaterialName + FkProductCategoryId.
+   * Uses prc_product_master_search filtered in-memory — no SP change required.
+   * @param {string} name - MaterialName to match (case-insensitive)
+   * @param {number} categoryId - FkProductCategoryId to match
+   * @returns {Promise<object|null>}
+   */
+  async findByNameAndCategory(name, categoryId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [0, categoryId, 0],
+      );
+      const allRows = rows[0] || [];
+      return (
+        allRows.find(
+          (p) => p.MaterialName.toLowerCase() === name.toLowerCase(),
+        ) || null
+      );
+    }
+
+    return (
+      seedProducts.find(
+        (p) =>
+          p.IsActive &&
+          p.MaterialName.toLowerCase() === name.toLowerCase() &&
+          p.FkProductCategoryId === categoryId,
+      ) || null
+    );
+  }
+
   async getDropdown(search = "") {
     let products = [];
     let matrices = [];
@@ -574,6 +606,7 @@ class ProductRepository {
       // When it's an OkPacket, rows[0].insertId carries the auto-increment ID.
       const row = rows[0]?.[0];
       if (row?.PkProductId) return row;
+      if (row?.InsertedId) return { InsertedId: row.InsertedId };
       const insertId = rows[0]?.insertId;
       return insertId ? { InsertedId: insertId } : null;
     }
