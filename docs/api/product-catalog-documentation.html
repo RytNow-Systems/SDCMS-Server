@@ -717,13 +717,13 @@
           <code class="endpoint-path">/products/:id</code>
         </div>
         <h3 class="endpoint-name">Update Product</h3>
-        <p class="endpoint-desc">Updates product fields and/or manages variations. Supports two body shapes: (1) flat colorId+size for updating a single matched variation (strict — 404 if no match, use POST /:id/variations to insert new); (2) variations[] array for batch diff operations. All fields optional.</p>
+        <p class="endpoint-desc">Updates product fields and/or manages variations. Supports two body shapes: (1) flat variation identifiers (variationId OR colorId+size) for updating a single matched variation; (2) variations[] array for batch diff operations. All fields optional; partial data is merged with existing records.</p>
         
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> Two body shapes accepted. Flat (colorId + size at top level): finds the matching existing variation and updates it — 404 if no match exists; use POST /:id/variations to add new. Variations array: variationId present → update, variationId absent → insert new, variationId + isActive:false → soft-delete. Example batch body: { &quot;variations&quot;: [{ &quot;variationId&quot;: 1, &quot;colorId&quot;: 1, &quot;size&quot;: &quot;M&quot;, &quot;materialRate&quot;: 560 }, { &quot;colorId&quot;: 3, &quot;size&quot;: &quot;S&quot;, &quot;materialRate&quot;: 480 }, { &quot;variationId&quot;: 2, &quot;isActive&quot;: false }] }
+          <strong>Developer Note:</strong> Two body shapes accepted. Flat: Provide <code>variationId</code> OR <code>colorId</code> + <code>size</code> at top level to target a variation. Missing fields (like rate) are automatically filled from existing data. Batch: <code>variations[]</code> array supports diff operations (variationId present → update, absent → insert, isActive:false → delete).
         </div>
       </div>
           <div class="meta-grid">
@@ -741,18 +741,21 @@
       </div>
 
       <div class="endpoint-example">
-        <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/products/:id&quot; \
-  -H &quot;Authorization: Bearer {{authToken}}&quot; \
-  -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;materialRate&quot;:560,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;}'</code></pre>
+        <div class="section-label">cURL Example (Flat Update by ID)</div>
+        <pre class="code-block curl-block"><code>curl -X PUT "{{base_url}}/products/:id" \
+  -H "Authorization: Bearer {{authToken}}" \
+  -H "Content-Type: application/json" \
+  -d '{"variationId":2, "materialRate":450}'</code></pre>
         
       <div class="section-group">
-        <div class="section-label">Request Body</div>
+        <div class="section-label">Request Body (Batch Update)</div>
         <pre class="code-block"><code>{
-  &quot;materialRate&quot;: <span class="json-number">560</span>,
-  &quot;colorId&quot;: <span class="json-number">1</span>,
-  &quot;size&quot;: &quot;M&quot;
+  "materialName": "Updated Name",
+  "variations": [
+    { "variationId": 1, "materialRate": 560 },
+    { "colorId": 3, "size": "S", "materialRate": 480 },
+    { "variationId": 2, "isActive": false }
+  ]
 }</code></pre>
       </div>
         

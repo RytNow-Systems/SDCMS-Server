@@ -420,27 +420,45 @@ class ProductService {
   async updateProduct(id, updates, adminId) {
     const existing = await this.getProductById(id);
 
-    // Convert flat colorId/size format to variations array (strict update-only)
-    if (updates.colorId && updates.size && !Array.isArray(updates.variations)) {
+    // Convert flat variation identifiers (variationId or colorId+size) to variations array
+    if (
+      (updates.variationId || (updates.colorId && updates.size)) &&
+      !Array.isArray(updates.variations)
+    ) {
       const existingVariations = await productRepository.getColorMatrix(id);
-      const match = existingVariations.find(
-        (e) => e.FkLuColorId == updates.colorId && e.Size == updates.size,
-      );
+      let match;
+
+      if (updates.variationId) {
+        match = existingVariations.find(
+          (e) => String(e.PkProductColorId) === String(updates.variationId),
+        );
+      } else {
+        match = existingVariations.find(
+          (e) =>
+            String(e.FkLuColorId) === String(updates.colorId) &&
+            e.Size === updates.size,
+        );
+      }
+
       if (!match) {
+        const identifier = updates.variationId
+          ? `variationId=${updates.variationId}`
+          : `colorId=${updates.colorId}, size=${updates.size}`;
         const error = new Error(
-          `No variation found for colorId=${updates.colorId}, size=${updates.size}. Use POST /products/${id}/variations to add new variations.`,
+          `No variation found for ${identifier}. Use POST /products/${id}/variations to add new variations.`,
         );
         error.statusCode = 404;
         throw error;
       }
+
       updates = {
         ...updates,
         variations: [
           {
             variationId: match.PkProductColorId,
-            colorId: updates.colorId,
-            size: updates.size,
-            materialRate: updates.materialRate,
+            colorId: updates.colorId ?? match.FkLuColorId,
+            size: updates.size ?? match.Size,
+            materialRate: updates.materialRate ?? match.MaterialRate,
           },
         ],
       };
@@ -549,43 +567,49 @@ class ProductService {
    * @param {number} adminId - User ID.
    */
   async _processUpdateVariations(variations, productId, adminId) {
+    // Optimization: Fetch once if we have existing variations to update
+    const hasUpdates = variations.some((v) => v.variationId > 0);
+    const existingVariations = hasUpdates
+      ? await productRepository.getColorMatrix(productId)
+      : [];
+
     for (const v of variations) {
       const variationId = v.variationId || 0;
       const isActive = v.isActive === false ? 0 : 1;
 
-      if (variationId > 0 && isActive === 0) {
-        // Soft-delete: fetch existing to fill required SP params
-        const existingVariations =
-          await productRepository.getColorMatrix(productId);
+      if (variationId > 0) {
+        // UPDATE or DELETE path: ensure we have existing data to fill blanks
         const existing = existingVariations.find(
           (row) => row.PkProductColorId === variationId,
         );
+
         if (existing) {
+          const internalData = {
+            FkLuColorId: v.colorId ?? existing.FkLuColorId,
+            MaterialRate: v.materialRate ?? existing.MaterialRate,
+            Size: v.size ?? existing.Size,
+          };
           await productRepository.setColorMatrix(
             variationId,
             productId,
-            {
-              FkLuColorId: existing.FkLuColorId,
-              MaterialRate: existing.MaterialRate,
-              Size: existing.Size,
-            },
+            internalData,
             adminId,
-            0,
+            isActive,
           );
         }
       } else {
-        // Insert or update
+        // INSERT path (variationId is 0 or absent)
         const internalData = {
           FkLuColorId: v.colorId,
           MaterialRate: v.materialRate,
           Size: v.size,
         };
         await productRepository.setColorMatrix(
-          variationId,
+          0,
           productId,
           internalData,
           adminId,
-          isActive,
+          1,
         );
       }
     }
