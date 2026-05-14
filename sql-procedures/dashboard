@@ -1,0 +1,103 @@
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_dashboard_graph_get`(pAction INT, pYear INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:dashboard
+Input Parameter	: pAction, pYear
+Output Parameter : dashboard graph data
+Description : used to retrieve dashboard graph data for orders
+****************************************************/
+
+    DECLARE pCurrentDate DATE;
+    DECLARE pCurrentYear INT;
+
+    SET pCurrentDate = CURDATE();
+    SET pCurrentYear = YEAR(pCurrentDate);
+
+    IF pAction = 0 THEN -- Current Year Graph Data
+
+        SELECT MONTH(OrderDate) AS MonthNo, COUNT(PkOrderId) AS TotalOrders FROM order_master
+        WHERE IsActive = 1 AND YEAR(OrderDate) = pCurrentYear
+        GROUP BY MONTH(OrderDate)
+        ORDER BY MONTH(OrderDate);
+
+    END IF;
+
+    IF pAction = 1 THEN -- Specific Year Graph Data
+
+        SELECT MONTH(OrderDate) AS MonthNo, COUNT(PkOrderId) AS TotalOrders FROM order_master
+        WHERE IsActive = 1 AND YEAR(OrderDate) = pYear
+        GROUP BY MONTH(OrderDate)
+        ORDER BY MONTH(OrderDate);
+
+    END IF;
+
+END
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_dashboard_metrics_get`(pAction INT, pFromDate DATE, pToDate DATE)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:dashboard
+Input Parameter	: pAction, pFromDate, pToDate
+Output Parameter : dashboard metrics
+Description : used to retrieve dashboard summary metrics for orders and parcel statuses
+****************************************************/
+
+    DECLARE pCurrentDate DATE DEFAULT NOW();
+    DECLARE pWeeklyFromDate DATE;
+    DECLARE pMonthlyFromDate DATE;
+
+    SET pWeeklyFromDate = DATE_SUB(pCurrentDate, INTERVAL WEEKDAY(pCurrentDate) DAY);
+    SET pMonthlyFromDate = DATE_SUB(pCurrentDate, INTERVAL DAYOFMONTH(pCurrentDate) - 1 DAY);
+
+    IF pAction = 0 THEN -- Overall Summary Counts
+        SELECT
+            (SELECT COUNT(*) FROM order_master WHERE IsActive = 1) AS TotalOrders,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1) AS PendingParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4) AS DispatchedParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5) AS DeliveredParcels;
+    END IF;
+
+    IF pAction = 1 THEN -- Daily Summary Counts
+        SELECT
+            (SELECT COUNT(*) FROM order_master WHERE IsActive = 1 AND DATE(CreatedDate) = pCurrentDate) AS TotalOrders,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1 AND DATE(CreatedDate) = pCurrentDate) AS PendingParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4 AND DATE(CreatedDate) = pCurrentDate) AS DispatchedParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5 AND DATE(CreatedDate) = pCurrentDate) AS DeliveredParcels;
+    END IF;
+
+    IF pAction = 2 THEN -- Weekly Summary Counts
+        SELECT
+            (SELECT COUNT(*) FROM order_master WHERE IsActive = 1 AND DATE(CreatedDate) >= pWeeklyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS TotalOrders,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1 AND DATE(CreatedDate) >= pWeeklyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS PendingParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4 AND DATE(CreatedDate) >= pWeeklyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS DispatchedParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5 AND DATE(CreatedDate) >= pWeeklyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS DeliveredParcels;
+    END IF;
+
+    IF pAction = 3 THEN -- Monthly Summary Counts
+        SELECT
+            (SELECT COUNT(*) FROM order_master WHERE IsActive = 1 AND DATE(CreatedDate) >= pMonthlyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS TotalOrders,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1 AND DATE(CreatedDate) >= pMonthlyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS PendingParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4 AND DATE(CreatedDate) >= pMonthlyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS DispatchedParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5 AND DATE(CreatedDate) >= pMonthlyFromDate AND DATE(CreatedDate) <= pCurrentDate) AS DeliveredParcels;
+    END IF;
+
+    IF pAction = 4 THEN -- Custom Date Range Summary Counts
+        SELECT
+            (SELECT COUNT(*) FROM order_master WHERE IsActive = 1 AND DATE(CreatedDate) >= pFromDate AND DATE(CreatedDate) <= pToDate) AS TotalOrders,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 1 AND DATE(CreatedDate) >= pFromDate AND DATE(CreatedDate) <= pToDate) AS PendingParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 4 AND DATE(CreatedDate) >= pFromDate AND DATE(CreatedDate) <= pToDate) AS DispatchedParcels,
+            (SELECT COUNT(*) FROM parcel_details WHERE FkParcelStatusId = 5 AND DATE(CreatedDate) >= pFromDate AND DATE(CreatedDate) <= pToDate) AS DeliveredParcels;
+    END IF;
+
+   /* IF pAction = 5 THEN -- Recent Logins
+        SELECT FullName, ContactNumber, UserName, CreatedDate
+        FROM employee_master
+        WHERE IsActive = 1
+        ORDER BY CreatedDate DESC
+        LIMIT 10;
+    END IF;*/
+END
+---

@@ -1,0 +1,102 @@
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_master_get`(pAction INT, pPkProductId INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pAction, pPkProductId
+Output Parameter : product details
+Description : used to retrieve product master details based on action and product id
+****************************************************/
+
+    IF pAction = 0 THEN
+        SELECT product_master.PkProductId, product_master.FkProductCategoryId, product_master.FkUnitId, product_master.MaterialCode, product_master.MaterialName, product_master.cu_item_code, product_master.MaterialRate, product_master.MaterialDescription, product_master.CreatedBy, product_master.CreatedDate, product_master.UpdatedBy, product_master.UpdatedDate, product_master.IsActive,
+               IFNULL(product_category.CategoryName, '') AS CategoryName, IFNULL(lu_unit.UnitTitle, '') AS UnitTitle
+        FROM product_master
+        LEFT JOIN product_category ON product_category.PkProductCategoryId = product_master.FkProductCategoryId
+        LEFT JOIN lu_unit ON lu_unit.PkUnitId = product_master.FkUnitId
+        ORDER BY product_master.PkProductId DESC;
+    END IF;
+
+    IF pAction = 1 THEN
+        SELECT product_master.PkProductId, product_master.FkProductCategoryId, product_master.FkUnitId, product_master.MaterialCode, product_master.MaterialName, product_master.cu_item_code, product_master.MaterialRate, product_master.MaterialDescription, product_master.CreatedBy, product_master.CreatedDate, product_master.UpdatedBy, product_master.UpdatedDate, product_master.IsActive,
+               IFNULL(product_category.CategoryName, '') AS CategoryName, IFNULL(lu_unit.UnitTitle, '') AS UnitTitle
+        FROM product_master
+        LEFT JOIN product_category ON product_category.PkProductCategoryId = product_master.FkProductCategoryId
+        LEFT JOIN lu_unit ON lu_unit.PkUnitId = product_master.FkUnitId
+        WHERE product_master.PkProductId = pPkProductId
+		ORDER BY product_master.PkProductId;
+    END IF;
+
+END
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_master_set`(pPkProductId INT, pFkProductCategoryId INT, pFkUnitId INT, pMaterialCode VARCHAR(50), pMaterialName VARCHAR(100), pcu_item_code VARCHAR(50), pMaterialRate DECIMAL(10,2), pMaterialDescription TEXT, pCreatedBy INT, pIsActive INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pPkProductId, pFkProductCategoryId, pFkUnitId, pMaterialCode, pMaterialName, pcu_item_code, pMaterialRate, pMaterialDescription, pCreatedBy, pIsActive
+Output Parameter : product details
+Description : used to insert and update product master details
+****************************************************/
+
+DECLARE pProdId INT;
+
+	IF pPkProductId = 0 THEN
+		INSERT INTO product_master (FkProductCategoryId, FkUnitId, MaterialCode, MaterialName, cu_item_code, MaterialRate, MaterialDescription, CreatedBy, CreatedDate, IsActive)
+						VALUES (pFkProductCategoryId, pFkUnitId, pMaterialCode, pMaterialName, pcu_item_code, pMaterialRate, pMaterialDescription, pCreatedBy, NOW(), pIsActive);
+
+		SELECT LAST_INSERT_ID() INTO pProdId;
+
+		SELECT pProdId AS InsertedId;
+
+	ELSE
+		UPDATE product_master SET
+		FkProductCategoryId = pFkProductCategoryId, FkUnitId = pFkUnitId, MaterialCode = pMaterialCode, MaterialName = pMaterialName, cu_item_code = pcu_item_code, MaterialRate = pMaterialRate, MaterialDescription = pMaterialDescription, UpdatedBy = pCreatedBy, UpdatedDate = NOW(), IsActive = pIsActive
+		WHERE PkProductId = pPkProductId;
+
+	END IF;
+
+END
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_master_search`(pPkProductId int(11), pFkProductCategoryId int(11), pFkUnitId int(11))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Admin
+File name in solution	: Admin/product_master.aspx
+UserControl/Field Name : model-product
+Input Parameter	: pPkProductId, pFkProductCategoryId, pFkUnitId
+Output Parameter : PkProductId, FkProductCategoryId, FkUnitId, MaterialCode, MaterialName, cu_item_code, MaterialRate, MaterialDescription, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy, CreateUserName, UpdateUserName, CategoryName, UnitTitle, UnitCode, IsActive
+Description : used to display list of product details as per given constraints
+****************************************************/
+		SELECT  product_master.PkProductId, product_master.FkProductCategoryId, product_master.FkUnitId, product_master.MaterialCode, product_master.MaterialName, product_master.cu_item_code, product_master.MaterialRate, product_master.MaterialDescription,
+						 product_master.CreatedDate, product_master.CreatedBy, product_master.UpdatedDate, product_master.UpdatedBy,
+					IFNULL(CretedUser.FullName,'') as CreateUserName, IFNULL(UpdatedUser.FullName,'') as UpdateUserName,
+					IFNULL(product_category.CategoryName,'') as CategoryName, IFNULL(lu_unit.UnitTitle,'') as UnitTitle, IFNULL(lu_unit.UnitCode,'') as UnitCode,
+                    (CASE WHEN product_master.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM    product_master
+			LEFT JOIN product_category ON product_category.PkProductCategoryId = product_master.FkProductCategoryId
+			LEFT JOIN lu_unit ON lu_unit.PkUnitId = product_master.FkUnitId
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = product_master.CreatedBy
+			LEFT JOIN employee_master UpdatedUser ON UpdatedUser.EmployeeCode = product_master.UpdatedBy
+		WHERE product_master.PkProductId = CASE WHEN pPkProductId = 0 THEN product_master.PkProductId ELSE pPkProductId END AND
+					product_master.FkProductCategoryId = CASE WHEN pFkProductCategoryId = 0 THEN product_master.FkProductCategoryId ELSE pFkProductCategoryId END AND
+					product_master.FkUnitId = CASE WHEN pFkUnitId = 0 THEN product_master.FkUnitId ELSE pFkUnitId END
+		ORDER BY product_master.PkProductId;
+
+END
+---
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_check_duplicate_product_master`(pPkProductId INT, pFkProductCategoryId INT, pFkUnitId INT, pMaterialName VARCHAR(100))
+BEGIN
+	IF pPkProductId = 0 THEN
+		SELECT COUNT(*) AS DataCount FROM product_master WHERE FkProductCategoryId = pFkProductCategoryId AND FkUnitId = pFkUnitId AND MaterialName = pMaterialName;
+	END IF;
+
+	IF pPkProductId > 0 THEN
+		SELECT COUNT(*) AS DataCount FROM product_master WHERE FkProductCategoryId = pFkProductCategoryId AND FkUnitId = pFkUnitId AND MaterialName = pMaterialName AND PkProductId <> pPkProductId;
+	END IF;
+END
+
+---
