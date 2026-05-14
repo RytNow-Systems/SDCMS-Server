@@ -620,15 +620,18 @@ class OrderService {
    * @private
    */
   _checkPhysicalExecutionBegun(parcels, action = "update") {
-    const blockStatuses = ["AWB Linked", "Dispatched", "Delivered"];
+    const blockStatusIds = [3, 4, 5]; // AWB Linked=3, Dispatched=4, Delivered=5
+    const blockStatusNames = ["AWB Linked", "Dispatched", "Delivered"];
     if (
-      parcels.some((p) =>
-        blockStatuses.includes(
-          p.ParcelStatusName ||
-            p.StatusDescription ||
-            p.FkParcelStatusId ||
-            p.parcelStatusCode,
-        ),
+      parcels.some(
+        (p) =>
+          blockStatusIds.includes(p.FkParcelStatusId) ||
+          blockStatusNames.includes(
+            p.ParcelStatusName ||
+              p.StatusDescription ||
+              p.status ||
+              p.parcelStatusCode,
+          ),
       )
     ) {
       const error = new Error(
