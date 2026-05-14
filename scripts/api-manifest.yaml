@@ -160,7 +160,7 @@ collections:
           unitId: { type: 'number', description: 'Filter by unit primary key (0 = no filter)' }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "id": 1, "variationId": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryName": "Textiles", "colorId": 1, "colorName": "Red", "size": "M", "isActive": true }] }
+          { "success": true, "data": [{ "productId": 1, "variationId": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryName": "Textiles", "colorId": 1, "colorName": "Red", "size": "M", "isActive": true }] }
         notes: "Each list item now includes variationId (PkProductColorId) and the full color/size matrix fields so the frontend can target specific variations without a secondary lookup."
         assertions:
           - "res.status equals 200"
