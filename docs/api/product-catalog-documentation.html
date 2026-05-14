@@ -723,9 +723,49 @@
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> Two body shapes accepted. Flat: Provide <code>variationId</code> OR <code>colorId</code> + <code>size</code> at top level to target a variation. Missing fields (like rate) are automatically filled from existing data. Batch: <code>variations[]</code> array supports diff operations (variationId present → update, absent → insert, isActive:false → delete).
+          <strong>Developer Note:</strong> This API is now highly flexible. It supports partial updates by automatically merging your request with existing database data. You no longer need to send all variation fields just to change a price.
         </div>
       </div>
+
+      <div class="section-label">Update Use Cases</div>
+      <table class="params-table">
+        <thead>
+          <tr><th style="width:30%">Scenario</th><th>Request Body Example</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. Update Price by ID</strong><br/><small>Easiest way if you have the internal ID.</small></td>
+            <td><pre style="margin:0; font-size:11px;">{
+  "variationId": 2,
+  "materialRate": 450
+}</pre></td>
+          </tr>
+          <tr>
+            <td><strong>2. Update by Color/Size</strong><br/><small>Use when targeting a specific combination without ID.</small></td>
+            <td><pre style="margin:0; font-size:11px;">{
+  "colorId": 1,
+  "size": "M",
+  "materialRate": 480
+}</pre></td>
+          </tr>
+          <tr>
+            <td><strong>3. Update Product Name Only</strong><br/><small>Updates top-level fields only.</small></td>
+            <td><pre style="margin:0; font-size:11px;">{
+  "materialName": "New Display Name"
+}</pre></td>
+          </tr>
+          <tr>
+            <td><strong>4. Batch (The "Full Form")</strong><br/><small>Update, Add, and Delete variations in one go.</small></td>
+            <td><pre style="margin:0; font-size:11px;">{
+  "variations": [
+    { "variationId": 2, "materialRate": 460 },
+    { "colorId": 5, "size": "XL", "materialRate": 600 },
+    { "variationId": 133, "isActive": false }
+  ]
+}</pre></td>
+          </tr>
+        </tbody>
+      </table>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
