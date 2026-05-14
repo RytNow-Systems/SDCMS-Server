@@ -52,6 +52,9 @@ class ProductService {
       unitTitle: product.UnitTitle || null,
       colorName: product.ColorName || null,
       size: product.Size || null,
+      variationIsActive: product.VariationIsActive !== undefined
+        ? (product.VariationIsActive == 1 || product.VariationIsActive === true)
+        : null,
       isActive: (() => {
         const val =
           product.IsActive !== undefined ? product.IsActive : product.isActive;
@@ -427,7 +430,22 @@ class ProductService {
    * @returns {Promise<object>} API-friendly product with variations.
    */
   async updateProduct(id, updates, adminId) {
-    const existing = await this.getProductById(id);
+    const existingRaw = await productRepository.findById(id, { includeDeleted: true });
+    if (!existingRaw) {
+      const err = new Error("Product not found.");
+      err.statusCode = 404;
+      throw err;
+    }
+    const _isActive = (val) => {
+      if (Buffer.isBuffer(val)) return val[0] === 1;
+      return val === 1 || val === true || val === "1" || val === "Active";
+    };
+    if (!_isActive(existingRaw.IsActive)) {
+      const err = new Error("Product is inactive. Reactivate it before making changes.");
+      err.statusCode = 409;
+      throw err;
+    }
+    const existing = this._mapToApi(existingRaw);
 
     // Track whether the caller sent a flat variation update (single field shorthand)
     // vs an explicit batch. This determines the shape of the response.
@@ -440,7 +458,7 @@ class ProductService {
     ) {
       isFlatUpdate = true; // caller used the flat shorthand — return a single object
 
-      const existingVariations = await productRepository.getColorMatrix(id);
+      const existingVariations = await productRepository.getColorMatrix(id, { includeDeleted: true });
       let match;
 
       if (updates.variationId) {
@@ -628,7 +646,7 @@ class ProductService {
     // Optimization: Fetch once if we have existing variations to update
     const hasUpdates = variations.some((v) => v.variationId > 0);
     const existingVariations = hasUpdates
-      ? await productRepository.getColorMatrix(productId)
+      ? await productRepository.getColorMatrix(productId, { includeDeleted: true })
       : [];
 
     for (const v of variations) {

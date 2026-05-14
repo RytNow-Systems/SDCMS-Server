@@ -329,7 +329,7 @@ class ProductRepository {
    * @returns {Promise<{data: Array, total: number}>} Paginated product list with color/size matrix
    */
   async findAll(filters = {}) {
-    const { categoryId = 0, unitId = 0, page = 1, limit = 20 } = filters;
+    const { categoryId = 0, unitId = 0, page = 1, limit = 20, includeInactive = false } = filters;
 
     let products = [];
     let matrices = [];
@@ -345,7 +345,7 @@ class ProductRepository {
         return val === 1 || val === true || val === "1" || val === "Active";
       };
       products = (pRows[0] || []).filter((p) => _isActiveRow(p.IsActive));
-      matrices = await this.getAllColorMatrix();
+      matrices = await this.getAllColorMatrix({ includeDeleted: includeInactive });
     } else {
       // Apply filters in mock mode
       products = seedProducts
@@ -366,7 +366,7 @@ class ProductRepository {
             UnitTitle: unit?.UnitTitle || "N/A",
           };
         });
-      matrices = seedColorMatrix.filter((m) => m.IsActive);
+      matrices = includeInactive ? seedColorMatrix : seedColorMatrix.filter((m) => m.IsActive);
     }
 
     // Step 2: Build flat list with color/size matrix (same logic as getDropdown)
@@ -392,6 +392,7 @@ class ProductRepository {
             FkProductCategoryId: p.FkProductCategoryId,
             FkUnitId: p.FkUnitId,
             IsActive: p.IsActive,
+            VariationIsActive: v.IsActive,
             CreatedDate: p.CreatedDate,
           });
         }
@@ -730,15 +731,16 @@ class ProductRepository {
    * CALL prc_product_color_matrix_get(pAction=0, 0)
    * @returns {Promise<Array>} All color matrix records.
    */
-  async getAllColorMatrix() {
+  async getAllColorMatrix(options = {}) {
     if (process.env.USE_MOCK_DB !== "true") {
       const [rows] = await db.execute(
         "CALL prc_product_color_matrix_get(?, ?)",
         [0, 0],
       );
-      return rows[0] || [];
+      const allRows = rows[0] || [];
+      return options.includeDeleted ? allRows : allRows.filter((r) => r.IsActive == 1);
     }
-    return seedColorMatrix.filter((m) => m.IsActive);
+    return options.includeDeleted ? seedColorMatrix : seedColorMatrix.filter((m) => m.IsActive);
   }
 
   /**

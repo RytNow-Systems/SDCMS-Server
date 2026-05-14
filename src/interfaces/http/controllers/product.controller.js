@@ -17,6 +17,7 @@ export const getProducts = asyncHandler(async (req, res) => {
     limit: parseInt(req.query.limit) || 20,
     categoryId: parseInt(req.query.categoryId) || 0,
     unitId: parseInt(req.query.unitId) || 0,
+    includeInactive: req.query.includeInactive === 'true',
   };
 
   const { data, total } = await productService.getProducts(filters);
@@ -39,7 +40,8 @@ export const getProducts = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/products/:id
 // @access  Private/Admin,Operator
 export const getProductById = asyncHandler(async (req, res) => {
-  const product = await productService.getProductById(req.params.id);
+  const options = { includeDeleted: req.query.includeInactive === 'true' };
+  const product = await productService.getProductById(req.params.id, options);
 
   res.status(200).json({
     success: true,
