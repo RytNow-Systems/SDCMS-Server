@@ -136,7 +136,9 @@ class EmployeeRepository {
    * @param {object} params - { page, limit, search, role, allowLogin }
    * @returns {Promise<object>} { data: [...], meta: { page, limit, totalRows, totalPages } }
    */
-  async findAll({ page = 1, limit = 20, search, role, allowLogin }) {
+  async findAll({ page = 1, limit = 20, search, role, allowLogin, includeInactive } = {}) {
+    const showInactive = includeInactive === true || includeInactive === 'true';
+
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_employee_master_search (EmployeeCode=0, RoleId filtering logic)
     // ------------------------------------------------------------------
@@ -151,10 +153,10 @@ class EmployeeRepository {
       
       let results = rows[0] || [];
       
-      // Filter out soft-deleted employees
-      results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
+      if (!showInactive) {
+        results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
+      }
       
-      // In-memory filter for search and allowLogin if they are not handled by SP
       if (search && search.trim()) {
         const s = search.trim().toLowerCase();
         results = results.filter(e => 
@@ -182,8 +184,9 @@ class EmployeeRepository {
     // ------------------------------------------------------------------
     let results = [...seedEmployees];
 
-    // Filter out soft-deleted employees
-    results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
+    if (!showInactive) {
+      results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
+    }
 
     if (role) results = results.filter(e => e.RoleCode === role);
     if (search && search.trim()) {
@@ -194,7 +197,6 @@ class EmployeeRepository {
       results = results.filter(e => e.AllowLogin === (allowLogin === 'true' || allowLogin === true));
     }
 
-    // Pagination
     const startIndex = (page - 1) * limit;
     const paginatedItems = results.slice(startIndex, startIndex + limit);
 
