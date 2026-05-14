@@ -39,6 +39,9 @@ class ProductService {
 
     return {
       productId: product.PkProductId || product.id,
+      // variationId is included so the list view exposes the specific variation PK
+      // alongside productId, enabling the frontend to target updates precisely.
+      variationId: product.PkProductColorId || product.variationId || null,
       materialName: matName,
       materialRate: product.MaterialRate || product.materialRate,
       cuItemCode: product.cu_item_code || product.cuItemCode || null,
@@ -420,11 +423,17 @@ class ProductService {
   async updateProduct(id, updates, adminId) {
     const existing = await this.getProductById(id);
 
+    // Track whether the caller sent a flat variation update (single field shorthand)
+    // vs an explicit batch. This determines the shape of the response.
+    let isFlatUpdate = false;
+
     // Convert flat variation identifiers (variationId or colorId+size) to variations array
     if (
       (updates.variationId || (updates.colorId && updates.size)) &&
       !Array.isArray(updates.variations)
     ) {
+      isFlatUpdate = true; // caller used the flat shorthand — return a single object
+
       const existingVariations = await productRepository.getColorMatrix(id);
       let match;
 
@@ -509,9 +518,52 @@ class ProductService {
       await this._processUpdateVariations(updates.variations, id, adminId);
     }
 
-    // Re-fetch full product with variations for response
+    // -------------------------------------------------------------------------
+    // Scope the response to only what was changed rather than the entire product.
+    // NOTE: We use getColorMatrix directly (prc_product_color_matrix_get) because
+    // getProductById relies on prc_product_master_search which does NOT join
+    // variation columns — so full.variations would always come back empty.
+    // -------------------------------------------------------------------------
+    if (Array.isArray(updates.variations) && updates.variations.length > 0) {
+      // Build a Set of the variation IDs that were part of this update
+      const updatedVariationIds = new Set(
+        updates.variations
+          .filter((v) => v.variationId)
+          .map((v) => String(v.variationId)),
+      );
+
+      // Fetch fresh variations directly from the color matrix SP
+      const allVariations = await productRepository.getColorMatrix(id);
+      const mappedVariations = allVariations.map((v) =>
+        this._mapMatrixToApi(v),
+      );
+
+      // Filter to only those that were mutated in this request
+      const updatedVariations = mappedVariations.filter((v) => {
+        // Match by variationId when present
+        if (updatedVariationIds.size > 0 && v.variationId) {
+          return updatedVariationIds.has(String(v.variationId));
+        }
+        // Fallback: match by colorId + size for new insert operations
+        return updates.variations.some(
+          (u) =>
+            String(u.colorId) === String(v.colorId) && u.size === v.size,
+        );
+      });
+
+      if (isFlatUpdate) {
+        // Flat update — caller expects a single variation object, not an array
+        return updatedVariations[0] ?? mappedVariations[0];
+      }
+      // Batch update — return the array of matched variations only
+      return updatedVariations;
+    }
+
+    // Only product-level fields were changed (no variation updates).
+    // Return the product without the variations array to keep the response lean.
     const full = await this.getProductById(id);
-    return full;
+    const { variations: _omitted, ...productFields } = full;
+    return productFields;
   }
 
   /**
