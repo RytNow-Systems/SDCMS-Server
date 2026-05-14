@@ -79,10 +79,10 @@ class CourierService {
     return this._mapToApi(courier);
   }
 
-  async deleteCourier(id, adminId) {
+  async updateCourierStatus(id, isActive, adminId) {
     // Business Rule checking - in production, verify courier isn't linked to active orders
     // before allowing even a soft delete.
-    const success = await courierRepository.delete(id, adminId);
+    const success = await courierRepository.updateStatus(id, isActive, adminId);
     if (!success) {
       const error = new Error("Courier partner not found");
       error.statusCode = 404;

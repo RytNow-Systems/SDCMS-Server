@@ -207,11 +207,24 @@ collections:
           - "res.status equals 200"
           - "res.body.success is true"
 
-      - name: Delete Product
-        method: DELETE
-        path: /products/:id
+      - name: Toggle Product Status
+        method: PATCH
+        path: /products/:id/status
         roles: [ADMIN, OPERATOR]
-        description: Soft-deletes a product from the catalog.
+        description: Activates or deactivates a product and all its variations (cascading).
+        headers: { Content-Type: application/json }
+        body: |
+          { "isActive": false }
+        responseStatus: 200
+
+      - name: Toggle Variation Status
+        method: PATCH
+        path: /products/:id/variations/:variationId/status
+        roles: [ADMIN, OPERATOR]
+        description: Granular toggle for a specific color/size variation.
+        headers: { Content-Type: application/json }
+        body: |
+          { "isActive": true }
         responseStatus: 200
 
       - name: Product Name Search (Autosuggest)
@@ -303,11 +316,14 @@ collections:
           { "name": "Updated Name" }
         responseStatus: 200
 
-      - name: Delete Employee
-        method: DELETE
-        path: /employees/:id
+      - name: Toggle Employee Status
+        method: PATCH
+        path: /employees/:id/status
         roles: [ADMIN]
-        description: Soft-deletes an employee (sets IsActive=0). Deactivated employees are excluded from all GET responses.
+        description: Soft-deletes or reactivates an employee. Deactivated employees are excluded from standard GET responses.
+        headers: { Content-Type: application/json }
+        body: |
+          { "isActive": false }
         responseStatus: 200
 
       - name: Toggle Employee Access

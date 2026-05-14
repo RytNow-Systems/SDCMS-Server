@@ -118,19 +118,22 @@ class CourierRepository {
    * @param {number|string} id - CourierId.
    * @returns {Promise<object|null>} Courier record or null.
    */
-  async findById(id) {
+  async findById(id, options = {}) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_courier_partner_master_get (pAction=1)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [1, id]);
-      return rows[0]?.[0] || null;
+      const courier = rows[0]?.[0] || null;
+      if (courier && !options.includeDeleted && !courier.IsActive) return null;
+      return courier;
     }
 
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory lookup by CourierId
     // ------------------------------------------------------------------
-    const courier = seedCouriers.find((c) => c.CourierId.toString() === id.toString() && c.IsActive);
+    const courier = seedCouriers.find((c) => c.CourierId.toString() === id.toString());
+    if (courier && !options.includeDeleted && !courier.IsActive) return null;
     return courier || null;
   }
 
@@ -254,40 +257,41 @@ class CourierRepository {
   }
 
   /**
-   * Soft-deletes a courier partner (sets IsActive=0).
+   * Updates the status (isActive) of a courier partner.
    * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)
-   * Convention: Pass IsActive=0 for soft-delete.
+   * Convention: Pass IsActive=isActive for soft-delete/reactivation.
    *
    * @param {number|string} id - CourierId.
-   * @param {number|string} adminId - ID of the deleting admin
-   * @returns {Promise<boolean>} True if deleted, false if not found.
+   * @param {boolean} isActive - Desired active state.
+   * @param {number|string} adminId - ID of the updating admin.
+   * @returns {Promise<boolean>} True if updated, false if not found.
    */
-  async delete(id, adminId) {
+  async updateStatus(id, isActive, adminId) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_courier_partner_master_set (IsActive=0 → Soft Delete)
+    // LIVE DB MODE: prc_courier_partner_master_set (IsActive toggle)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, { includeDeleted: true });
       if (!existing) return false;
 
-      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
+      await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
         id,
         existing.CourierName,
         existing.PhoneNumber ?? null,
         existing.TrackingUrlTemplate,
         adminId || null,
-        0     // IsActive=0 → Soft delete
+        isActive ? 1 : 0
       ]);
       return true;
     }
 
     // ------------------------------------------------------------------
-    // MOCK MODE: In-memory soft delete
+    // MOCK MODE: In-memory status update
     // ------------------------------------------------------------------
-    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString() && c.IsActive);
+    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString());
     if (index === -1) return false;
 
-    seedCouriers[index].IsActive = false;
+    seedCouriers[index].IsActive = isActive;
     return true;
   }
 }

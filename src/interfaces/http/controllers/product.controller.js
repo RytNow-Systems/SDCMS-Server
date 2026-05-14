@@ -109,15 +109,16 @@ export const getProductDropdown = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Delete product
-// @route   DELETE /api/v1/products/:id
+// @desc    Toggle product active status (soft delete / reactivate)
+// @route   PATCH /api/v1/products/:id/status
 // @access  Private/Admin,Operator
-export const deleteProduct = asyncHandler(async (req, res) => {
-  await productService.deleteProduct(req.params.id, req.user.id);
+export const updateProductStatus = asyncHandler(async (req, res) => {
+  const { isActive } = req.body;
+  await productService.updateProductStatus(req.params.id, isActive, req.user.id);
 
   res.status(200).json({
     success: true,
-    message: "Product successfully removed",
+    message: `Product successfully ${isActive ? 'activated' : 'deactivated'}`,
   });
 });
 
@@ -135,6 +136,42 @@ export const addProductVariation = asyncHandler(async (req, res) => {
   res.status(status).json({
     success: true,
     data: variation,
+  });
+});
+
+// @desc    Toggle product variation status
+// @route   PATCH /api/v1/products/:id/variations/:variationId/status
+// @access  Private/Admin,Operator
+export const updateVariationStatus = asyncHandler(async (req, res) => {
+  const { isActive } = req.body;
+  const productId = parseInt(req.params.id);
+  const variationId = parseInt(req.params.variationId);
+
+  // Fetch current variation to preserve data (including inactive ones for reactivation)
+  const product = await productService.getProductById(productId, { includeDeleted: true });
+  const variation = product.variations.find(v => v.variationId === variationId);
+
+  if (!variation) {
+    const error = new Error("Variation not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  await productService.addOrUpdateColorMatrix(
+    productId,
+    {
+      variationId,
+      colorId: variation.colorId,
+      materialRate: variation.materialRate,
+      size: variation.size,
+      isActive // This field is handled by setColorMatrix in repository
+    },
+    req.user.id
+  );
+
+  res.status(200).json({
+    success: true,
+    message: `Variation successfully ${isActive ? 'activated' : 'deactivated'}`,
   });
 });
 

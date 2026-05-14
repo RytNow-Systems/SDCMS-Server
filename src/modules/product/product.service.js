@@ -178,8 +178,8 @@ class ProductService {
   /**
    * Retrieves a specific product by ID.
    */
-  async getProductById(id) {
-    const product = await productRepository.findById(id);
+  async getProductById(id, options = {}) {
+    const product = await productRepository.findById(id, options);
     if (!product) {
       const error = new Error("Product not found");
       error.statusCode = 404;
@@ -638,12 +638,16 @@ class ProductService {
   }
 
   /**
-   * Soft-deletes a product.
+   * Updates product active status (soft delete/reactivate).
+   * @param {number|string} id - PkProductId.
+   * @param {boolean} isActive - Desired active state.
+   * @param {number} adminId - User ID.
+   * @returns {Promise<boolean>} True on success.
    */
-  async deleteProduct(id, adminId) {
-    const success = await productRepository.delete(id, adminId);
+  async updateProductStatus(id, isActive, adminId) {
+    const success = await productRepository.updateStatus(id, isActive, adminId);
     if (!success) {
-      const error = new Error("Product not found or deletion failed.");
+      const error = new Error("Product not found or update failed.");
       error.statusCode = 404;
       throw error;
     }

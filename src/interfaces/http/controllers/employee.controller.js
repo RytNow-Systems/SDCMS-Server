@@ -77,14 +77,17 @@ export const toggleAccess = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Delete an employee
-// @route   DELETE /api/v1/employees/:id
+// @desc    Toggle employee active status (soft delete / reactivate)
+// @route   PATCH /api/v1/employees/:id/status
 // @access  Private/Admin
-export const deleteEmployee = asyncHandler(async (req, res) => {
+export const updateEmployeeStatus = asyncHandler(async (req, res) => {
   const adminId = req.user.id;
-  const deletedEmployee = await employeeService.deleteEmployee(adminId, req.params.id);
-  res.json({
+  const { isActive } = req.body;
+  const updatedEmployee = await employeeService.updateEmployeeStatus(adminId, req.params.id, isActive);
+
+  res.status(200).json({
     success: true,
-    data: deletedEmployee
+    message: `Employee successfully ${isActive ? 'activated' : 'deactivated'}`,
+    data: updatedEmployee
   });
 });

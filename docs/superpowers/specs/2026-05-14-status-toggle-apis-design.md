@@ -48,7 +48,37 @@ Each endpoint will accept a JSON body containing the desired state:
     *   In `product.repository.js`, the `updateStatus` method must cascade the `isActive` state to its color matrix variations, updating them to the parent's new status instead of blindly deleting them.
 
 ## Verification & Testing
-*   Ensure the mock DB logic correctly flips statuses back and forth.
-*   Verify that passing `isActive: false` effectively hides the records from standard `GET` listings.
-*   Verify that admins cannot disable themselves (Employee module).
-*   Test that variations are appropriately disabled/enabled alongside parent Products.
+Verification will be performed using `curl` with admin credentials.
+
+**Admin Credentials:**
+- Email: `admin@test.com`
+- Password: `admin`
+
+### Verification Steps (for each module):
+1. **Login:**
+   ```bash
+   curl -X POST http://localhost:5000/api/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email": "admin@test.com", "password": "admin"}'
+   ```
+2. **Identify ID:** List resources and pick an ID.
+3. **Toggle OFF:**
+   ```bash
+   curl -X PATCH http://localhost:5000/api/v1/[resource]/:id/status \
+     -H "Authorization: Bearer <JWT>" \
+     -H "Content-Type: application/json" \
+     -d '{"isActive": false}'
+   ```
+4. **Verify OFF:** Check that `isActive` is `false` in details/list.
+5. **Toggle ON:**
+   ```bash
+   curl -X PATCH http://localhost:5000/api/v1/[resource]/:id/status \
+     -H "Authorization: Bearer <JWT>" \
+     -H "Content-Type: application/json" \
+     -d '{"isActive": true}'
+   ```
+6. **Verify ON:** Check that `isActive` is `true`.
+
+### Special Checks:
+- **Product Cascades:** Verify that `GET /api/v1/products/:id` shows all variations have their `isActive` status synced with the parent product after a status toggle.
+- **Employee Self-Safety:** Attempting to `PATCH /api/v1/employees/[own_id]/status` with `isActive: false` should return a `400 Bad Request`.

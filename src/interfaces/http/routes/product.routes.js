@@ -9,7 +9,8 @@ import {
   getProductById,
   createProduct,
   updateProduct,
-  deleteProduct,
+  updateProductStatus,
+  updateVariationStatus,
   getProductDropdown,
   searchProducts,
   addProductVariation,
@@ -28,7 +29,8 @@ import {
   productVariationSchema,
   createCategorySchema,
   createColorSchema,
-  createUnitSchema
+  createUnitSchema,
+  statusToggleSchema
 } from '../validations/validation.schemas.js';
 
 const router = express.Router();
@@ -64,10 +66,14 @@ router.get('/dropdown', getProductDropdown);
 
 router.route('/:id')
   .get(getProductById)
-  .put(validate(updateProductSchema), updateProduct)
-  .delete(deleteProduct);
+  .put(validate(updateProductSchema), updateProduct);
+
+router.patch('/:id/status', validate(statusToggleSchema), updateProductStatus);
 
 // Color/Size matrix variation for a specific product
 router.post('/:id/variations', validate(productVariationSchema), addProductVariation);
+
+// Toggle specific variation status
+router.patch('/:id/variations/:variationId/status', validate(statusToggleSchema), updateVariationStatus);
 
 export default router;

@@ -435,7 +435,7 @@ class ProductRepository {
    * @param {number|string} id - PkProductId.
    * @returns {Promise<object|null>} Product record (with variations) or null.
    */
-  async findById(id) {
+  async findById(id, options = {}) {
     if (process.env.USE_MOCK_DB !== "true") {
       const [rows] = await db.execute(
         "CALL prc_product_master_search(?, ?, ?)",
@@ -443,19 +443,16 @@ class ProductRepository {
       );
       const product = rows[0]?.[0] || null;
       if (product) {
-        product.variations = await this.getColorMatrix(id);
+        if (!options.includeDeleted && !product.IsActive) return null;
+        product.variations = await this.getColorMatrix(id, options);
       }
       return product;
     }
 
-    const product =
-      seedProducts.find(
-        (p) => p.PkProductId.toString() === id.toString() && p.IsActive,
-      ) || null;
+    const product = seedProducts.find((p) => p.PkProductId.toString() === id.toString());
     if (product) {
-      product.variations = seedColorMatrix.filter(
-        (m) => m.FkProductId.toString() === id.toString() && m.IsActive,
-      );
+      if (!options.includeDeleted && !product.IsActive) return null;
+      product.variations = await this.getColorMatrix(id, options);
     }
     return product;
   }
@@ -702,21 +699,29 @@ class ProductRepository {
    * @param {number|string} productId - FkProductId.
    * @returns {Promise<Array>} List of color matrix records.
    */
-  async getColorMatrix(productId) {
+  async getColorMatrix(productId, options = {}) {
     if (process.env.USE_MOCK_DB !== "true") {
+      // Note: If SP prc_product_color_matrix_get always filters by IsActive=1,
+      // reactivation might require a different action or SP update.
       const [rows] = await db.execute(
         "CALL prc_product_color_matrix_get(?, ?)",
         [0, productId],
       );
       const allRows = rows[0] || [];
-      // Defensive JS-side filter: SP pAction=0 may return all rows if
-      // the WHERE clause for FkProductId is missing (known SP bug).
-      return allRows.filter((r) => String(r.FkProductId) === String(productId));
+      return allRows.filter((r) => {
+        const matchesProduct = String(r.FkProductId) === String(productId);
+        if (!matchesProduct) return false;
+        if (!options.includeDeleted && !r.IsActive) return false;
+        return true;
+      });
     }
 
-    return seedColorMatrix.filter(
-      (m) => m.FkProductId.toString() === productId.toString() && m.IsActive,
-    );
+    return seedColorMatrix.filter((m) => {
+      const matchesProduct = m.FkProductId.toString() === productId.toString();
+      if (!matchesProduct) return false;
+      if (!options.includeDeleted && !m.IsActive) return false;
+      return true;
+    });
   }
 
   /**
@@ -793,15 +798,20 @@ class ProductRepository {
   // --------------------------------------------------------------------------
 
   /**
-   * Soft-deletes a product by setting IsActive to 0.
-   * Requires fetching current state to satisfy the full SP parameter list.
+   * Updates the active status of a product (soft delete/reactivate).
+   * Cascades the status change to all linked variations.
+   *
+   * @param {number|string} id - Product ID.
+   * @param {boolean} isActive - Desired status.
+   * @param {number} adminId - Performer ID.
    */
-  async delete(id, adminId) {
-    const current = await this.findById(id);
+  async updateStatus(id, isActive, adminId) {
+    const current = await this.findById(id, { includeDeleted: true });
     if (!current) return false;
 
-    // Cascade soft-delete to color matrix variations
-    const variations = await this.getColorMatrix(id);
+    // Cascade status change to color matrix variations
+    // We fetch ALL variations (including inactive) to ensure we can reactivate them
+    const variations = await this.getColorMatrix(id, { includeDeleted: true });
     for (const v of variations) {
       await this.setColorMatrix(
         v.PkProductColorId,
@@ -812,7 +822,7 @@ class ProductRepository {
           Size: v.Size,
         },
         adminId,
-        0, // IsActive = 0
+        isActive ? 1 : 0, // Cascade the status
       );
     }
 
@@ -829,7 +839,7 @@ class ProductRepository {
           current.MaterialRate,
           current.MaterialDescription,
           adminId,
-          0, // Soft Delete
+          isActive ? 1 : 0, // Toggle Status
         ],
       );
       return true;
@@ -838,7 +848,7 @@ class ProductRepository {
     const idx = seedProducts.findIndex(
       (p) => p.PkProductId.toString() === id.toString(),
     );
-    if (idx !== -1) seedProducts[idx].IsActive = false;
+    if (idx !== -1) seedProducts[idx].IsActive = isActive;
     return true;
   }
 }

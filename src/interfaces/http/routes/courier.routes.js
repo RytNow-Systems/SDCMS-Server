@@ -9,11 +9,11 @@ import {
   getCourierById,
   createCourier,
   updateCourier,
-  deleteCourier
+  updateCourierStatus
 } from '../controllers/courier.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 import { validate } from '../../../shared/middleware/validate.middleware.js';
-import { createCourierSchema, updateCourierSchema } from '../validations/validation.schemas.js';
+import { createCourierSchema, updateCourierSchema, statusToggleSchema } from '../validations/validation.schemas.js';
 
 const router = express.Router();
 
@@ -29,7 +29,8 @@ router.route('/')
 router.route('/:id')
   .get(authorizeRoles('ADMIN'), getCourierById)
   // PUT and DELETE require ADMIN
-  .put(authorizeRoles('ADMIN'), validate(updateCourierSchema), updateCourier)
-  .delete(authorizeRoles('ADMIN'), deleteCourier);
+  .put(authorizeRoles('ADMIN'), validate(updateCourierSchema), updateCourier);
+
+router.patch('/:id/status', authorizeRoles('ADMIN'), validate(statusToggleSchema), updateCourierStatus);
 
 export default router;

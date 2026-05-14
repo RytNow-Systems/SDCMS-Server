@@ -58,7 +58,7 @@ let seedEmployees = [
     FullName: 'Test Admin',
     UserName: 'admin_test',
     EmailAddress: 'admin@test.com',
-    Password: '$2b$10$7q5X3B2T1W6eG4H5R6T7U8I9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C', // Correct hash for 'admin'
+    Password: '$2b$10$fqXc34qlWp/vhT3GchezUeDUyyoowDN9g1KAfuXzIgOSnFzFijlZ2', // bcrypt hash for 'admin'
     RoleCode: 'ADMIN',
     AllowLogin: true,
     IsActive: 1,
@@ -374,16 +374,17 @@ class EmployeeRepository {
   }
 
   /**
-   * Soft deletes an employee record by setting IsActive to 0.
+   * Updates the active status of an employee record (Soft Delete/Reactivate).
    * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
-   * Convention: EmployeeCode>0 with IsActive = 0 flag.
+   * Convention: EmployeeCode>0 with IsActive flag.
    *
    * @param {number|string} id - EmployeeCode.
+   * @param {boolean} isActive - Desired active state.
    * @returns {Promise<object|null>} Updated employee record or null.
    */
-  async delete(id) {
+  async updateStatus(id, isActive) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: soft delete via findById + prc_employee_master_set
+    // LIVE DB MODE: status update via findById + prc_employee_master_set
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       const existing = await this.findById(id, { includeDeleted: true });
@@ -399,22 +400,19 @@ class EmployeeRepository {
         existing.FkRoleId,
         existing.AllowLogin !== undefined ? (existing.AllowLogin ? 1 : 0) : 1,
         1, // pCreatedBy
-        0  // pIsActive = 0
+        isActive ? 1 : 0  // pIsActive
       ]);
       
       return await this.findById(id, { includeDeleted: true });
     }
 
     // ------------------------------------------------------------------
-    // MOCK MODE: In-memory soft delete
+    // MOCK MODE: In-memory status update
     // ------------------------------------------------------------------
     const index = seedEmployees.findIndex((e) => e.EmployeeCode.toString() === id.toString());
     if (index === -1) return null;
 
-    // Check if already soft deleted
-    if (seedEmployees[index].IsActive === 0 || seedEmployees[index].IsActive === false) return null;
-
-    seedEmployees[index].IsActive = 0;
+    seedEmployees[index].IsActive = isActive ? 1 : 0;
     return seedEmployees[index];
   }
 }

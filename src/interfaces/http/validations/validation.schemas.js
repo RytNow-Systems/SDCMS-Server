@@ -273,3 +273,10 @@ export const createAddressSchema = z.object({
   country: z.string().optional(),
   isDefault: z.boolean().optional(),
 });
+
+// ----------------------------------------------------------------------------
+// COMMON SCHEMAS
+// ----------------------------------------------------------------------------
+export const statusToggleSchema = z.object({
+  isActive: z.boolean({ required_error: "isActive boolean is required" }),
+});
