@@ -81,6 +81,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
+    message: 'Product updated successfully',
     data: product,
   });
 });
@@ -117,10 +118,12 @@ export const getProductDropdown = asyncHandler(async (req, res) => {
 export const updateProductStatus = asyncHandler(async (req, res) => {
   const { isActive } = req.body;
   await productService.updateProductStatus(req.params.id, isActive, req.user.id);
+  const product = await productService.getProductById(req.params.id);
 
   res.status(200).json({
     success: true,
     message: `Product successfully ${isActive ? 'activated' : 'deactivated'}`,
+    data: product,
   });
 });
 
@@ -159,7 +162,7 @@ export const updateVariationStatus = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  await productService.addOrUpdateColorMatrix(
+  const updatedVariation = await productService.addOrUpdateColorMatrix(
     productId,
     {
       variationId,
@@ -174,6 +177,7 @@ export const updateVariationStatus = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: `Variation successfully ${isActive ? 'activated' : 'deactivated'}`,
+    data: updatedVariation,
   });
 });
 
