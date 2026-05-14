@@ -52,6 +52,17 @@ let seedEmployees = [
     RoleCode: 'COURIER',
     AllowLogin: true,
     CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    EmployeeCode: 4,
+    FullName: 'Test Admin',
+    UserName: 'admin_test',
+    EmailAddress: 'admin@test.com',
+    Password: '$2b$10$7q5X3B2T1W6eG4H5R6T7U8I9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C', // Correct hash for 'admin'
+    RoleCode: 'ADMIN',
+    AllowLogin: true,
+    IsActive: 1,
+    CreatedDate: new Date().toISOString()
   }
 ];
 
