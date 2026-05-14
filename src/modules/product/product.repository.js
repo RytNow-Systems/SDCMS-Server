@@ -697,18 +697,18 @@ class ProductRepository {
 
   /**
    * Creates or updates a color/size matrix entry for a product.
-   * @param {number} matrixId - PkProductColorId (0 = insert, >0 = update).
+   * @param {number} variationId - PkProductColorId (0 = insert, >0 = update).
    * @param {number} productId - FkProductId.
    * @param {object} data - { FkLuColorId, MaterialRate, Size }.
    * @param {number} adminId - User ID of creator.
    * @returns {Promise<object>} The upserted matrix record.
    */
-  async setColorMatrix(matrixId, productId, data, adminId, isActive = 1) {
+  async setColorMatrix(variationId, productId, data, adminId, isActive = 1) {
     if (process.env.USE_MOCK_DB !== "true") {
       const [rows] = await db.execute(
         "CALL prc_product_color_matrix_set(?, ?, ?, ?, ?, ?, ?)",
         [
-          matrixId || 0,
+          variationId || 0,
           productId,
           data.FkLuColorId,
           data.MaterialRate,
@@ -721,9 +721,9 @@ class ProductRepository {
     }
 
     // --- MOCK IN-MEMORY LOGIC ---
-    if (matrixId && matrixId > 0) {
+    if (variationId && variationId > 0) {
       const idx = seedColorMatrix.findIndex(
-        (m) => m.PkProductColorId === matrixId,
+        (m) => m.PkProductColorId === variationId,
       );
       if (idx !== -1) {
         seedColorMatrix[idx] = {

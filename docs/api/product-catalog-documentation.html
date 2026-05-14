@@ -717,13 +717,13 @@
           <code class="endpoint-path">/products/:id</code>
         </div>
         <h3 class="endpoint-name">Update Product</h3>
-        <p class="endpoint-desc">Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use matrixId to distinguish: present = update, absent = insert, isActive:false = soft-delete.</p>
+        <p class="endpoint-desc">Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use variationId to distinguish: present = update, absent = insert, isActive:false = soft-delete.</p>
         
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> All fields optional. Variations diff: matrixId present → update, matrixId absent → insert new, matrixId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors.
+          <strong>Developer Note:</strong> All fields optional. Variations diff: variationId present → update, variationId absent → insert new, variationId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors.
         </div>
       </div>
           <div class="meta-grid">
@@ -745,7 +745,7 @@
         <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/products/:id&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;materialRate&quot;:550,&quot;variations&quot;:[{&quot;matrixId&quot;:1,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:560},{&quot;colorId&quot;:3,&quot;size&quot;:&quot;S&quot;,&quot;materialRate&quot;:480},{&quot;matrixId&quot;:2,&quot;isActive&quot;:false}]}'</code></pre>
+  -d '{&quot;materialRate&quot;:550,&quot;variations&quot;:[{&quot;variationId&quot;:1,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:560},{&quot;colorId&quot;:3,&quot;size&quot;:&quot;S&quot;,&quot;materialRate&quot;:480},{&quot;variationId&quot;:2,&quot;isActive&quot;:false}]}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
@@ -753,7 +753,7 @@
   &quot;materialRate&quot;: <span class="json-number">550</span>,
   &quot;variations&quot;: [
     {
-      &quot;matrixId&quot;: <span class="json-number">1</span>,
+      &quot;variationId&quot;: <span class="json-number">1</span>,
       &quot;colorId&quot;: <span class="json-number">1</span>,
       &quot;size&quot;: &quot;M&quot;,
       &quot;materialRate&quot;: <span class="json-number">560</span>
@@ -764,7 +764,7 @@
       &quot;materialRate&quot;: <span class="json-number">480</span>
     },
     {
-      &quot;matrixId&quot;: <span class="json-number">2</span>,
+      &quot;variationId&quot;: <span class="json-number">2</span>,
       &quot;isActive&quot;: <span class="json-bool">false</span>
     }
   ]
@@ -885,7 +885,7 @@
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
-          <code class="endpoint-path">/products/:id/matrix</code>
+          <code class="endpoint-path">/products/:id/variations</code>
         </div>
         <h3 class="endpoint-name">Add/Update Product Color Matrix (Standalone)</h3>
         <p class="endpoint-desc">Standalone endpoint to add or update a single color/size pricing variation. Kept as a fallback for individual variation edits outside the product form.</p>
@@ -894,7 +894,7 @@
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> Pass matrixId in body for updates. Omit matrixId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations.
+          <strong>Developer Note:</strong> Pass variationId in body for updates. Omit variationId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations.
         </div>
       </div>
           <div class="meta-grid">
@@ -913,7 +913,7 @@
 
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products/:id/matrix&quot; \
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products/:id/variations&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;fkLuColorId&quot;:1,&quot;materialRate&quot;:550,&quot;size&quot;:&quot;M&quot;}'</code></pre>

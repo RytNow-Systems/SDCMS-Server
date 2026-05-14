@@ -197,12 +197,12 @@ collections:
         method: PUT
         path: /products/:id
         roles: [ADMIN, OPERATOR]
-        description: "Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use matrixId to distinguish: present = update, absent = insert, isActive:false = soft-delete."
+        description: "Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use variationId to distinguish: present = update, absent = insert, isActive:false = soft-delete."
         headers: { Content-Type: application/json }
         body: |
-          { "materialRate": 550, "variations": [{ "matrixId": 1, "colorId": 1, "size": "M", "materialRate": 560 }, { "colorId": 3, "size": "S", "materialRate": 480 }, { "matrixId": 2, "isActive": false }] }
+          { "materialRate": 550, "variations": [{ "variationId": 1, "colorId": 1, "size": "M", "materialRate": 560 }, { "colorId": 3, "size": "S", "materialRate": 480 }, { "variationId": 2, "isActive": false }] }
         responseStatus: 200
-        notes: "All fields optional. Variations diff: matrixId present → update, matrixId absent → insert new, matrixId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors."
+        notes: "All fields optional. Variations diff: variationId present → update, variationId absent → insert new, variationId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors."
         assertions:
           - "res.status equals 200"
           - "res.body.success is true"
@@ -230,7 +230,7 @@ collections:
 
       - name: Add/Update Product Color Matrix (Standalone)
         method: POST
-        path: /products/:id/matrix
+        path: /products/:id/variations
         roles: [ADMIN, OPERATOR]
         description: Standalone endpoint to add or update a single color/size pricing variation. Kept as a fallback for individual variation edits outside the product form.
         headers: { Content-Type: application/json }
@@ -239,7 +239,7 @@ collections:
         responseStatus: 201
         responseBody: |
           { "success": true, "data": { "variationId": 3, "productId": 1, "colorId": 1, "materialRate": 550, "size": "M" } }
-        notes: "Pass matrixId in body for updates. Omit matrixId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations."
+        notes: "Pass variationId in body for updates. Omit variationId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations."
         assertions:
           - "res.status equals 201"
           - "res.body.data.materialRate equals 550"

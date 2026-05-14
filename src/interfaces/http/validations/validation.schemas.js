@@ -99,14 +99,16 @@ export const updateProductSchema = z.object({
   materialRate: z.number().nonnegative("Rate cannot be negative").optional(),
   cuItemCode: z.string().optional(),
   categoryId: z.number().int().positive().optional(),
+  colorId: z.number().int().positive().optional(),
+  size: z.string().min(1).optional(),
   unitId: z.number().int().positive().optional(),
   materialDescription: z.string().optional(),
   isActive: z.boolean().optional(),
   variations: z.array(updateVariationItemSchema).optional(),
 });
 
-export const productMatrixSchema = z.object({
-  fkLuColorId: z
+export const productVariationSchema = z.object({
+  colorId: z
     .number({ required_error: "Color ID is required" })
     .int()
     .positive("Valid color ID is required"),

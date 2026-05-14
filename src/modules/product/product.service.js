@@ -109,7 +109,9 @@ class ProductService {
    */
   _mapMatrixToInternal(apiData) {
     const internal = {};
-    if (apiData.fkLuColorId !== undefined)
+    if (apiData.colorId !== undefined)
+      internal.FkLuColorId = apiData.colorId;
+    else if (apiData.fkLuColorId !== undefined)
       internal.FkLuColorId = apiData.fkLuColorId;
     if (apiData.materialRate !== undefined)
       internal.MaterialRate = apiData.materialRate;
@@ -408,6 +410,33 @@ class ProductService {
    */
   async updateProduct(id, updates, adminId) {
     const existing = await this.getProductById(id);
+
+    // Convert flat colorId/size format to variations array (strict update-only)
+    if (updates.colorId && updates.size && !Array.isArray(updates.variations)) {
+      const existingVariations = await productRepository.getColorMatrix(id);
+      const match = existingVariations.find(
+        (e) => e.FkLuColorId == updates.colorId && e.Size == updates.size,
+      );
+      if (!match) {
+        const error = new Error(
+          `No variation found for colorId=${updates.colorId}, size=${updates.size}. Use POST /products/${id}/variations to add new variations.`,
+        );
+        error.statusCode = 404;
+        throw error;
+      }
+      updates = {
+        ...updates,
+        variations: [
+          {
+            variationId: match.PkProductColorId,
+            colorId: updates.colorId,
+            size: updates.size,
+            materialRate: updates.materialRate,
+          },
+        ],
+      };
+    }
+
     const internalUpdates = this._mapToInternal(updates);
 
     // Merge partial updates with existing record to prevent undefined SP params

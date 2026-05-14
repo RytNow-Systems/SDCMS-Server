@@ -11,7 +11,7 @@ import {
   updateProduct,
   deleteProduct,
   getProductDropdown,
-  addProductMatrix,
+  addProductVariation,
   getProductCategories,
   createProductCategory,
   getProductUnits,
@@ -24,7 +24,7 @@ import { validate } from '../../../shared/middleware/validate.middleware.js';
 import {
   createProductSchema,
   updateProductSchema,
-  productMatrixSchema,
+  productVariationSchema,
   createCategorySchema,
   createColorSchema,
   createUnitSchema
@@ -64,6 +64,6 @@ router.route('/:id')
   .delete(deleteProduct);
 
 // Color/Size matrix variation for a specific product
-router.post('/:id/matrix', validate(productMatrixSchema), addProductMatrix);
+router.post('/:id/variations', validate(productVariationSchema), addProductVariation);
 
 export default router;
