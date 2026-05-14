@@ -99,6 +99,7 @@ export const updateProductSchema = z.object({
   materialRate: z.number().nonnegative("Rate cannot be negative").optional(),
   cuItemCode: z.string().optional(),
   categoryId: z.number().int().positive().optional(),
+  variationId: z.number().int().positive().optional(),
   colorId: z.number().int().positive().optional(),
   size: z.string().min(1).optional(),
   unitId: z.number().int().positive().optional(),
