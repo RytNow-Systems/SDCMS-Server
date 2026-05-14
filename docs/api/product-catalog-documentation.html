@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Product Catalog</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Categories</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Category</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Units</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm post">POST</span>Create Unit</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get Colors</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm post">POST</span>Create Color</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>List Products</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm post">POST</span>Create Product</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm get">GET</span>Get Product by ID</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Product</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Product</a><a href="#ep-11" class="toc-item"><span class="method-badge-sm get">GET</span>Product Name Search (Autosuggest)</a><a href="#ep-12" class="toc-item"><span class="method-badge-sm get">GET</span>Product Dropdown</a><a href="#ep-13" class="toc-item"><span class="method-badge-sm post">POST</span>Add/Update Product Color Matrix (Standalone)</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Categories</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Category</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Units</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm post">POST</span>Create Unit</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get Colors</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm post">POST</span>Create Color</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>List Products</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm post">POST</span>Create Product</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm get">GET</span>Get Product by ID</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Product</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Product Status</a><a href="#ep-11" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Variation Status</a><a href="#ep-12" class="toc-item"><span class="method-badge-sm get">GET</span>Product Name Search (Autosuggest)</a><a href="#ep-13" class="toc-item"><span class="method-badge-sm get">GET</span>Product Dropdown</a><a href="#ep-14" class="toc-item"><span class="method-badge-sm post">POST</span>Add/Update Product Color Matrix (Standalone)</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -494,6 +494,12 @@
         <p class="endpoint-desc">Retrieves products filtered by categoryId or unitId, paginated.</p>
         
         
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> Each list item now includes variationId (PkProductColorId) and the full color/size matrix fields so the frontend can target specific variations without a secondary lookup.
+        </div>
+      </div>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
@@ -555,9 +561,14 @@
   &quot;data&quot;: [
     {
       &quot;id&quot;: <span class="json-number">1</span>,
+      &quot;variationId&quot;: <span class="json-number">1</span>,
       &quot;materialName&quot;: &quot;Cotton Roll&quot;,
       &quot;materialRate&quot;: <span class="json-number">500</span>,
-      &quot;categoryName&quot;: &quot;Textiles&quot;
+      &quot;categoryName&quot;: &quot;Textiles&quot;,
+      &quot;colorId&quot;: <span class="json-number">1</span>,
+      &quot;colorName&quot;: &quot;Red&quot;,
+      &quot;size&quot;: &quot;M&quot;,
+      &quot;isActive&quot;: <span class="json-bool">true</span>
     }
   ]
 }</code></pre>
@@ -717,55 +728,35 @@
           <code class="endpoint-path">/products/:id</code>
         </div>
         <h3 class="endpoint-name">Update Product</h3>
-        <p class="endpoint-desc">Updates product fields and/or manages variations. Supports two body shapes: (1) flat variation identifiers (variationId OR colorId+size) for updating a single matched variation; (2) variations[] array for batch diff operations. All fields optional; partial data is merged with existing records.</p>
+        <p class="endpoint-desc">Updates product fields and/or manages variations. Supports three body shapes — see notes for scoped response shapes per mode.</p>
         
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> This API is now highly flexible. It supports partial updates by automatically merging your request with existing database data. You no longer need to send all variation fields just to change a price.
+          <strong>Developer Note:</strong> Three body shapes accepted, each returning a different scoped response:
+
+1. Flat (colorId + size at root): Finds the matching existing variation by colorId+size and updates it.
+   Returns a single variation object: { variationId, colorId, colorName, size, materialRate, isActive }.
+   404 if no match — use POST /:id/variations to insert a new variation.
+
+2. Flat (variationId at root): Directly targets the variation by its PK and updates it.
+   Returns the same single variation object.
+
+3. Variations array (batch diff): Accepts a 'variations' array where:
+   - variationId present → UPDATE that variation
+   - variationId absent → INSERT new variation
+   - variationId + isActive:false → soft-delete
+   Returns an array containing only the variations that were part of the request (mutated subset, not the full product).
+
+4. Product-level-only (no variation fields at root, no variations array):
+   Updates product master fields only (e.g. materialName, categoryId, unitId).
+   Returns product fields without a 'variations' key, keeping the response lean.
+
+Example batch body: { &quot;variations&quot;: [{ &quot;variationId&quot;: 1, &quot;colorId&quot;: 1, &quot;size&quot;: &quot;M&quot;, &quot;materialRate&quot;: 560 }, { &quot;colorId&quot;: 3, &quot;size&quot;: &quot;S&quot;, &quot;materialRate&quot;: 480 }, { &quot;variationId&quot;: 2, &quot;isActive&quot;: false }] }
+
         </div>
       </div>
-
-      <div class="section-label">Update Use Cases</div>
-      <table class="params-table">
-        <thead>
-          <tr><th style="width:30%">Scenario</th><th>Request Body Example</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>1. Update Price by ID</strong><br/><small>Easiest way if you have the internal ID.</small></td>
-            <td><pre style="margin:0; font-size:11px;">{
-  "variationId": 2,
-  "materialRate": 450
-}</pre></td>
-          </tr>
-          <tr>
-            <td><strong>2. Update by Color/Size</strong><br/><small>Use when targeting a specific combination without ID.</small></td>
-            <td><pre style="margin:0; font-size:11px;">{
-  "colorId": 1,
-  "size": "M",
-  "materialRate": 480
-}</pre></td>
-          </tr>
-          <tr>
-            <td><strong>3. Update Product Name Only</strong><br/><small>Updates top-level fields only.</small></td>
-            <td><pre style="margin:0; font-size:11px;">{
-  "materialName": "New Display Name"
-}</pre></td>
-          </tr>
-          <tr>
-            <td><strong>4. Batch (The "Full Form")</strong><br/><small>Update, Add, and Delete variations in one go.</small></td>
-            <td><pre style="margin:0; font-size:11px;">{
-  "variations": [
-    { "variationId": 2, "materialRate": 460 },
-    { "colorId": 5, "size": "XL", "materialRate": 600 },
-    { "variationId": 133, "isActive": false }
-  ]
-}</pre></td>
-          </tr>
-        </tbody>
-      </table>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
@@ -781,21 +772,18 @@
       </div>
 
       <div class="endpoint-example">
-        <div class="section-label">cURL Example (Flat Update by ID)</div>
-        <pre class="code-block curl-block"><code>curl -X PUT "{{base_url}}/products/:id" \
-  -H "Authorization: Bearer {{authToken}}" \
-  -H "Content-Type: application/json" \
-  -d '{"variationId":2, "materialRate":450}'</code></pre>
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/products/:id&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;materialRate&quot;:560,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;}'</code></pre>
         
       <div class="section-group">
-        <div class="section-label">Request Body (Batch Update)</div>
+        <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  "materialName": "Updated Name",
-  "variations": [
-    { "variationId": 1, "materialRate": 560 },
-    { "colorId": 3, "size": "S", "materialRate": 480 },
-    { "variationId": 2, "isActive": false }
-  ]
+  &quot;materialRate&quot;: <span class="json-number">560</span>,
+  &quot;colorId&quot;: <span class="json-number">1</span>,
+  &quot;size&quot;: &quot;M&quot;
 }</code></pre>
       </div>
         
@@ -809,11 +797,11 @@
     <div class="endpoint-card" id="ep-10">
       <div class="endpoint-info">
         <div class="endpoint-header">
-          <span class="method-badge" style="background:#7f1d1d;color:#f87171;border-color:#991b1b">DELETE</span>
-          <code class="endpoint-path">/products/:id</code>
+          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
+          <code class="endpoint-path">/products/:id/status</code>
         </div>
-        <h3 class="endpoint-name">Delete Product</h3>
-        <p class="endpoint-desc">Soft-deletes a product from the catalog.</p>
+        <h3 class="endpoint-name">Toggle Product Status</h3>
+        <p class="endpoint-desc">Activates or deactivates a product and all its variations (cascading).</p>
         
         
           <div class="meta-grid">
@@ -832,9 +820,17 @@
 
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X DELETE &quot;{{base_url}}/products/:id&quot; \
-  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/products/:id/status&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;isActive&quot;:false}'</code></pre>
         
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;isActive&quot;: <span class="json-bool">false</span>
+}</code></pre>
+      </div>
         
       <div class="section-group">
         <div class="section-label">Expected Status <span class="status-badge">200</span></div>
@@ -844,6 +840,51 @@
       
     </div>
     <div class="endpoint-card" id="ep-11">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
+          <code class="endpoint-path">/products/:id/variations/:variationId/status</code>
+        </div>
+        <h3 class="endpoint-name">Toggle Variation Status</h3>
+        <p class="endpoint-desc">Granular toggle for a specific color/size variation.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/products/:id/variations/:variationId/status&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;isActive&quot;:true}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;isActive&quot;: <span class="json-bool">true</span>
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-12">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
@@ -905,7 +946,7 @@
       
       
     </div>
-    <div class="endpoint-card" id="ep-12">
+    <div class="endpoint-card" id="ep-13">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
@@ -971,7 +1012,7 @@
       
       
     </div>
-    <div class="endpoint-card" id="ep-13">
+    <div class="endpoint-card" id="ep-14">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>

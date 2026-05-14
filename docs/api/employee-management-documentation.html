@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Employee Management (ADMIN)</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Employees</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Employee</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Employee by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Employee</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Employee</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Employee Access</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Employees</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Employee</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Employee by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Employee</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Employee Status</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Employee Access</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -371,11 +371,11 @@
     <div class="endpoint-card" id="ep-4">
       <div class="endpoint-info">
         <div class="endpoint-header">
-          <span class="method-badge" style="background:#7f1d1d;color:#f87171;border-color:#991b1b">DELETE</span>
-          <code class="endpoint-path">/employees/:id</code>
+          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
+          <code class="endpoint-path">/employees/:id/status</code>
         </div>
-        <h3 class="endpoint-name">Delete Employee</h3>
-        <p class="endpoint-desc">Soft-deletes an employee (sets IsActive=0). Deactivated employees are excluded from all GET responses.</p>
+        <h3 class="endpoint-name">Toggle Employee Status</h3>
+        <p class="endpoint-desc">Soft-deletes or reactivates an employee. Deactivated employees are excluded from standard GET responses.</p>
         
         
           <div class="meta-grid">
@@ -394,9 +394,17 @@
 
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X DELETE &quot;{{base_url}}/employees/:id&quot; \
-  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/employees/:id/status&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;isActive&quot;:false}'</code></pre>
         
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;isActive&quot;: <span class="json-bool">false</span>
+}</code></pre>
+      </div>
         
       <div class="section-group">
         <div class="section-label">Expected Status <span class="status-badge">200</span></div>

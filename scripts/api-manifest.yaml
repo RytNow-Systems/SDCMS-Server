@@ -160,10 +160,12 @@ collections:
           unitId: { type: 'number', description: 'Filter by unit primary key (0 = no filter)' }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": [{ "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryName": "Textiles" }] }
+          { "success": true, "data": [{ "id": 1, "variationId": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryName": "Textiles", "colorId": 1, "colorName": "Red", "size": "M", "isActive": true }] }
+        notes: "Each list item now includes variationId (PkProductColorId) and the full color/size matrix fields so the frontend can target specific variations without a secondary lookup."
         assertions:
           - "res.status equals 200"
           - "res.body.data is Array"
+          - "each item has variationId"
 
       - name: Create Product
         method: POST
@@ -197,15 +199,37 @@ collections:
         method: PUT
         path: /products/:id
         roles: [ADMIN, OPERATOR]
-        description: "Updates product fields and/or manages variations. Supports two body shapes: (1) flat colorId+size for updating a single matched variation (strict — 404 if no match, use POST /:id/variations to insert new); (2) variations[] array for batch diff operations. All fields optional."
+        description: "Updates product fields and/or manages variations. Supports three body shapes — see notes for scoped response shapes per mode."
         headers: { Content-Type: application/json }
         body: |
           { "materialRate": 560, "colorId": 1, "size": "M" }
         responseStatus: 200
-        notes: "Two body shapes accepted. Flat (colorId + size at top level): finds the matching existing variation and updates it — 404 if no match exists; use POST /:id/variations to add new. Variations array: variationId present → update, variationId absent → insert new, variationId + isActive:false → soft-delete. Example batch body: { \"variations\": [{ \"variationId\": 1, \"colorId\": 1, \"size\": \"M\", \"materialRate\": 560 }, { \"colorId\": 3, \"size\": \"S\", \"materialRate\": 480 }, { \"variationId\": 2, \"isActive\": false }] }"
+        notes: |
+          Three body shapes accepted, each returning a different scoped response:
+
+          1. Flat (colorId + size at root): Finds the matching existing variation by colorId+size and updates it.
+             Returns a single variation object: { variationId, colorId, colorName, size, materialRate, isActive }.
+             404 if no match — use POST /:id/variations to insert a new variation.
+
+          2. Flat (variationId at root): Directly targets the variation by its PK and updates it.
+             Returns the same single variation object.
+
+          3. Variations array (batch diff): Accepts a 'variations' array where:
+             - variationId present → UPDATE that variation
+             - variationId absent → INSERT new variation
+             - variationId + isActive:false → soft-delete
+             Returns an array containing only the variations that were part of the request (mutated subset, not the full product).
+
+          4. Product-level-only (no variation fields at root, no variations array):
+             Updates product master fields only (e.g. materialName, categoryId, unitId).
+             Returns product fields without a 'variations' key, keeping the response lean.
+
+          Example batch body: { "variations": [{ "variationId": 1, "colorId": 1, "size": "M", "materialRate": 560 }, { "colorId": 3, "size": "S", "materialRate": 480 }, { "variationId": 2, "isActive": false }] }
         assertions:
           - "res.status equals 200"
           - "res.body.success is true"
+          - "flat update returns single variation object"
+          - "batch update returns only mutated variations array"
 
       - name: Toggle Product Status
         method: PATCH
@@ -381,12 +405,18 @@ collections:
           { "courierName": "Updated Courier", "phoneNo": "9876543210" }
         responseStatus: 200
 
-      - name: Delete Courier
-        method: DELETE
-        path: /courier-partners/:id
+      - name: Toggle Courier Status
+        method: PATCH
+        path: /courier-partners/:id/status
         roles: [ADMIN, OPERATOR]
-        description: Removes a courier partner.
+        description: Activates or deactivates a courier partner (soft delete/reactivate). Deactivated couriers are excluded from standard GET responses.
+        headers: { Content-Type: application/json }
+        body: |
+          { "isActive": false }
         responseStatus: 200
+        assertions:
+          - "res.status equals 200"
+          - "res.body.success is true"
 
   # ========== 5. SENDERS ==========
   - name: Senders
