@@ -193,7 +193,7 @@ collections:
           id: { type: 'number', description: 'Unique identifier of the product' }
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "id": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryId": 1, "unitId": 1, "variations": [{ "variationId": 1, "colorId": 1, "colorName": "Red", "size": "M", "materialRate": 550 }] } }
+          { "success": true, "data": { "productId": 1, "materialName": "Cotton Roll", "materialRate": 500, "categoryId": 1, "unitId": 1, "categoryName": "Textiles", "unitTitle": "Pieces", "isActive": true, "variations": [{ "variationId": 1, "productId": 1, "colorId": 1, "colorName": "Red", "size": "M", "materialRate": 550, "isActive": true }] } }
 
       - name: Update Product
         method: PUT

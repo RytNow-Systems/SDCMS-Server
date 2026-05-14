@@ -188,11 +188,17 @@ class ProductService {
       error.statusCode = 404;
       throw error;
     }
-    const mapped = this._mapToApi(product);
-    mapped.variations = (product.variations || []).map((v) =>
+
+    // variationId, colorName, and size are color-matrix fields that do not exist
+    // on product_master — strip them from the parent object so only the
+    // variations array carries per-variation data.
+    const { variationId: _vid, colorName: _cn, size: _sz, ...productFields } =
+      this._mapToApi(product);
+
+    productFields.variations = (product.variations || []).map((v) =>
       this._mapMatrixToApi(v),
     );
-    return mapped;
+    return productFields;
   }
 
   /**
