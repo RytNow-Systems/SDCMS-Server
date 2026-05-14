@@ -566,6 +566,7 @@ collections:
           limit: { type: 'number', description: 'Items per page (default: 20)' }
           search: { type: 'string', description: 'Partial match against order code or sender name' }
           status: { type: 'string', description: 'Filter by derived status (PENDING, DISPATCHED, DELIVERED, CANCELLED)' }
+          parcelStatus: { type: 'string', description: 'Filter orders that contain at least one parcel with this status. Allowed: Pending, Label Printed, AWB Linked, Dispatched, Delivered, Cancelled. Case-insensitive.' }
           sortBy: { type: 'string', description: 'Field to sort by (default: created_at)' }
           sortOrder: { type: 'string', description: 'Sort direction: asc or desc (default: desc)' }
         responseStatus: 200
