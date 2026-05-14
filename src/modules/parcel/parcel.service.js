@@ -11,12 +11,12 @@ import ParcelCodeService from "./parcel-code.service.js";
 
 // Status constants mapping (from lu_details/system flow)
 const STATUS = {
-  PENDING: "PENDING",
-  LABEL_PRINTED: "LABEL_PRINTED",
-  AWB_LINKED: "AWB_LINKED",
-  DISPATCHED: "DISPATCHED",
-  DELIVERED: "DELIVERED",
-  CANCELLED: "CANCELLED",
+  PENDING: "Pending",
+  LABEL_PRINTED: "Label Printed",
+  AWB_LINKED: "AWB Linked",
+  DISPATCHED: "Dispatched",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
 };
 
 // Valid transitions (v2.3 System Flow — RETURNED removed, trigger 5 = CANCELLED)
@@ -415,19 +415,15 @@ class ParcelService {
    * @private
    */
   async _executeLinkingFlow(parcel, awbNumber, role, employeeCode) {
-    const id = parcel.parcelDetailsId;
+    const id = parcel.parcelId;
     if (role === "COURIER") {
-      // Auto-dispatch for couriers (Trigger 3)
-      return await parcelRepository.updateParcelState(
-        id,
-        3,
-        awbNumber,
-        0,
-        employeeCode,
-      );
+      // Trigger 2: store TrackingNo and move to AWB_LINKED
+      await parcelRepository.updateParcelState(id, 2, awbNumber, 0, employeeCode);
+      // Trigger 3: set DispatchDate and move to DISPATCHED (auto-dispatch for couriers)
+      return await parcelRepository.updateParcelState(id, 3, awbNumber, 0, employeeCode);
     }
 
-    // Normal linking (Trigger 2)
+    // Normal linking for OPERATOR/ADMIN (Trigger 2 only)
     return await parcelRepository.updateParcelState(
       id,
       2,

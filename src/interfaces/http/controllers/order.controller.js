@@ -59,6 +59,7 @@ export const getOrderList = asyncHandler(async (req, res) => {
     page: parseInt(req.query.page) || 1,
     limit: parseInt(req.query.limit) || 20,
     search: req.query.search?.trim() || null,
+    status: req.query.status?.trim() || null,
     sortBy: req.query.sortBy || "created_at",
     sortOrder: req.query.sortOrder || "desc",
     parcelStatus: rawParcelStatus,

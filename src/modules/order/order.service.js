@@ -620,7 +620,7 @@ class OrderService {
    * @private
    */
   _checkPhysicalExecutionBegun(parcels, action = "update") {
-    const blockStatuses = ["AWB_LINKED", "DISPATCHED", "DELIVERED"];
+    const blockStatuses = ["AWB Linked", "Dispatched", "Delivered"];
     if (
       parcels.some((p) =>
         blockStatuses.includes(
@@ -747,7 +747,7 @@ class OrderService {
                 r.parcel.ParcelStatusCode ||
                 r.parcel.status ||
                 r.parcel.ParcelStatusName ||
-                "PENDING",
+                "Pending",
             }
           : null,
         products: (r.items || []).map((i) => ({

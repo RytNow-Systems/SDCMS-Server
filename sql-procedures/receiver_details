@@ -74,7 +74,7 @@ BEGIN
         SELECT LAST_INSERT_ID() AS GeneratedReceiverId, pReceiverId AS ReceiverId;
 
     ELSE
-        UPDATE receiver_details SET FkOrderId = pFkOrderId, FkReceiverId = pFkReceiverId, FkPartyDetailsId = pFkPartyDetailsId, IsActive = pIsActive
+        UPDATE receiver_details SET FkOrderId = pFkOrderId, FkReceiverId = pReceiverId, FkPartyDetailsId = pFkPartyDetailsId, IsActive = pIsActive
 				WHERE PkReceiverDetailsId = pPkReceiverDetailsId;
 
         SELECT pPkReceiverDetailsId AS UpdatedReceiverId, pReceiverId AS ReceiverId;
@@ -83,3 +83,42 @@ BEGIN
 END
 
 ---
+
+-- ============================================================
+-- TASK: Fix prc_receiver_details_set — UPDATE branch bug
+-- ============================================================
+-- Status   : PENDING — source file fixed, DB not yet redeployed
+-- Raised   : 2026-05-14 (found during parcel lifecycle E2E test)
+-- Assignee : DB Engineer
+--
+-- Description:
+--   The UPDATE branch uses `pFkReceiverId` as a value in the SET
+--   clause, but that identifier is never declared as a parameter.
+--   The declared parameter is `pReceiverId` (no "Fk" prefix).
+--   MySQL resolves undeclared names as column references; since
+--   `pFkReceiverId` is also not a column in receiver_details, it
+--   throws: "Unknown column 'pFkReceiverId' in 'field list'".
+--
+--   The INSERT branch already uses `pReceiverId` correctly, which
+--   is why INSERT works and UPDATE does not.
+--
+-- Root cause:
+--   Parameter naming inconsistency. Other FK parameters follow the
+--   pattern p + column_name (e.g. FkOrderId → pFkOrderId), but
+--   this one drops the "Fk": FkReceiverId → pReceiverId.
+--   The UPDATE author assumed the pattern held and wrote pFkReceiverId.
+--
+-- Impact:
+--   - DELETE /orders/:id/cancel  → fails at receiver soft-delete step
+--   - PUT    /orders/:id         → fails when removing receivers
+--   Parcels ARE cancelled (SP internal COMMIT fires before the error),
+--   but receiver rows and order header IsActive flag are NOT updated.
+--
+-- Fix (one line):
+--   BEFORE: FkReceiverId = pFkReceiverId
+--   AFTER:  FkReceiverId = pReceiverId
+--
+-- Action:
+--   DROP PROCEDURE IF EXISTS prc_receiver_details_set;
+--   then re-create using the corrected definition above this block.
+-- ============================================================

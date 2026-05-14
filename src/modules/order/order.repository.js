@@ -248,21 +248,49 @@ class OrderRepository {
         }
       }
 
-      // Step 6: Enrich orders with totalParcels and sender details
+      // Step 6: Enrich orders with totalParcels, sender details, and derived status
+      // FkParcelStatusId: 1=Pending, 2=Label Printed, 3=AWB Linked, 4=Dispatched, 5=Delivered, 6=Cancelled
       const enrichedOrders = orders.map((o) => {
         const sender = senderMap.get(o.FkSenderId);
+        const orderReceiverIds = allReceivers
+          .filter((r) => r.FkOrderId === o.PkOrderId)
+          .map((r) => r.PkReceiverDetailsId);
+        const orderParcelStatusIds = allParcels
+          .filter((p) => orderReceiverIds.includes(p.FkReceiverDetailsId))
+          .map((p) => p.FkParcelStatusId);
+
+        const active = orderParcelStatusIds.filter((s) => s !== 6);
+        let derivedStatus = "Pending";
+        if (orderParcelStatusIds.length > 0) {
+          if (active.length === 0) {
+            derivedStatus = "Cancelled";
+          } else if (active.every((s) => s === 5)) {
+            derivedStatus = "Delivered";
+          } else if (active.some((s) => s === 4 || s === 5)) {
+            derivedStatus = "Dispatched";
+          }
+        }
+
         return {
           ...o,
           TotalParcels: receiverParcelCount.get(o.PkOrderId) || 0,
           SenderName: sender?.CustomerName || o.SenderName || null,
           SenderMobile: sender?.PhoneNo || o.SenderMobile || null,
           SenderEmail: sender?.EmailId || null,
+          DerivedStatus: derivedStatus,
         };
       });
 
       // Apply parcel status filter before pagination
+      // prc_parcel_details_get(0,0) returns FkParcelStatusId (not ParcelStatusName),
+      // so resolve filter string against lu_details via a status name map.
+      const STATUS_NAME_TO_ID = {
+        pending: 1, "label printed": 2, "awb linked": 3,
+        dispatched: 4, delivered: 5, cancelled: 6,
+      };
       let filteredOrders = enrichedOrders;
       if (filters.parcelStatus) {
+        const targetId = STATUS_NAME_TO_ID[filters.parcelStatus.toLowerCase()];
         filteredOrders = enrichedOrders.filter((o) => {
           const orderReceiverIds = allReceivers
             .filter((r) => r.FkOrderId === o.PkOrderId)
@@ -270,8 +298,9 @@ class OrderRepository {
           return allParcels.some(
             (p) =>
               orderReceiverIds.includes(p.FkReceiverDetailsId) &&
-              (p.ParcelStatusName || "").toLowerCase() ===
-                filters.parcelStatus.toLowerCase(),
+              (targetId
+                ? p.FkParcelStatusId === targetId
+                : false),
           );
         });
       }
@@ -295,6 +324,13 @@ class OrderRepository {
         const code = (o.OrderCode || o.orderCode || "").toLowerCase();
         const name = (o.SenderName || o.senderName || "").toLowerCase();
         return code.includes(s) || name.includes(s);
+      });
+    }
+    if (filters.status) {
+      const targetStatus = filters.status.toLowerCase();
+      result = result.filter((o) => {
+        const derived = (o.DerivedStatus || o.derivedStatus || "").toLowerCase();
+        return derived === targetStatus;
       });
     }
     const page = parseInt(filters.page) || 1;
@@ -595,6 +631,24 @@ class OrderRepository {
           : null,
       };
     });
+
+    // Derive order status from parcel statuses (never stored directly)
+    const parcelStatuses = order.receivers
+      .map((r) => r.parcel?.status)
+      .filter(Boolean);
+
+    let derivedStatus = "Pending";
+    if (parcelStatuses.length > 0) {
+      const active = parcelStatuses.filter((s) => s !== "Cancelled");
+      if (active.length === 0) {
+        derivedStatus = "Cancelled";
+      } else if (active.every((s) => s === "Delivered")) {
+        derivedStatus = "Delivered";
+      } else if (active.some((s) => s === "Dispatched" || s === "Delivered")) {
+        derivedStatus = "Dispatched";
+      }
+    }
+    order.DerivedStatus = derivedStatus;
 
     return order;
   }

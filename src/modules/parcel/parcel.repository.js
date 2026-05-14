@@ -301,7 +301,7 @@ class ParcelRepository {
     adminId,
   ) {
     if (process.env.USE_MOCK_DB !== "true") {
-      const [rows] = await db.execute(
+      await db.execute(
         "CALL prc_parcel_details_set(?, ?, ?, ?, ?, ?)",
         [
           parcelId,
@@ -312,7 +312,8 @@ class ParcelRepository {
           adminId,
         ],
       );
-      return rows[0]?.[0] || null;
+      // SP update triggers (1-5) have no SELECT — re-fetch the updated record
+      return this.findById(parcelId);
     }
 
     // MOCK MODE
