@@ -496,6 +496,47 @@ class ProductRepository {
     );
   }
 
+  /**
+   * Returns deduplicated product names matching a partial query string.
+   * Used exclusively for the Product Name typeahead/autosuggest UI.
+   * CALL prc_product_master_search(0, 0, 0) — filtered + deduplicated in JS.
+   * @param {string} q - Partial name to match (case-insensitive).
+   * @param {number} [limit=10] - Max suggestions to return.
+   * @returns {Promise<Array<{productId: number, materialName: string}>>}
+   */
+  async searchByName(q = "", limit = 10) {
+    let products = [];
+
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [0, 0, 0],
+      );
+      const _isActive = (val) => {
+        if (Buffer.isBuffer(val)) return val[0] === 1;
+        return val === 1 || val === true || val === "1" || val === "Active";
+      };
+      products = (rows[0] || []).filter((p) => _isActive(p.IsActive));
+    } else {
+      products = seedProducts.filter((p) => p.IsActive);
+    }
+
+    const lower = q.toLowerCase();
+    const seen = new Set();
+    const results = [];
+
+    for (const p of products) {
+      const name = p.MaterialName || "";
+      if (name.toLowerCase().includes(lower) && !seen.has(p.PkProductId)) {
+        seen.add(p.PkProductId);
+        results.push({ productId: p.PkProductId, materialName: name });
+        if (results.length >= limit) break;
+      }
+    }
+
+    return results;
+  }
+
   async getDropdown(search = "") {
     let products = [];
     let matrices = [];

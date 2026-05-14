@@ -11,6 +11,7 @@ import {
   updateProduct,
   deleteProduct,
   getProductDropdown,
+  searchProducts,
   addProductVariation,
   getProductCategories,
   createProductCategory,
@@ -54,6 +55,9 @@ router.route('/colors')
 router.route('/')
   .get(getProducts)
   .post(validate(createProductSchema), createProduct);
+
+// Product name autosuggest for typeahead (returns deduplicated names)
+router.get('/search', searchProducts);
 
 // Product + Category combined dropdown (Feature E)
 router.get('/dropdown', getProductDropdown);

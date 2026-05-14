@@ -83,6 +83,19 @@ export const updateProduct = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Autosuggest product names by partial query (typeahead)
+// @route   GET /api/v1/products/search?q=<partial>
+// @access  Private/Admin,Operator
+export const searchProducts = asyncHandler(async (req, res) => {
+  const q = req.query.q?.trim() || "";
+  const suggestions = await productService.searchProductsByName(q);
+
+  res.status(200).json({
+    success: true,
+    data: suggestions,
+  });
+});
+
 // @desc    Get products + categories combined dropdown (search-friendly)
 // @route   GET /api/v1/products/dropdown
 // @access  Private/Admin,Operator

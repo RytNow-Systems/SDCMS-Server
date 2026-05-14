@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Product Catalog</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Categories</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Category</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Units</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm post">POST</span>Create Unit</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get Colors</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm post">POST</span>Create Color</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>List Products</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm post">POST</span>Create Product</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm get">GET</span>Get Product by ID</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Product</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Product</a><a href="#ep-11" class="toc-item"><span class="method-badge-sm get">GET</span>Product Dropdown</a><a href="#ep-12" class="toc-item"><span class="method-badge-sm post">POST</span>Add/Update Product Color Matrix (Standalone)</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Categories</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Category</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Units</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm post">POST</span>Create Unit</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get Colors</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm post">POST</span>Create Color</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>List Products</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm post">POST</span>Create Product</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm get">GET</span>Get Product by ID</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Product</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Product</a><a href="#ep-11" class="toc-item"><span class="method-badge-sm get">GET</span>Product Name Search (Autosuggest)</a><a href="#ep-12" class="toc-item"><span class="method-badge-sm get">GET</span>Product Dropdown</a><a href="#ep-13" class="toc-item"><span class="method-badge-sm post">POST</span>Add/Update Product Color Matrix (Standalone)</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -819,6 +819,68 @@
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/products/search</code>
+        </div>
+        <h3 class="endpoint-name">Product Name Search (Autosuggest)</h3>
+        <p class="endpoint-desc">Deduplicated product name suggestions for the Product Name typeahead. Returns one entry per product (not per variation). Use when user types in the Product Name field.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>q</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Partial product name to match (case-insensitive, up to 10 results)</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/products/search&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;productId&quot;: <span class="json-number">1</span>,
+      &quot;materialName&quot;: &quot;Cotton Roll&quot;
+    }
+  ]
+}</code></pre>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-12">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
           <code class="endpoint-path">/products/dropdown</code>
         </div>
         <h3 class="endpoint-name">Product Dropdown</h3>
@@ -881,7 +943,7 @@
       
       
     </div>
-    <div class="endpoint-card" id="ep-12">
+    <div class="endpoint-card" id="ep-13">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>

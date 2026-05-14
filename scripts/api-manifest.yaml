@@ -214,6 +214,21 @@ collections:
         description: Soft-deletes a product from the catalog.
         responseStatus: 200
 
+      - name: Product Name Search (Autosuggest)
+        method: GET
+        path: /products/search
+        roles: [ADMIN, OPERATOR]
+        description: Deduplicated product name suggestions for the Product Name typeahead. Returns one entry per product (not per variation). Use when user types in the Product Name field.
+        parameters:
+          q: { type: 'string', description: 'Partial product name to match (case-insensitive, up to 10 results)' }
+        responseStatus: 200
+        responseBody: |
+          { "success": true, "data": [{ "productId": 1, "materialName": "Cotton Roll" }] }
+        assertions:
+          - "res.status equals 200"
+          - "res.body.data is Array"
+          - "each item has productId and materialName"
+
       - name: Product Dropdown
         method: GET
         path: /products/dropdown

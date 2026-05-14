@@ -193,6 +193,15 @@ class ProductService {
   }
 
   /**
+   * Returns deduplicated product name suggestions for the typeahead UI.
+   * @param {string} q - Partial name query (min 1 char recommended).
+   * @returns {Promise<Array<{productId: number, materialName: string}>>}
+   */
+  async searchProductsByName(q = "") {
+    return productRepository.searchByName(q.trim());
+  }
+
+  /**
    * Fetches search-friendly dropdown items.
    */
   async getProductDropdown(search = "") {
