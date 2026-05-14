@@ -260,8 +260,24 @@ class OrderRepository {
         };
       });
 
+      // Apply parcel status filter before pagination
+      let filteredOrders = enrichedOrders;
+      if (filters.parcelStatus) {
+        filteredOrders = enrichedOrders.filter((o) => {
+          const orderReceiverIds = allReceivers
+            .filter((r) => r.FkOrderId === o.PkOrderId)
+            .map((r) => r.PkReceiverDetailsId);
+          return allParcels.some(
+            (p) =>
+              orderReceiverIds.includes(p.FkReceiverDetailsId) &&
+              (p.ParcelStatusName || "").toLowerCase() ===
+                filters.parcelStatus.toLowerCase(),
+          );
+        });
+      }
+
       // Pagination is handled in-memory for this module's search results.
-      return this._paginateData(enrichedOrders, filters);
+      return this._paginateData(filteredOrders, filters);
     }
     return this._findAllOrdersMock(filters);
   }

@@ -32,12 +32,36 @@ export const createOrder = asyncHandler(async (req, res) => {
  * Maps to: prc_GetAllOrdersSummary
  */
 export const getOrderList = asyncHandler(async (req, res) => {
+  const VALID_PARCEL_STATUSES = [
+    "Pending",
+    "Label Printed",
+    "AWB Linked",
+    "Dispatched",
+    "Delivered",
+    "Cancelled",
+  ];
+
+  const rawParcelStatus = req.query.parcelStatus?.trim() || null;
+  if (rawParcelStatus) {
+    const match = VALID_PARCEL_STATUSES.find(
+      (s) => s.toLowerCase() === rawParcelStatus.toLowerCase(),
+    );
+    if (!match) {
+      const error = new Error(
+        `Invalid parcelStatus. Allowed values: ${VALID_PARCEL_STATUSES.join(", ")}`,
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
   const filters = {
     page: parseInt(req.query.page) || 1,
     limit: parseInt(req.query.limit) || 20,
     search: req.query.search?.trim() || null,
     sortBy: req.query.sortBy || "created_at",
     sortOrder: req.query.sortOrder || "desc",
+    parcelStatus: rawParcelStatus,
   };
 
   const { data, total } = await orderService.getOrderSummaryList(filters);
