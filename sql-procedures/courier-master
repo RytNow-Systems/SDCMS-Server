@@ -51,7 +51,7 @@ DECLARE pId INT;
 
 	IF pCourierId = 0 THEN
 		INSERT INTO courier_partner_master (CourierName, PhoneNumber, TrackingUrlTemplate, CreatedDate, CreatedBy, IsActive)
-						VALUES (pCourierName, PhoneNumber, pTrackingUrlTemplate, NOW(), pCreatedBy, pIsActive);
+						VALUES (pCourierName, pPhoneNumber, pTrackingUrlTemplate, NOW(), pCreatedBy, pIsActive);
 
 		SELECT LAST_INSERT_ID() INTO pId;
 
@@ -64,3 +64,56 @@ DECLARE pId INT;
 
 END
 ---
+
+---
+
+-- ============================================================
+-- TASK 1: Fix prc_courier_partner_master_set — PhoneNumber param typo
+-- ============================================================
+-- Status   : PENDING — source file fixed, DB not yet redeployed
+-- Raised   : 2026-05-14 (found during regression testing)
+-- Assignee : DB Engineer
+--
+-- Description:
+--   In the INSERT branch, the VALUES clause passes the bare column
+--   identifier `PhoneNumber` instead of the parameter `pPhoneNumber`.
+--   MySQL resolves the unqualified name as a self-reference to the
+--   column being inserted, which evaluates to NULL for a new row.
+--   Result: POST /courier-partners always saves NULL for phone number.
+--
+-- Root cause:
+--   `PhoneNumber` (column) vs `pPhoneNumber` (parameter) — standard
+--   p-prefix convention was accidentally dropped from the VALUES list
+--   while it was correctly used in the UPDATE branch.
+--
+-- Fix (one character):
+--   BEFORE: VALUES (pCourierName, PhoneNumber, pTrackingUrlTemplate, ...)
+--   AFTER:  VALUES (pCourierName, pPhoneNumber, pTrackingUrlTemplate, ...)
+--
+-- Action:
+--   DROP PROCEDURE IF EXISTS prc_courier_partner_master_set;
+--   then re-create using the corrected definition above this block.
+-- ============================================================
+
+-- ============================================================
+-- TASK 2: Redeploy prc_courier_partner_master_get — pAction=0 isactive filter
+-- ============================================================
+-- Status   : PENDING — source file already correct, DB not redeployed
+-- Raised   : 2026-05-14 (found during regression testing)
+-- Assignee : DB Engineer
+--
+-- Description:
+--   The deployed SP for pAction=0 does not filter by isactive = 1,
+--   so GET /courier-partners returns inactive couriers to the frontend.
+--   The source file already has the correct WHERE clause; the fix is a
+--   redeploy only — no logic change required.
+--
+--   The pAction=1 branch already has the isactive = 1 filter in the
+--   deployed SP, which is why GET /courier-partners/:id correctly
+--   returns 404 for inactive records.
+--
+-- Action:
+--   DROP PROCEDURE IF EXISTS prc_courier_partner_master_get;
+--   then re-create using the definition at the top of this file
+--   (pAction=0 block already contains WHERE isactive = 1).
+-- ============================================================

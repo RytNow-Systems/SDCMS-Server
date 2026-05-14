@@ -190,3 +190,47 @@ BEGIN
 
     RETURN CONCAT('UC-', pOrderId, '-', pParcelId);
 END
+
+---
+
+-- ============================================================
+-- TASK: Fix prc_parcel_details_set trigger 3 — set TrackingNo on DISPATCH
+-- ============================================================
+-- Status   : PENDING — SP change required in DB
+-- Raised   : 2026-05-14 (found during parcel lifecycle E2E test)
+-- Assignee : DB Engineer
+--
+-- Description:
+--   Trigger 3 (DISPATCH) updates FkParcelStatusId and DispatchDate
+--   but never writes TrackingNo. When a courier dispatches a parcel
+--   without a prior AWB scan (trigger 2), the TrackingNo column stays
+--   NULL even though pAWBNumber is passed in the call.
+--
+--   Impact:
+--   - GET /parcels/:id/label-data returns trackingNo: null for
+--     any parcel that was dispatched without a preceding AWB scan.
+--   - The AWB is correctly logged in receiver_status_details
+--     (actionType=DISPATCH, awbNumber=<value>), but the canonical
+--     TrackingNo column on parcel_details is never populated.
+--
+-- Fix (one line added to trigger 3 UPDATE):
+--   BEFORE:
+--     UPDATE parcel_details
+--     SET DispatchDate = NOW(), FkParcelStatusId = 4
+--     WHERE PkParcelDetailsId = pPkParcelDetailsId;
+--
+--   AFTER:
+--     UPDATE parcel_details
+--     SET DispatchDate = NOW(),
+--         FkParcelStatusId = 4,
+--         TrackingNo = IFNULL(pAWBNumber, TrackingNo)
+--     WHERE PkParcelDetailsId = pPkParcelDetailsId;
+--
+--   IFNULL ensures that if pAWBNumber is NULL (dispatch-only flow),
+--   the existing TrackingNo (set by a prior AWB scan) is preserved.
+--
+-- Action:
+--   DROP PROCEDURE IF EXISTS prc_parcel_details_set;
+--   then re-create with the trigger 3 block updated as shown above.
+--   No change required to triggers 0, 1, 2, 4, or 5.
+-- ============================================================
