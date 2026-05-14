@@ -719,10 +719,11 @@ collections:
         method: GET
         path: /parcels/:id/label-data
         roles: [ADMIN, OPERATOR]
-        description: On-demand label generation data for printing.
+        description: Returns minimal data required to print a shipping label.
+        notes: "Response contains only what appears on the physical label. Internal IDs and operational metadata are excluded. size per item is not yet available (pending order_items schema update)."
         responseStatus: 200
         responseBody: |
-          { "success": true, "data": { "parcelDetailsId": 1, "parcelId": "PCL-1-1", "trackingNo": null, "status": "PENDING", "labelPrintCount": 0, "receiverName": "Delhi Fabrics Ltd.", "receiverPhone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005", "orderCode": "ORD-2026-001" } }
+          { "success": true, "data": { "parcelCode": "UC-13-13", "trackingNo": null, "orderCode": "ORD-260508-007", "to": { "name": "Delhi Fabrics Ltd.", "phone": "9123456780", "address": "45, Karol Bagh", "city": "New Delhi", "state": "Delhi", "pincode": "110005" }, "from": { "name": "vaishnavi", "phone": "1234567891", "address": "IT Park, Sector 60", "city": "Noida", "state": "Uttar Pradesh", "pincode": "201301" }, "items": [{ "name": "Utsav Mogra Pom Pom bell strings", "colorName": "Majenta", "qty": 6 }] } }
 
       - name: Get Timeline
         method: GET
