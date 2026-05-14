@@ -174,7 +174,7 @@
           <code class="endpoint-path">/employees</code>
         </div>
         <h3 class="endpoint-name">List Employees</h3>
-        <p class="endpoint-desc">Paginated employee list with optional search and role filter.</p>
+        <p class="endpoint-desc">Paginated employee list with optional search and role filter. Pass `includeInactive=true` to include soft-deleted employees.</p>
         
         
           <div class="meta-grid">
@@ -218,6 +218,12 @@
                   <td><code>role</code></td>
                   <td><span class="type-tag">string</span></td>
                   <td>Filter by role code (ADMIN, OPERATOR, COURIER)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>includeInactive</code></td>
+                  <td><span class="type-tag">boolean</span></td>
+                  <td>Include soft-deleted employees (default: false)</td>
                 </tr>
               
             </tbody>

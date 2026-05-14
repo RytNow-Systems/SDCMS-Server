@@ -174,7 +174,7 @@
           <code class="endpoint-path">/courier-partners</code>
         </div>
         <h3 class="endpoint-name">List Couriers</h3>
-        <p class="endpoint-desc">Paginated courier partner list with optional search.</p>
+        <p class="endpoint-desc">Paginated courier partner list with optional search. Pass `includeInactive=true` to include deactivated couriers.</p>
         
         
           <div class="meta-grid">
@@ -212,6 +212,12 @@
                   <td><code>search</code></td>
                   <td><span class="type-tag">string</span></td>
                   <td>Partial match against courier name</td>
+                </tr>
+              
+                <tr>
+                  <td><code>includeInactive</code></td>
+                  <td><span class="type-tag">boolean</span></td>
+                  <td>Include deactivated couriers (default: false)</td>
                 </tr>
               
             </tbody>

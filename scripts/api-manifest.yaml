@@ -305,12 +305,13 @@ collections:
         method: GET
         path: /employees
         roles: [ADMIN]
-        description: Paginated employee list with optional search and role filter.
+        description: Paginated employee list with optional search and role filter. Pass `includeInactive=true` to include soft-deleted employees.
         parameters:
           page: { type: 'number', description: 'Page number (default: 1)' }
           limit: { type: 'number', description: 'Items per page (default: 20)' }
           search: { type: 'string', description: 'Partial match against name or email' }
           role: { type: 'string', description: 'Filter by role code (ADMIN, OPERATOR, COURIER)' }
+          includeInactive: { type: 'boolean', description: 'Include soft-deleted employees (default: false)' }
         responseStatus: 200
 
       - name: Create Employee
@@ -369,11 +370,12 @@ collections:
         method: GET
         path: /courier-partners
         roles: [ADMIN, OPERATOR, COURIER]
-        description: Paginated courier partner list with optional search.
+        description: Paginated courier partner list with optional search. Pass `includeInactive=true` to include deactivated couriers.
         parameters:
           page: { type: 'number', description: 'Page number (default: 1)' }
           limit: { type: 'number', description: 'Items per page (default: 20)' }
           search: { type: 'string', description: 'Partial match against courier name' }
+          includeInactive: { type: 'boolean', description: 'Include deactivated couriers (default: false)' }
         responseStatus: 200
 
       - name: Create Courier
