@@ -15,8 +15,9 @@ export const getCouriers = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 20);
   const search = req.query.search?.trim() || '';
+  const includeInactive = req.query.includeInactive === 'true';
 
-  const couriers = await courierService.getCouriers(page, limit, search);
+  const couriers = await courierService.getCouriers(page, limit, search, includeInactive);
   
   res.status(200).json({
     success: true,

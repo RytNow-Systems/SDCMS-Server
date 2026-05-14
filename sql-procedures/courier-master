@@ -15,6 +15,12 @@ BEGIN
 		ORDER BY CourierId;
     END IF;
 
+    IF pAction = 2 THEN
+        SELECT CourierId, CourierName, PhoneNumber, TrackingUrlTemplate, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy, IsActive
+        FROM courier_partner_master
+        ORDER BY CourierId DESC;
+    END IF;
+
 END
 ---
 

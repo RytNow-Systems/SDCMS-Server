@@ -52,19 +52,21 @@ class CourierRepository {
    * @param {object} params - { page, limit, search }
    * @returns {Promise<object>} { data: [...], meta: { page, limit, totalRows, totalPages } }
    */
-  async findAll({ page = 1, limit = 20, search } = {}) {
+  async findAll({ page = 1, limit = 20, search, includeInactive = false } = {}) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_courier_partner_master_get (pAction=0, pCourierId=0)
+    // LIVE DB MODE: prc_courier_partner_master_get
+    //   pAction=0 → active only (WHERE isactive = 1)
+    //   pAction=2 → all couriers including inactive
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
+      const pAction = includeInactive ? 2 : 0;
       const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [
-        0, // pAction=0 → Get all couriers
-        0  // pCourierId=0 → No specific courier filter
+        pAction,
+        0  // pCourierId=0 → no specific courier filter
       ]);
 
       let results = rows[0] || [];
 
-      // In-memory filter for search
       if (search) {
         const s = search.toLowerCase();
         results = results.filter(c =>
@@ -85,8 +87,7 @@ class CourierRepository {
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory filtering and pagination
     // ------------------------------------------------------------------
-    const activeCouriers = seedCouriers.filter(c => c.IsActive);
-    let results = [...activeCouriers];
+    let results = includeInactive ? [...seedCouriers] : seedCouriers.filter(c => c.IsActive);
 
     if (search) {
       const s = search.toLowerCase();

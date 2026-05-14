@@ -18,8 +18,8 @@ class CourierService {
     };
   }
 
-  async getCouriers(page = 1, limit = 20, search = "") {
-    const result = await courierRepository.findAll({ page, limit, search });
+  async getCouriers(page = 1, limit = 20, search = '', includeInactive = false) {
+    const result = await courierRepository.findAll({ page, limit, search, includeInactive });
     return {
       data: result.data.map((c) => this._mapToApi(c)),
       meta: result.meta,
