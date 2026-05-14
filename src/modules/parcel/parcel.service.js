@@ -155,26 +155,27 @@ class ParcelService {
       throw error;
     }
 
-    const mapped = await this._mapParcel(parcel);
+    const parcelId = parcel.PkParcelDetailsId || parcel.id;
     const orderId = parcel.FkOrderId || parcel.orderId;
     const receiverDetailsId =
       parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId;
 
-    // Fetch sender: order header for FkSenderId → party for name/phone/address
-    let sender = null;
+    const parcelCode =
+      parcel.ParcelCode ||
+      parcel.parcelCode ||
+      (await ParcelCodeService.generateCodeAsync({ orderId, parcelId, receiverDetailsId }));
+
+    // Fetch sender
+    let from = null;
     const orderHeader = orderId
       ? await parcelRepository.getOrderHeader(orderId)
       : null;
     if (orderHeader?.FkSenderId) {
-      const senderParty = await parcelRepository.getSenderById(
-        orderHeader.FkSenderId,
-      );
+      const senderParty = await parcelRepository.getSenderById(orderHeader.FkSenderId);
       if (senderParty) {
-        sender = {
-          senderId: senderParty.PkPartyId || senderParty.id,
+        from = {
           name: senderParty.CustomerName || senderParty.customerName || null,
           phone: senderParty.PhoneNo || senderParty.phoneNo || null,
-          email: senderParty.EmailId || senderParty.emailId || null,
           address: senderParty.Address || senderParty.address || null,
           city: senderParty.City || senderParty.city || null,
           state: senderParty.State || senderParty.state || null,
@@ -183,22 +184,31 @@ class ParcelService {
       }
     }
 
-    // Fetch products for this receiver
+    // Fetch order items for this receiver
     const rawItems = receiverDetailsId
       ? await parcelRepository.getItemsForReceiver(receiverDetailsId)
       : [];
-    const products = rawItems.map((item) => ({
-      productId: item.FkProductId,
-      materialName: item.MaterialName || null,
-      materialCode: item.MaterialCode || null,
-      quantity: item.OutwardQty,
-      unitPrice: item.UnitPrice,
-      unitTitle: item.UnitTitle || null,
-      colorId: item.PkLuColorId || null,
+    const items = rawItems.map((item) => ({
+      name: item.MaterialName || null,
       colorName: item.ColorName || null,
+      qty: item.OutwardQty,
     }));
 
-    return { ...mapped, sender, products };
+    return {
+      parcelCode,
+      trackingNo: parcel.TrackingNo || parcel.trackingNo || null,
+      orderCode: parcel.OrderCode || parcel.orderCode || null,
+      to: {
+        name: parcel.ReceiverName || parcel.receiverName || null,
+        phone: parcel.ReceiverPhone || parcel.receiverPhone || null,
+        address: parcel.ReceiverAddress || parcel.Address || parcel.address || null,
+        city: parcel.ReceiverCity || parcel.City || parcel.city || null,
+        state: parcel.ReceiverState || parcel.State || parcel.state || null,
+        pincode: parcel.ReceiverPincode || parcel.Pincode || parcel.pincode || null,
+      },
+      from,
+      items,
+    };
   }
 
   async getTimeline(id) {
