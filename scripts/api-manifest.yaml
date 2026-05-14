@@ -197,12 +197,12 @@ collections:
         method: PUT
         path: /products/:id
         roles: [ADMIN, OPERATOR]
-        description: "Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use variationId to distinguish: present = update, absent = insert, isActive:false = soft-delete."
+        description: "Updates product fields and/or manages variations. Supports two body shapes: (1) flat colorId+size for updating a single matched variation (strict — 404 if no match, use POST /:id/variations to insert new); (2) variations[] array for batch diff operations. All fields optional."
         headers: { Content-Type: application/json }
         body: |
-          { "materialRate": 550, "variations": [{ "variationId": 1, "colorId": 1, "size": "M", "materialRate": 560 }, { "colorId": 3, "size": "S", "materialRate": 480 }, { "variationId": 2, "isActive": false }] }
+          { "materialRate": 560, "colorId": 1, "size": "M" }
         responseStatus: 200
-        notes: "All fields optional. Variations diff: variationId present → update, variationId absent → insert new, variationId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors."
+        notes: "Two body shapes accepted. Flat (colorId + size at top level): finds the matching existing variation and updates it — 404 if no match exists; use POST /:id/variations to add new. Variations array: variationId present → update, variationId absent → insert new, variationId + isActive:false → soft-delete. Example batch body: { \"variations\": [{ \"variationId\": 1, \"colorId\": 1, \"size\": \"M\", \"materialRate\": 560 }, { \"colorId\": 3, \"size\": \"S\", \"materialRate\": 480 }, { \"variationId\": 2, \"isActive\": false }] }"
         assertions:
           - "res.status equals 200"
           - "res.body.success is true"
