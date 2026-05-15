@@ -8,6 +8,8 @@
 import orderRepository from "./order.repository.js";
 import productRepository from "../product/product.repository.js";
 import ParcelCodeService from "../parcel/parcel-code.service.js";
+import senderRepository from "../sender/sender.repository.js";
+import logger from "../../shared/utils/logger.js";
 
 class OrderService {
   /**
@@ -28,6 +30,13 @@ class OrderService {
       const error = new Error("Invalid senderId: Party not found.");
       error.statusCode = 400;
       throw error;
+    }
+
+    // Upgrade Receiver → Sender if a receiver party is used as sender
+    if (sender.FkPartyTypeId === 2) {
+      senderRepository.upgradePartyType(senderId, sender, createdBy).catch((err) =>
+        logger.error("[createOrder] partyType upgrade failed", { senderId, err: err.message })
+      );
     }
 
     const senderAddressDetails = await orderRepository.resolveAddress(
