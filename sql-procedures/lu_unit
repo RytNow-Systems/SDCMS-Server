@@ -1,0 +1,19 @@
+Table: lu_unit
+
+Columns:
+	PkUnitId	int(11) AI PK
+	UnitTitle	varchar(20)
+	UnitCode	varchar(5)
+	IsActive	tinyint(1)
+	ConversionFactor	decimal(10,4)
+	CreatedDate	datetime
+	CreatedBy	int(11)
+	UpdatedDate	datetime
+	UpdatedBy	int(11)
+
+---
+Existing Table Values:
+
+'1', 'Pieces', 'PCS', '1', '1.0000', '2026-04-17 11:52:52', '1', NULL, NULL
+'2', 'Kilograms', 'KG', '1', '1.0000', '2026-04-17 11:52:52', '1', NULL, NULL
+'3', 'Box', 'BOX', '1', '1.0000', '2026-04-17 11:52:52', '1', NULL, NULL

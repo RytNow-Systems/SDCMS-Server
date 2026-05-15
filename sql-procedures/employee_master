@@ -1,3 +1,20 @@
+Table: employee_master
+
+Columns:
+	EmployeeCode	int(11) AI PK
+	FullName	varchar(100)
+	ContactNumber	varchar(20)
+	EmailAddress	varchar(100)
+	UserName	varchar(50)
+	Password	varchar(255)
+	FkRoleId	int(11)
+	AllowLogin	tinyint(1)
+	IsActive	tinyint(1)
+	CreatedDate	datetime
+	CreatedBy	int(11)
+	UpdatedDate	datetime
+	UpdatedBy	int(11)
+---
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_employee_master_set`(pEmployeeCode INT, pFullName VARCHAR(100), pContactNumber VARCHAR(50), pEmailAddress VARCHAR(50), pUserName VARCHAR(100), pPassword VARCHAR(255), pFkRoleId INT, pAllowLogin INT, pCreatedBy INT, pIsActive INT)
 BEGIN
 /***************************************************

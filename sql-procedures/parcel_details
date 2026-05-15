@@ -1,3 +1,18 @@
+Table: parcel_details
+
+Columns:
+	PkParcelDetailsId	int(11) AI PK
+	FkReceiverDetailsId	int(11)
+	FkCourierId	int(11)
+	TrackingNo	varchar(100)
+	QRCode	varchar(200)
+	FkParcelStatusId	int(11)
+	ParcelCode	varchar(45)
+	LabelPrintCount	int(11)
+	DispatchDate	datetime
+	CreatedDate	datetime
+	CreatedBy	int(11)
+---
 prc_parcel_details_set:
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_parcel_details_set`(pPkParcelDetailsId  INT,pTriggerType INT, /* 0=CREATE | 1=PRINT_LABEL | 2=SCAN_LINK_AWB | 3=DISPATCH | 4=DELIVERED | 5=Cancelled*/pFkReceiverDetailsId INT,/* Required only for pTriggerType = 0 (CREATE). Pass NULL for all other triggers.*/ pAWBNumber VARCHAR(100),pFkCourierId INT,pCreatedBy INT)

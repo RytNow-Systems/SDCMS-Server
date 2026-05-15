@@ -1,3 +1,16 @@
+Table: receiver_status_details
+
+Columns:
+	PkReceiverStatusDetailsId	int(11) AI PK
+	FkReceiverDetailsId	int(11)
+	FkOrderStatusId	int(11)
+	CreatedDate	datetime
+	CreatedBy	int(11)
+	ActionType	varchar(30)
+	AWBNumber	varchar(100)
+	PreviousStatus	varchar(50)
+	FkParcelDetailsId	int(11)
+---
 prc_receiver_status_details_get:
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_get`(pAction INT, pFkParcelDetailsId INT)

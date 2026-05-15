@@ -1,0 +1,15 @@
+Table: lu_master
+
+Columns:
+	LuMasterId	int(11) AI PK
+	LuMaster	varchar(50)
+	LuMaster_1	varchar(50)
+	LuMaster_2	varchar(50)
+	LuMaster_3	varchar(50)
+	IsActive	tinyint(1)
+	---
+
+Existing Table:
+'1', 'Parcel Status', NULL, NULL, NULL, '1'
+'2', 'Party Type', NULL, NULL, NULL, '1'
+'3', 'Notification Type', NULL, NULL, NULL, '1'

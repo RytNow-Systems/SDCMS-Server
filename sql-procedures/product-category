@@ -1,3 +1,15 @@
+Table: product_category
+
+Columns:
+	PkProductCategoryId	int(11) AI PK
+	CategoryName	varchar(100)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+	UpdatedBy	int(11)
+	UpdatedDate	datetime
+	IsActive	int(11)
+---
+
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_category_get`(pAction INT, pLookUpId INT)
 BEGIN
 /***************************************************

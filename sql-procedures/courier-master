@@ -1,3 +1,16 @@
+Table: courier_partner_master
+
+Columns:
+	CourierId	int(11) AI PK
+	CourierName	varchar(100)
+	PhoneNumber	varchar(20)
+	TrackingUrlTemplate	varchar(300)
+	CreatedDate	datetime
+	CreatedBy	int(11)
+	UpdatedDate	datetime
+	UpdatedBy	int(11)
+	IsActive	int(11)
+---
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_courier_partner_master_get`(pAction INT, pCourierId INT)
 BEGIN
 

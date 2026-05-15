@@ -1,3 +1,20 @@
+Table: product_master
+
+Columns:
+	PkProductId	int(11) AI PK
+	FkProductCategoryId	int(11)
+	FkUnitId	int(11)
+	MaterialCode	varchar(50)
+	MaterialName	varchar(150)
+	cu_item_code	varchar(50)
+	MaterialRate	decimal(10,2)
+	MaterialDescription	varchar(300)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+	UpdatedBy	int(11)
+	UpdatedDate	datetime
+	IsActive	tinyint(1)
+---
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_master_get`(pAction INT, pPkProductId INT)
 BEGIN
 /***************************************************

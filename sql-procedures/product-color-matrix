@@ -1,3 +1,18 @@
+Table: product_color_matrix
+
+Columns:
+	PkProductColorId	int(11) AI PK
+	FkProductId	int(11)
+	FkLuColorId	int(11)
+	MaterialRate	decimal(10,2)
+	Size	varchar(50)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+	UpdatedBy	int(11)
+	UpdatedDate	datetime
+	IsActive	tinyint(1)
+---
+
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_color_matrix_get`(pAction INT, pPkProductColorId INT)
 BEGIN
 /***************************************************
