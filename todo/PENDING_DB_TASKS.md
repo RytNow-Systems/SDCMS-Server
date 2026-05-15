@@ -212,6 +212,43 @@ DROP PROCEDURE IF EXISTS prc_parcel_details_set;
 
 ---
 
+## TASK 6 — Fix `prc_product_color_matrix_set`: neither branch returns a result set
+
+**File:** `sql-procedures/product-color-matrix`
+**Status:** PENDING — source file fixed, DB not yet redeployed
+**Impact:**
+- `PATCH /products/:id/variations/:variationId/status` returns `data: null` even on success.
+- `POST /products/:id/variations` (add new variation) also returns `data: null`.
+- Backend has a temporary workaround: makes a second `prc_product_color_matrix_get` call after every set to fetch the updated row. Once this SP is redeployed, the workaround in `product.repository.js → setColorMatrix` must be reverted (remove the second DB call and restore `return rows[0]?.[0] || null`).
+
+**Root Cause:**
+- INSERT branch: `SELECT LAST_INSERT_ID() INTO pProdColorId` is a variable assignment — produces no result set.
+- UPDATE branch: no SELECT at all.
+Both branches return nothing to the caller.
+
+**Fix — add SELECT after each branch:**
+```sql
+-- INSERT branch: after SELECT LAST_INSERT_ID() INTO pProdColorId, add:
+SELECT * FROM product_color_matrix WHERE PkProductColorId = pProdColorId;
+
+-- UPDATE branch: after the UPDATE, add:
+SELECT * FROM product_color_matrix WHERE PkProductColorId = pPkProductColorId;
+```
+
+**Action:**
+```sql
+DROP PROCEDURE IF EXISTS prc_product_color_matrix_set;
+-- then re-create using the corrected definition in sql-procedures/product-color-matrix
+```
+
+**Backend revert required after redeploy:**
+In `src/modules/product/product.repository.js → setColorMatrix`, remove the second `prc_product_color_matrix_get` call and restore:
+```js
+return rows[0]?.[0] || null;
+```
+
+---
+
 ## Summary Table
 
 | # | Procedure | Type | Root Cause | API Impact |
@@ -221,3 +258,4 @@ DROP PROCEDURE IF EXISTS prc_parcel_details_set;
 | 3 | `prc_courier_partner_master_set` | Bug fix | `PhoneNumber` column ref instead of `pPhoneNumber` param | POST courier saves null phone |
 | 4 | `prc_courier_partner_master_get` | Redeploy | pAction=0 missing isactive filter in deployed SP | List returns inactive couriers |
 | 5 | `prc_parcel_details_set` (trigger 3) | Bug fix | DISPATCH trigger omits TrackingNo write | Label data shows null trackingNo |
+| 6 | `prc_product_color_matrix_set` | Bug fix | Neither branch returns result set | Variation set/toggle returns null data |

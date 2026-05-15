@@ -704,11 +704,13 @@ class ProductService {
 
     const internalData = this._mapMatrixToInternal(matrixData);
     const variationId = matrixData.variationId || 0;
+    const isActive = matrixData.isActive !== undefined ? (matrixData.isActive ? 1 : 0) : 1;
     const result = await productRepository.setColorMatrix(
       variationId,
       productId,
       internalData,
       adminId,
+      isActive,
     );
     return this._mapMatrixToApi(result);
   }

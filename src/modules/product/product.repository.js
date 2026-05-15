@@ -753,7 +753,7 @@ class ProductRepository {
    */
   async setColorMatrix(variationId, productId, data, adminId, isActive = 1) {
     if (process.env.USE_MOCK_DB !== "true") {
-      const [rows] = await db.execute(
+      await db.execute(
         "CALL prc_product_color_matrix_set(?, ?, ?, ?, ?, ?, ?)",
         [
           variationId || 0,
@@ -765,7 +765,14 @@ class ProductRepository {
           isActive,
         ],
       );
-      return rows[0]?.[0] || null;
+      // SP UPDATE branch has no SELECT — fetch the updated row explicitly
+      const [fetchRows] = await db.execute(
+        "CALL prc_product_color_matrix_get(?, ?)",
+        [0, productId],
+      );
+      const allRows = fetchRows[0] || [];
+      const targetId = variationId || 0;
+      return allRows.find((r) => r.PkProductColorId === targetId) || null;
     }
 
     // --- MOCK IN-MEMORY LOGIC ---

@@ -58,11 +58,14 @@ DECLARE pProdColorId INT;
 						VALUES (pFkProductId, pFkLuColorId, pMaterialRate, pSize, pCreatedBy, NOW(), pIsActive);
 
 		SELECT LAST_INSERT_ID() INTO pProdColorId;
+		SELECT * FROM product_color_matrix WHERE PkProductColorId = pProdColorId;  -- TASK 6 fix
 
 	ELSE
 		UPDATE product_color_matrix SET
 		FkProductId = pFkProductId, FkLuColorId = pFkLuColorId, MaterialRate = pMaterialRate, Size = pSize, UpdatedBy = pCreatedBy, UpdatedDate = NOW(), IsActive = pIsActive
 		WHERE PkProductColorId = pPkProductColorId;
+
+		SELECT * FROM product_color_matrix WHERE PkProductColorId = pPkProductColorId;  -- TASK 6 fix
 
 	END IF;
 
