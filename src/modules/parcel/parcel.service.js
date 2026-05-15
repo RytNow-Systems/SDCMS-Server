@@ -8,6 +8,7 @@
 
 import parcelRepository from "./parcel.repository.js";
 import ParcelCodeService from "./parcel-code.service.js";
+import notificationService from "../notification/notification.service.js";
 
 // Status constants mapping (from lu_details/system flow)
 const STATUS = {
@@ -272,12 +273,13 @@ class ParcelService {
       // 2. Check for Duplicate AWB
       await this._ensureUniqueAWB(awbNumber);
 
-      // 3. Perform linking based on role (Auto-dispatch for Couriers)
+      // 3. Perform linking based on role (auto-dispatch gated by AUTO_DISPATCH_ON_SCAN)
       const result = await this._executeLinkingFlow(
         parcel,
         awbNumber,
         role,
         employeeCode,
+        user,
       );
 
       return await this._mapParcel(result);
@@ -414,23 +416,30 @@ class ParcelService {
    * Internal helper to execute the linking database updates.
    * @private
    */
-  async _executeLinkingFlow(parcel, awbNumber, role, employeeCode) {
+  async _executeLinkingFlow(parcel, awbNumber, role, employeeCode, user) {
     const id = parcel.parcelId;
-    if (role === "COURIER") {
+    const autoDispatch = process.env.AUTO_DISPATCH_ON_SCAN === "true";
+
+    if (role === "COURIER" && autoDispatch) {
       // Trigger 2: store TrackingNo and move to AWB_LINKED
       await parcelRepository.updateParcelState(id, 2, awbNumber, 0, employeeCode);
-      // Trigger 3: set DispatchDate and move to DISPATCHED (auto-dispatch for couriers)
-      return await parcelRepository.updateParcelState(id, 3, awbNumber, 0, employeeCode);
+      // Trigger 3: set DispatchDate and move to DISPATCHED
+      const result = await parcelRepository.updateParcelState(id, 3, awbNumber, 0, employeeCode);
+
+      // Fire notification after dispatch — failure must not break the dispatch response
+      try {
+        await notificationService.sendNotification(id, user);
+      } catch (notifErr) {
+        // Log but swallow — parcel is dispatched regardless of notification outcome
+        console.error(`[AUTO_DISPATCH] Notification failed for parcel ${id}:`, notifErr.message);
+      }
+
+      return result;
     }
 
-    // Normal linking for OPERATOR/ADMIN (Trigger 2 only)
-    return await parcelRepository.updateParcelState(
-      id,
-      2,
-      awbNumber,
-      0,
-      employeeCode,
-    );
+    // Trigger 2 only: AWB Linked — applies to OPERATOR/ADMIN always,
+    // and to COURIER when AUTO_DISPATCH_ON_SCAN=false
+    return await parcelRepository.updateParcelState(id, 2, awbNumber, 0, employeeCode);
   }
 }
 
