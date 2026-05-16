@@ -44,6 +44,7 @@ export const createCourierSchema = z.object({
   phoneNo: z.string().optional(),
   email: z.string().email().optional(),
   trackingUrlTemplate: z.string().optional(),
+  isActive: z.boolean().optional(),
 });
 
 export const updateCourierSchema = createCourierSchema.partial();
