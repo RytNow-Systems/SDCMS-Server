@@ -250,3 +250,106 @@ describe('Orders', () => {
     expect(body.success).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Senders
+// ---------------------------------------------------------------------------
+
+describe('Senders', () => {
+  let senderId;
+
+  it('GET list returns active senders with expected shape', async () => {
+    const { status, body } = await get('/senders?limit=5', TOKEN);
+    expect(status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    const s = body.data[0];
+    expect(s.senderId).toBeDefined();
+    expect(s.customerName).toBeDefined();
+    expect(s.phoneNo).toBeDefined();
+    expect(s.isActive).toBe(true);
+    senderId = s.senderId;
+  });
+
+  it('GET /:id returns sender with address fields', async () => {
+    if (!senderId) return;
+    const { status, body } = await get(`/senders/${senderId}`, TOKEN);
+    expect(status).toBe(200);
+    expect(body.data.senderId).toBe(senderId);
+    expect(body.data.address).toBeDefined();
+  });
+
+  it('GET /:id/addresses returns address list', async () => {
+    if (!senderId) return;
+    const { status, body } = await get(`/senders/${senderId}/addresses`, TOKEN);
+    expect(status).toBe(200);
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.data[0].senderAddressId).toBeDefined();
+  });
+
+  it('GET /:id returns 404 for nonexistent sender', async () => {
+    const { status, body } = await get('/senders/999999', TOKEN);
+    expect(status).toBe(404);
+    expect(body.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Receivers
+// ---------------------------------------------------------------------------
+
+describe('Receivers', () => {
+  let receiverId;
+
+  it('GET list returns active receivers with expected shape', async () => {
+    const { status, body } = await get('/receivers?limit=5', TOKEN);
+    expect(status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    const r = body.data[0];
+    expect(r.receiverId).toBeDefined();
+    expect(r.customerName).toBeDefined();
+    expect(r.isActive).toBe(true);
+    receiverId = r.receiverId;
+  });
+
+  it('GET /:id/addresses returns address list', async () => {
+    if (!receiverId) return;
+    const { status, body } = await get(`/receivers/${receiverId}/addresses`, TOKEN);
+    expect(status).toBe(200);
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data[0].receiverAddressId).toBeDefined();
+  });
+
+  it('GET /:id returns 404 for nonexistent receiver', async () => {
+    const { status, body } = await get('/receivers/999999', TOKEN);
+    expect(status).toBe(404);
+    expect(body.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Products
+// ---------------------------------------------------------------------------
+
+describe('Products', () => {
+  it('GET list returns variations with expected shape', async () => {
+    const { status, body } = await get('/products?limit=5', TOKEN);
+    expect(status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    const p = body.data[0];
+    expect(p.productId).toBeDefined();
+    expect(p.variationId).toBeDefined();
+    expect(p.materialName).toBeDefined();
+    expect(p.colorName).toBeDefined();
+    expect(p.size).toBeDefined();
+    expect(p.isActive).toBe(true);
+  });
+
+  it('GET list only returns active products by default', async () => {
+    const { body } = await get('/products?limit=20', TOKEN);
+    body.data.forEach((p) => expect(p.isActive).toBe(true));
+  });
+});

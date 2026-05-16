@@ -294,20 +294,20 @@ describe('Order Lifecycle — Happy Path', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Cancel Path: Create order → Print → Cancel order → verify cascade
+// Cancel Path: 2 receivers → Print both → Cancel order → verify full cascade
 // ---------------------------------------------------------------------------
 
 describe('Order Lifecycle — Cancel Path', () => {
   let orderId;
-  let parcelId;
-  let parcelCode;
+  let parcel1Id, parcel2Id;
 
   const prereqs = () =>
     senderId && senderAddressId &&
     receiver1Id && receiver1AddressId &&
+    receiver2Id && receiver2AddressId &&
     variationId1 && variationId2;
 
-  it('creates order with 1 receiver × 2 products for cancel path', async () => {
+  it('creates order with 2 receivers for cancel path', async () => {
     if (!prereqs()) return;
 
     const { status, body } = await post(
@@ -324,6 +324,13 @@ describe('Order Lifecycle — Cancel Path', () => {
               { variationId: variationId2, quantity: 1 },
             ],
           },
+          {
+            receiverId: receiver2Id,
+            receiverAddressId: receiver2AddressId,
+            products: [
+              { variationId: variationId3, quantity: 1 },
+            ],
+          },
         ],
       },
       TOKEN,
@@ -334,34 +341,137 @@ describe('Order Lifecycle — Cancel Path', () => {
     orderId = body.data.orderId;
   });
 
-  it('resolves parcel ID and prints label (cancel only valid before AWB Linked)', async () => {
+  it('resolves both parcel IDs and prints labels', async () => {
     if (!orderId) return;
 
     const { body: orderBody } = await get(`/orders/${orderId}`, TOKEN);
-    parcelId   = orderBody.data.receivers[0]?.parcel?.parcelId;
-    parcelCode = orderBody.data.receivers[0]?.parcel?.parcelCode;
-    expect(parcelId).toBeDefined();
+    parcel1Id = orderBody.data.receivers[0]?.parcel?.parcelId;
+    parcel2Id = orderBody.data.receivers[1]?.parcel?.parcelId;
+    expect(parcel1Id).toBeDefined();
+    expect(parcel2Id).toBeDefined();
 
-    const { status } = await post(`/parcels/${parcelId}/log-print`, {}, TOKEN);
-    expect(status).toBe(200);
+    const [r1, r2] = await Promise.all([
+      post(`/parcels/${parcel1Id}/log-print`, {}, TOKEN),
+      post(`/parcels/${parcel2Id}/log-print`, {}, TOKEN),
+    ]);
+    expect(r1.status).toBe(200);
+    expect(r2.status).toBe(200);
   });
 
-  it('cancel order cascades — returns success', async () => {
+  it('cancel order cascades to all parcels — returns success', async () => {
     if (!orderId) return;
     const { status, body } = await del(`/orders/${orderId}/cancel`, TOKEN);
     expect(status).toBe(200);
     expect(body.success).toBe(true);
   });
 
-  it('GET /orders/:id — derived status → Cancelled after cancel', async () => {
+  it('GET /orders/:id — derived status → Cancelled, both parcels Cancelled', async () => {
     if (!orderId) return;
     const { body } = await get(`/orders/${orderId}`, TOKEN);
     expect(body.data.derivedStatus).toBe('Cancelled');
+    expect(body.data.receivers[0].parcel.status).toBe('Cancelled');
+    expect(body.data.receivers[1].parcel.status).toBe('Cancelled');
   });
 
-  it('cancelled parcel rejects further state transitions', async () => {
-    if (!parcelId) return;
-    const { status, body } = await post(`/parcels/${parcelId}/log-print`, {}, TOKEN);
+  it('cancelled parcel 1 rejects further state transitions', async () => {
+    if (!parcel1Id) return;
+    const { status, body } = await post(`/parcels/${parcel1Id}/log-print`, {}, TOKEN);
+    expect(status).toBe(400);
+    expect(body.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// State Guards: invalid transitions must be rejected with 400
+// ---------------------------------------------------------------------------
+
+describe('Order Lifecycle — State Guards', () => {
+  let guardParcelId;
+  let guardParcelCode;
+
+  beforeAll(async () => {
+    if (!senderId || !senderAddressId || !receiver1Id || !receiver1AddressId || !variationId1) return;
+
+    const { body: createBody } = await post(
+      '/orders',
+      {
+        senderId,
+        senderAddressId,
+        receivers: [
+          {
+            receiverId: receiver1Id,
+            receiverAddressId: receiver1AddressId,
+            products: [{ variationId: variationId1, quantity: 1 }],
+          },
+        ],
+      },
+      TOKEN,
+    );
+
+    const guardOrderId = createBody.data?.orderId;
+    if (!guardOrderId) return;
+
+    const { body: orderBody } = await get(`/orders/${guardOrderId}`, TOKEN);
+    guardParcelId   = orderBody.data.receivers[0]?.parcel?.parcelId;
+    guardParcelCode = orderBody.data.receivers[0]?.parcel?.parcelCode;
+  }, 15000);
+
+  // --- Parcel is Pending ---
+
+  it('scan Pending parcel → 400 (must be Label Printed first)', async () => {
+    if (!guardParcelCode) return;
+    const { status, body } = await post(
+      '/parcels/scan',
+      { parcelId: guardParcelCode, awbNumber: `GUARD_AWB_${Date.now()}` },
+      TOKEN,
+    );
+    expect(status).toBe(400);
+    expect(body.success).toBe(false);
+  });
+
+  it('dispatch Pending parcel → 400 (must be AWB Linked first)', async () => {
+    if (!guardParcelId) return;
+    const { status, body } = await post(
+      '/parcels/dispatch',
+      { parcelDetailsIds: [guardParcelId] },
+      TOKEN,
+    );
+    expect(status).toBe(400);
+    expect(body.success).toBe(false);
+  });
+
+  it('deliver Pending parcel → 400 (must be Dispatched first)', async () => {
+    if (!guardParcelId) return;
+    const { status, body } = await patch(`/parcels/${guardParcelId}/deliver`, {}, TOKEN);
+    expect(status).toBe(400);
+    expect(body.success).toBe(false);
+  });
+
+  // Advance to Label Printed for next group
+
+  it('log print → advance guard parcel to Label Printed', async () => {
+    if (!guardParcelId) return;
+    const { status, body } = await post(`/parcels/${guardParcelId}/log-print`, {}, TOKEN);
+    expect(status).toBe(200);
+    expect(body.data.status).toBe('Label Printed');
+  });
+
+  // --- Parcel is Label Printed ---
+
+  it('dispatch Label Printed parcel (no AWB) → 400', async () => {
+    if (!guardParcelId) return;
+    const { status, body } = await post(
+      '/parcels/dispatch',
+      { parcelDetailsIds: [guardParcelId] },
+      TOKEN,
+    );
+    expect(status).toBe(400);
+    expect(body.success).toBe(false);
+  });
+
+  it('deliver Label Printed parcel → 400 (must be Dispatched first)', async () => {
+    if (!guardParcelId) return;
+    const { status, body } = await patch(`/parcels/${guardParcelId}/deliver`, {}, TOKEN);
     expect(status).toBe(400);
     expect(body.success).toBe(false);
   });
