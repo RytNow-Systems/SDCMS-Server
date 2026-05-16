@@ -266,8 +266,14 @@ class OrderRepository {
             derivedStatus = "Cancelled";
           } else if (active.every((s) => s === 5)) {
             derivedStatus = "Delivered";
-          } else if (active.some((s) => s === 4 || s === 5)) {
+          } else if (active.every((s) => s === 4)) {
             derivedStatus = "Dispatched";
+          } else if (active.some((s) => s === 4 || s === 5)) {
+            derivedStatus = "Partially Dispatched";
+          } else if (active.every((s) => s === 2 || s === 3)) {
+            derivedStatus = "Label Printed";
+          } else if (active.some((s) => s === 2 || s === 3)) {
+            derivedStatus = "Partially Printed";
           }
         }
 
@@ -644,8 +650,14 @@ class OrderRepository {
         derivedStatus = "Cancelled";
       } else if (active.every((s) => s === "Delivered")) {
         derivedStatus = "Delivered";
-      } else if (active.some((s) => s === "Dispatched" || s === "Delivered")) {
+      } else if (active.every((s) => s === "Dispatched")) {
         derivedStatus = "Dispatched";
+      } else if (active.some((s) => s === "Dispatched" || s === "Delivered")) {
+        derivedStatus = "Partially Dispatched";
+      } else if (active.every((s) => s === "Label Printed" || s === "AWB Linked")) {
+        derivedStatus = "Label Printed";
+      } else if (active.some((s) => s === "Label Printed" || s === "AWB Linked")) {
+        derivedStatus = "Partially Printed";
       }
     }
     order.DerivedStatus = derivedStatus;
