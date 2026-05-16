@@ -987,9 +987,18 @@ class OrderRepository {
       }
 
       // 5. Order Header Soft-Delete
+      // Fetch current header first — prc_order_master_set UPDATE branch sets all
+      // columns unconditionally; passing null would violate FkSenderId NOT NULL.
+      const [headerRows] = await connection.execute(
+        "CALL prc_order_master_get(?, ?)",
+        [1, orderId],
+      );
+      const orderHeader = headerRows[0]?.[0];
+      if (!orderHeader) throw new Error(`Order ${orderId} not found`);
+
       const [orderRows] = await connection.execute(
         "CALL prc_order_master_set(?, ?, ?, ?, ?, ?)",
-        [orderId, null, null, 0, adminId, 0],
+        [orderId, orderHeader.FkSenderId, orderHeader.PkPartyDetailsId ?? null, orderHeader.TotalAmount, adminId, 0],
       );
 
       await connection.commit();
