@@ -1,9 +1,9 @@
-CREATE DEFINER=`user`@`%` PROCEDURE `prc_BulkUploadErrors_get`(
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_bulk_upload_errors_get`(
   IN pAction         INT,
   IN pFkBulkUploadId INT
 )
 BEGIN
-  -- pAction = 0: Get all error rows for a specific bulk upload session
+  -- pAction = 0: all error rows for a specific bulk upload session
   IF pAction = 0 THEN
     SELECT
       PkErrorId,
@@ -21,7 +21,7 @@ END
 
 ---
 
-CREATE DEFINER=`user`@`%` PROCEDURE `prc_BulkUploadErrors_set`(
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_bulk_upload_errors_set`(
   IN pPkErrorId      INT,
   IN pFkBulkUploadId INT,
   IN pRowNumber      INT,

@@ -37,7 +37,7 @@ class BulkUploadRepository {
 
   /**
    * Check if a session with the given hash already exists.
-   * Procedure: CALL prc_checkduplicate_BulkUploadSessions(pSessionHash)
+   * Procedure: CALL prc_checkduplicate_bulk_upload_sessions(pSessionHash)
    *
    * @param {string} sessionHash - MD5/SHA hash of the upload content.
    * @returns {Promise<number>} DuplicateCount (0 = unique, >0 = duplicate).
@@ -45,7 +45,7 @@ class BulkUploadRepository {
   async checkDuplicate(sessionHash) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_checkduplicate_BulkUploadSessions(?)',
+        'CALL prc_checkduplicate_bulk_upload_sessions(?)',
         [sessionHash],
       );
       return rows[0]?.[0]?.DuplicateCount ?? 0;
@@ -59,7 +59,7 @@ class BulkUploadRepository {
 
   /**
    * Create a new bulk upload session record.
-   * Procedure: CALL prc_BulkUploadSessions_set(0, pSessionHash, pFileName, pTotalRows, 0, 0, pFkUploadedByEmployeeCode)
+   * Procedure: CALL prc_bulk_upload_sessions_set(0, pSessionHash, pFileName, pTotalRows, 0, 0, pFkUploadedByEmployeeCode)
    *
    * @param {string} sessionHash           - Unique content hash for deduplication.
    * @param {string} fileName              - Name of the uploaded file.
@@ -70,7 +70,7 @@ class BulkUploadRepository {
   async createSession(sessionHash, fileName, totalRows, uploadedByEmployeeId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_BulkUploadSessions_set(?, ?, ?, ?, ?, ?, ?)',
+        'CALL prc_bulk_upload_sessions_set(?, ?, ?, ?, ?, ?, ?)',
         [0, sessionHash, fileName, totalRows, 0, 0, uploadedByEmployeeId],
       );
       return rows[0][0];
@@ -96,7 +96,7 @@ class BulkUploadRepository {
 
   /**
    * Get bulk upload sessions.
-   * Procedure: CALL prc_bulk_order_upload_log_get(pAction, pId)
+   * Procedure: CALL prc_bulk_upload_sessions_get(pAction, pId)
    *
    * @param {number} pAction - 0: all, 1: by ID.
    * @param {number|null} pId - Session ID when pAction=1.
@@ -105,7 +105,7 @@ class BulkUploadRepository {
   async getSessions(pAction, pId = null) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_bulk_order_upload_log_get(?, ?)',
+        'CALL prc_bulk_upload_sessions_get(?, ?)',
         [pAction, pId],
       );
       return pAction === 1 ? rows[0][0] : rows[0];
@@ -118,13 +118,41 @@ class BulkUploadRepository {
     return mockSessions;
   }
 
+  /**
+   * Update session with final success/fail counts and resolve Status.
+   * Procedure: CALL prc_bulk_upload_sessions_set(pPkBulkUploadId, ..., pSuccessfulOrders, pFailedRows, ...)
+   *
+   * @param {number} sessionId
+   * @param {string} sessionHash
+   * @param {string} fileName
+   * @param {number} totalRows
+   * @param {number} successfulOrders
+   * @param {number} failedRows
+   * @param {number} uploadedByEmployeeId
+   */
+  async closeSession(sessionId, sessionHash, fileName, totalRows, successfulOrders, failedRows, uploadedByEmployeeId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      await db.execute(
+        'CALL prc_bulk_upload_sessions_set(?, ?, ?, ?, ?, ?, ?)',
+        [sessionId, sessionHash, fileName, totalRows, successfulOrders, failedRows, uploadedByEmployeeId],
+      );
+      return;
+    }
+    const s = mockSessions.find((x) => x.PkBulkUploadId === sessionId);
+    if (s) {
+      s.SuccessfulOrders = successfulOrders;
+      s.FailedRows = failedRows;
+      s.Status = failedRows === 0 ? 'COMPLETED' : successfulOrders === 0 ? 'FAILED' : 'PARTIAL_SUCCESS';
+    }
+  }
+
   // ============================================================================
   // ERROR LOGGING
   // ============================================================================
 
   /**
    * Log a failed row's data as a stringified JSON blob.
-   * Procedure: CALL prc_BulkUploadErrors_set(0, pFkBulkUploadId, pRowNumber, pErrorMessage, pRowData)
+   * Procedure: CALL prc_bulk_upload_errors_set(0, pFkBulkUploadId, pRowNumber, pErrorMessage, pRowData)
    *
    * @param {number} sessionId     - FK to bulk_upload_sessions.
    * @param {number} rowNumber     - 1-based row index in the upload.
@@ -135,7 +163,7 @@ class BulkUploadRepository {
   async logError(sessionId, rowNumber, errorMessage, rowData) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_BulkUploadErrors_set(?, ?, ?, ?, ?)',
+        'CALL prc_bulk_upload_errors_set(?, ?, ?, ?, ?)',
         [0, sessionId, rowNumber, errorMessage, rowData],
       );
       return rows[0][0];
@@ -163,7 +191,7 @@ class BulkUploadRepository {
 
   /**
    * Get all error rows logged for a specific bulk upload session.
-   * Procedure: CALL prc_BulkUploadErrors_get(0, pFkBulkUploadId)
+   * Procedure: CALL prc_bulk_upload_errors_get(0, pFkBulkUploadId)
    *
    * @param {number} sessionId - FK to bulk_upload_sessions.
    * @returns {Promise<Array>} Raw error rows containing stringified RowData.
@@ -171,7 +199,7 @@ class BulkUploadRepository {
   async getErrorsBySessionId(sessionId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_BulkUploadErrors_get(?, ?)',
+        'CALL prc_bulk_upload_errors_get(?, ?)',
         [0, sessionId],
       );
       return rows[0];
@@ -187,7 +215,7 @@ class BulkUploadRepository {
 
   /**
    * Map a successfully created OrderId to this bulk upload session (junction table).
-   * Procedure: CALL prc_BulkUploadOrderMapping_set(0, pFkBulkUploadId, pFkOrderId)
+   * Procedure: CALL prc_bulk_upload_order_mapping_set(0, pFkBulkUploadId, pFkOrderId)
    *
    * @param {number} sessionId - FK to bulk_upload_sessions.
    * @param {number} orderId   - FK to order_master.
@@ -196,7 +224,7 @@ class BulkUploadRepository {
   async mapOrder(sessionId, orderId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_BulkUploadOrderMapping_set(?, ?, ?)',
+        'CALL prc_bulk_upload_order_mapping_set(?, ?, ?)',
         [0, sessionId, orderId],
       );
       return rows[0][0];
@@ -221,7 +249,7 @@ class BulkUploadRepository {
 
   /**
    * Get individual row details for a bulk upload session.
-   * Procedure: CALL prc_bulk_order_upload_detail_get(pAction, pSessionId)
+   * Procedure: CALL prc_bulk_upload_errors_get(pAction, pSessionId)
    *
    * @param {number} pAction    - 0: by Session ID.
    * @param {number} sessionId  - The session ID.
@@ -230,7 +258,7 @@ class BulkUploadRepository {
   async getSessionDetails(pAction, sessionId) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_bulk_order_upload_detail_get(?, ?)',
+        'CALL prc_bulk_upload_errors_get(?, ?)',
         [pAction, sessionId],
       );
       return rows[0];

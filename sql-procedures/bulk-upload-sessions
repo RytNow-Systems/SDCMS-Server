@@ -1,4 +1,4 @@
-CREATE DEFINER=`user`@`%` PROCEDURE `prc_BulkUploadOrderMapping_set`(
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_bulk_upload_order_mapping_set`(
   IN pPkMappingId    INT,
   IN pFkBulkUploadId INT,
   IN pFkOrderId      INT
@@ -16,7 +16,7 @@ END
 
 ---
 
-CREATE DEFINER=`user`@`%` PROCEDURE `prc_BulkUploadSessions_set`(
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_bulk_upload_sessions_set`(
   IN pPkBulkUploadId          INT,
   IN pSessionHash             VARCHAR(255),
   IN pFileName                VARCHAR(255),
@@ -50,12 +50,51 @@ BEGIN
 END
 ---
 
-CREATE DEFINER=`user`@`%` PROCEDURE `prc_checkduplicate_BulkUploadSessions`(
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_checkduplicate_bulk_upload_sessions`(
   IN pSessionHash VARCHAR(255)
 )
 BEGIN
   SELECT COUNT(*) AS DuplicateCount
   FROM bulk_upload_sessions
   WHERE SessionHash = pSessionHash;
+END
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_bulk_upload_sessions_get`(
+  IN pAction INT,
+  IN pPkBulkUploadId INT
+)
+BEGIN
+  -- pAction = 0: all sessions (most recent first)
+  IF pAction = 0 THEN
+    SELECT
+      PkBulkUploadId,
+      SessionHash,
+      FileName,
+      TotalRows,
+      SuccessfulOrders,
+      FailedRows,
+      Status,
+      FkUploadedByEmployeeCode,
+      UploadedAt
+    FROM bulk_upload_sessions
+    ORDER BY PkBulkUploadId DESC;
+  END IF;
+
+  -- pAction = 1: single session by ID
+  IF pAction = 1 THEN
+    SELECT
+      PkBulkUploadId,
+      SessionHash,
+      FileName,
+      TotalRows,
+      SuccessfulOrders,
+      FailedRows,
+      Status,
+      FkUploadedByEmployeeCode,
+      UploadedAt
+    FROM bulk_upload_sessions
+    WHERE PkBulkUploadId = pPkBulkUploadId;
+  END IF;
 END
 ---

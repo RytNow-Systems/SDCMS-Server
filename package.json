@@ -16,6 +16,7 @@
     "seed": "node src/infrastructure/database/seeders.js",
     "test:e2e": "node --experimental-vm-modules node_modules/.bin/jest tests/e2e/regression.test.js --testTimeout=20000",
     "test:e2e:lifecycle": "node --experimental-vm-modules node_modules/.bin/jest tests/e2e/lifecycle.test.js --testTimeout=30000 --runInBand",
+    "test:e2e:bulk": "node --experimental-vm-modules node_modules/.bin/jest tests/e2e/bulk-upload.test.js --testTimeout=30000 --runInBand",
     "docs": "node scripts/generate-api-docs.js"
   },
   "repository": {

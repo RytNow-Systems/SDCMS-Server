@@ -74,6 +74,12 @@ class BulkUploadService {
       }
     }
 
+    // Close session — persist final counts and resolve Status in DB
+    await bulkUploadRepository.closeSession(
+      sessionId, sessionHash, fileName, rows.length,
+      successfulOrders, failedRows, uploadedByEmployeeId,
+    );
+
     return { sessionId, successfulOrders, failedRows };
   }
 
