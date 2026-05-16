@@ -17,6 +17,7 @@ export const getProducts = asyncHandler(async (req, res) => {
     limit: parseInt(req.query.limit) || 20,
     categoryId: parseInt(req.query.categoryId) || 0,
     unitId: parseInt(req.query.unitId) || 0,
+    search: req.query.search?.trim() || "",
     includeInactive: req.query.includeInactive === 'true',
   };
 

@@ -329,7 +329,7 @@ class ProductRepository {
    * @returns {Promise<{data: Array, total: number}>} Paginated product list with color/size matrix
    */
   async findAll(filters = {}) {
-    const { categoryId = 0, unitId = 0, page = 1, limit = 20, includeInactive = false } = filters;
+    const { categoryId = 0, unitId = 0, search = "", page = 1, limit = 20, includeInactive = false } = filters;
 
     let products = [];
     let matrices = [];
@@ -414,6 +414,18 @@ class ProductRepository {
           CreatedDate: p.CreatedDate,
         });
       }
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      fullResults = fullResults.filter(
+        (item) =>
+          (item.MaterialName && item.MaterialName.toLowerCase().includes(q)) ||
+          (item.Size && item.Size.toLowerCase().includes(q)) ||
+          (item.ColorName && item.ColorName.toLowerCase().includes(q)) ||
+          (item.MaterialRate && String(item.MaterialRate).toLowerCase().includes(q)) ||
+          (item.CategoryName && item.CategoryName.toLowerCase().includes(q))
+      );
     }
 
     // Step 3: Apply pagination (using the same pattern as order.repository.js _paginateData)
