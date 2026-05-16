@@ -62,53 +62,10 @@ END
 
 prc_receiver_status_details_set:
 
-CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_set`(pFkParcelDetailsId INT, pFkReceiverDetailsId INT, pActionType VARCHAR(50), pAWBNumber VARCHAR(100), pCreatedBy INT)
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_set`( pFkParcelDetailsId INT, pFkReceiverDetailsId INT, pActionType VARCHAR(50), pAWBNumber VARCHAR(100), pCreatedBy INT, pPreviousStatus VARCHAR(50), pFkOrderStatusId INT)
 BEGIN
-    INSERT INTO receiver_status_details (FkParcelDetailsId, FkReceiverDetailsId, ActionType, AWBNumber, CreatedDate, CreatedBy)
-    VALUES (pFkParcelDetailsId, pFkReceiverDetailsId, pActionType, pAWBNumber, NOW(), pCreatedBy);
+    INSERT INTO receiver_status_details (FkParcelDetailsId, FkReceiverDetailsId, ActionType, AWBNumber, PreviousStatus, FkOrderStatusId, CreatedDate, CreatedBy)
+    VALUES (pFkParcelDetailsId, pFkReceiverDetailsId, pActionType, pAWBNumber, pPreviousStatus, pFkOrderStatusId, NOW(), pCreatedBy);
 END
 
 ---
-
--- ============================================================
--- TASK: Add PreviousStatus + FkOrderStatusId to audit log insert
--- ============================================================
--- Status   : PENDING — SP change required in DB
--- Raised   : 2026-05-14 (found during parcel lifecycle E2E test)
--- Assignee : DB Engineer
---
--- Description:
---   prc_receiver_status_details_set never inserts PreviousStatus or
---   FkOrderStatusId into receiver_status_details. Both columns exist
---   in the table and are queried by prc_receiver_status_details_get
---   and prc_receiver_status_details_search, but they are always NULL
---   because the INSERT omits them.
---
---   Impact:
---   - GET /parcels/:id/timeline always returns previousStatus: null
---     for every event — no audit trail of state transitions.
---   - FkOrderStatusId is also NULL, so the StatusName JOIN in the
---     search SP returns '' — the backend falls back to ACTION_STATUS_MAP
---     for newStatus, which works but is fragile.
---
--- Fix (two parts):
---   1. Add pPreviousStatus VARCHAR(50) and pFkOrderStatusId INT
---      parameters to prc_receiver_status_details_set.
---   2. Include them in the INSERT column list and VALUES clause.
---
---   The callers (prc_parcel_details_set triggers 1-5) must then:
---   - Query the current parcel status BEFORE the UPDATE.
---   - Pass it as pPreviousStatus (the human-readable LuDetails string).
---   - Pass the NEW FkParcelStatusId as pFkOrderStatusId.
---
--- Example revised signature:
---   prc_receiver_status_details_set(
---     pFkParcelDetailsId   INT,
---     pFkReceiverDetailsId INT,
---     pActionType          VARCHAR(50),
---     pAWBNumber           VARCHAR(100),
---     pCreatedBy           INT,
---     pPreviousStatus      VARCHAR(50),   -- NEW
---     pFkOrderStatusId     INT            -- NEW (new status lu_details ID)
---   )
--- ============================================================
