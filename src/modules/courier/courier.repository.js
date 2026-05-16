@@ -228,8 +228,9 @@ class CourierRepository {
     // LIVE DB MODE: prc_courier_partner_master_set (CourierId>0 → Update)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      // Fetch existing record to validate existence and preserve unchanged fields
-      const existing = await this.findById(id);
+      // Fetch existing record to validate existence and preserve unchanged fields.
+      // includeDeleted: true so inactive couriers can still be edited/reactivated.
+      const existing = await this.findById(id, { includeDeleted: true });
       if (!existing) return null;
 
       await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
@@ -240,14 +241,15 @@ class CourierRepository {
         adminId || null,
         updates.isActive !== undefined ? (updates.isActive ? 1 : 0) : 1
       ]);
-      // Re-fetch to return the updated record (SP may not SELECT after UPDATE)
-      return await this.findById(id);
+      // Re-fetch to return the updated record (SP may not SELECT after UPDATE).
+      // includeDeleted: true so the re-fetch works even if isActive was set to 0.
+      return await this.findById(id, { includeDeleted: true });
     }
 
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory update
     // ------------------------------------------------------------------
-    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString() && c.IsActive);
+    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString());
     if (index === -1) return null;
 
     if (updates.courierName) seedCouriers[index].CourierName = updates.courierName;
