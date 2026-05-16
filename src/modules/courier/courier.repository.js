@@ -124,7 +124,8 @@ class CourierRepository {
     // LIVE DB MODE: prc_courier_partner_master_get (pAction=1)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [1, id]);
+      const pAction = options.includeDeleted ? 2 : 1;
+      const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [pAction, id]);
       const courier = rows[0]?.[0] || null;
       if (courier && !options.includeDeleted && !courier.IsActive) return null;
       return courier;
