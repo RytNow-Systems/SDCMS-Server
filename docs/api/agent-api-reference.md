@@ -227,11 +227,11 @@ interface UpdateProductRequest {
   unitId?:        number;
   materialRate?:  number;
   variations?:    Array<{
-    matrixId?:    number;        // present = update; absent = insert
+    variationId?:    number;        // present = update; absent = insert
     colorId?:     number;
     size?:        string;
     materialRate?: number;
-    isActive?:    false;         // matrixId + isActive:false = soft-delete
+    isActive?:    false;         // variationId + isActive:false = soft-delete
   }>;
 }
 ```
@@ -626,9 +626,9 @@ Params: id: number
 Body:   UpdateProductRequest (all fields optional)
 200:    updated Product
 Notes:
-  - Variations diff: matrixId present → update
-  - Variations diff: matrixId absent → insert new
-  - matrixId + isActive:false → soft-delete variation
+  - Variations diff: variationId present → update
+  - Variations diff: variationId absent → insert new
+  - variationId + isActive:false → soft-delete variation
 ```
 
 #### `DELETE /products/:id`
@@ -638,11 +638,11 @@ Params: id: number
 200:    { success: true }
 ```
 
-#### `POST /products/:id/matrix`
+#### `POST /products/:id/variations`
 ```
 Roles:  ADMIN, OPERATOR
 Params: id: number
-Body:   { fkLuColorId: number, materialRate: number, size: string, matrixId?: number }
+Body:   { fkLuColorId: number, materialRate: number, size: string, variationId?: number }
 201:    ProductVariation
 Notes:  Prefer inline variations on PUT /products/:id for batch edits
 ```

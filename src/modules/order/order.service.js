@@ -8,6 +8,8 @@
 import orderRepository from "./order.repository.js";
 import productRepository from "../product/product.repository.js";
 import ParcelCodeService from "../parcel/parcel-code.service.js";
+import senderRepository from "../sender/sender.repository.js";
+import logger from "../../shared/utils/logger.js";
 
 class OrderService {
   /**
@@ -28,6 +30,13 @@ class OrderService {
       const error = new Error("Invalid senderId: Party not found.");
       error.statusCode = 400;
       throw error;
+    }
+
+    // Upgrade Receiver → Sender if a receiver party is used as sender
+    if (sender.FkPartyTypeId === 2) {
+      senderRepository.upgradePartyType(senderId, sender, createdBy).catch((err) =>
+        logger.error("[createOrder] partyType upgrade failed", { senderId, err: err.message })
+      );
     }
 
     const senderAddressDetails = await orderRepository.resolveAddress(
@@ -620,15 +629,18 @@ class OrderService {
    * @private
    */
   _checkPhysicalExecutionBegun(parcels, action = "update") {
-    const blockStatuses = ["AWB_LINKED", "DISPATCHED", "DELIVERED"];
+    const blockStatusIds = [3, 4, 5]; // AWB Linked=3, Dispatched=4, Delivered=5
+    const blockStatusNames = ["AWB Linked", "Dispatched", "Delivered"];
     if (
-      parcels.some((p) =>
-        blockStatuses.includes(
-          p.ParcelStatusName ||
-            p.StatusDescription ||
-            p.FkParcelStatusId ||
-            p.parcelStatusCode,
-        ),
+      parcels.some(
+        (p) =>
+          blockStatusIds.includes(p.FkParcelStatusId) ||
+          blockStatusNames.includes(
+            p.ParcelStatusName ||
+              p.StatusDescription ||
+              p.status ||
+              p.parcelStatusCode,
+          ),
       )
     ) {
       const error = new Error(
@@ -747,10 +759,12 @@ class OrderService {
                 r.parcel.ParcelStatusCode ||
                 r.parcel.status ||
                 r.parcel.ParcelStatusName ||
-                "PENDING",
+                "Pending",
             }
           : null,
         products: (r.items || []).map((i) => ({
+          orderItemId: i.PkOrderItemId || i.orderItemId || null,
+          variationId: i.VariationId || i.variationId || null,
           productId: i.FkProductId || i.fkProductId,
           quantity: i.OutwardQty || i.outwardQty,
           unitPrice: i.UnitPrice || i.unitPrice,

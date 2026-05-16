@@ -10,12 +10,12 @@ import {
   getEmployeeById,
   createEmployee,
   updateEmployee,
-  deleteEmployee,
+  updateEmployeeStatus,
   toggleAccess
 } from '../controllers/employee.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 import { validate } from '../../../shared/middleware/validate.middleware.js';
-import { createEmployeeSchema, updateEmployeeSchema, toggleAccessSchema } from '../validations/validation.schemas.js';
+import { createEmployeeSchema, updateEmployeeSchema, toggleAccessSchema, statusToggleSchema } from '../validations/validation.schemas.js';
 
 const router = express.Router();
 
@@ -30,8 +30,9 @@ router.route('/')
 
 router.route('/:id')
   .get(getEmployeeById)
-  .put(validate(updateEmployeeSchema), updateEmployee)
-  .delete(deleteEmployee);
+  .put(validate(updateEmployeeSchema), updateEmployee);
+
+router.patch('/:id/status', validate(statusToggleSchema), updateEmployeeStatus);
 
 router.patch('/:id/toggle-access', validate(toggleAccessSchema), toggleAccess);
 

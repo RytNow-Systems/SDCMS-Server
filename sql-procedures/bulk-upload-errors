@@ -1,0 +1,40 @@
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_bulk_upload_errors_get`(
+  IN pAction         INT,
+  IN pFkBulkUploadId INT
+)
+BEGIN
+  -- pAction = 0: all error rows for a specific bulk upload session
+  IF pAction = 0 THEN
+    SELECT
+      PkErrorId,
+      FkBulkUploadId,
+      RowNumber,
+      ErrorType,
+      ErrorMessage,
+      RowData,
+      CreatedAt
+    FROM bulk_upload_errors
+    WHERE FkBulkUploadId = pFkBulkUploadId
+    ORDER BY RowNumber ASC;
+  END IF;
+END
+
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_bulk_upload_errors_set`(
+  IN pPkErrorId      INT,
+  IN pFkBulkUploadId INT,
+  IN pRowNumber      INT,
+  IN pErrorMessage   TEXT,
+  IN pRowData        LONGTEXT
+)
+BEGIN
+  IF pPkErrorId = 0 THEN
+    INSERT INTO bulk_upload_errors
+      (FkBulkUploadId, RowNumber, ErrorMessage, RowData)
+    VALUES
+      (pFkBulkUploadId, pRowNumber, pErrorMessage, pRowData);
+
+    SELECT LAST_INSERT_ID() AS PkErrorId;
+  END IF;
+END

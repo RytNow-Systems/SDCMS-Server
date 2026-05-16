@@ -77,7 +77,7 @@ class EmployeeService {
    * Get an employee by ID
    */
   async getEmployeeById(id) {
-    const employee = await employeeRepository.findById(id);
+    const employee = await employeeRepository.findById(id, { includeDeleted: true });
     if (!employee) {
       const error = new Error('Employee not found');
       error.statusCode = 404;
@@ -122,7 +122,7 @@ class EmployeeService {
    * Update an existing employee
    */
   async updateEmployee(id, employeeData) {
-    const existingEmployee = await employeeRepository.findById(id);
+    const existingEmployee = await employeeRepository.findById(id, { includeDeleted: true });
     if (!existingEmployee) {
       const error = new Error('Employee not found');
       error.statusCode = 404;
@@ -177,17 +177,17 @@ class EmployeeService {
   }
 
   /**
-   * Delete an employee (soft delete)
+   * Update an employee's active status (soft delete/reactivate)
    */
-  async deleteEmployee(adminId, employeeIdToDelete) {
-    // Business Rule: Admins cannot delete their own account
-    if (adminId.toString() === employeeIdToDelete.toString()) {
-      const error = new Error('Cannot delete your own account');
+  async updateEmployeeStatus(adminId, employeeIdToToggle, isActive) {
+    // Business Rule: Admins cannot deactivate their own account
+    if (adminId.toString() === employeeIdToToggle.toString() && isActive === false) {
+      const error = new Error('Cannot deactivate your own account');
       error.statusCode = 400;
       throw error;
     }
 
-    const employee = await employeeRepository.delete(employeeIdToDelete);
+    const employee = await employeeRepository.updateStatus(employeeIdToToggle, isActive);
     if (!employee) {
       const error = new Error('Employee not found');
       error.statusCode = 404;

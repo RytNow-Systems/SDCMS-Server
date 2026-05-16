@@ -1,8 +1,32 @@
+Table: parcel_details
+
+Columns:
+	PkParcelDetailsId	int(11) AI PK
+	FkReceiverDetailsId	int(11)
+	FkCourierId	int(11)
+	TrackingNo	varchar(100)
+	QRCode	varchar(200)
+	FkParcelStatusId	int(11)
+	ParcelCode	varchar(45)
+	LabelPrintCount	int(11)
+	DispatchDate	datetime
+	CreatedDate	datetime
+	CreatedBy	int(11)
+---
 prc_parcel_details_set:
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_parcel_details_set`(pPkParcelDetailsId  INT,pTriggerType INT, /* 0=CREATE | 1=PRINT_LABEL | 2=SCAN_LINK_AWB | 3=DISPATCH | 4=DELIVERED | 5=Cancelled*/pFkReceiverDetailsId INT,/* Required only for pTriggerType = 0 (CREATE). Pass NULL for all other triggers.*/ pAWBNumber VARCHAR(100),pFkCourierId INT,pCreatedBy INT)
 BEGIN
+/***************************************************
+Author:        Aditya Mulay
+Module Name    :parcel
+Input Parameter    : pPkParcelDetailsId, pTriggerType, pFkReceiverDetailsId, pAWBNumber, pFkCourierId, pCreatedBy
+Output Parameter : parcel details
+Description : used to create parcels and update parcel status actions such as label print, AWB linking, dispatch, delivery, and cancellation
+****************************************************/
+
     DECLARE pReceiverDetailsId INT;
+    DECLARE pPrevStatusName VARCHAR(50);
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -24,6 +48,13 @@ BEGIN
         -- Resolve receiver for audit logging (only needed for update triggers 1-5)
         SELECT FkReceiverDetailsId INTO pReceiverDetailsId
         FROM parcel_details WHERE PkParcelDetailsId = pPkParcelDetailsId;
+
+        -- Capture current status name before UPDATE for audit trail
+        SELECT ld.LuDetails INTO pPrevStatusName
+        FROM parcel_details pd
+        LEFT JOIN lu_details ld ON ld.LuDetailsId = pd.FkParcelStatusId
+        WHERE pd.PkParcelDetailsId = pPkParcelDetailsId;
+
     -- -------------------------------------------------------
     -- Trigger 1: PRINT LABEL
     -- lu_details: 2 = 'Label Printed'
@@ -31,7 +62,7 @@ BEGIN
     IF pTriggerType = 1 THEN
         UPDATE parcel_details SET LabelPrintCount  = IFNULL(LabelPrintCount, 0) + 1,FkParcelStatusId = 2
         WHERE PkParcelDetailsId = pPkParcelDetailsId;
-        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'PRINT_LABEL', NULL, pCreatedBy);
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'PRINT_LABEL', NULL, pCreatedBy, pPrevStatusName, 2);
     -- -------------------------------------------------------
     -- Trigger 2: SCAN & LINK AWB
     -- lu_details: 3 = 'AWB Linked'
@@ -39,15 +70,17 @@ BEGIN
     ELSEIF pTriggerType = 2 THEN
         UPDATE parcel_details SET TrackingNo= pAWBNumber,FkCourierId= pFkCourierId,FkParcelStatusId = 3
         WHERE PkParcelDetailsId = pPkParcelDetailsId;
-        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'AWB_LINK', pAWBNumber, pCreatedBy);
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'AWB_LINK', pAWBNumber, pCreatedBy, pPrevStatusName, 3);
     -- -------------------------------------------------------
     -- Trigger 3: DISPATCH
     -- lu_details: 4 = 'Dispatched'
+    -- TrackingNo preserved via IFNULL if already set by prior AWB scan
     -- -------------------------------------------------------
     ELSEIF pTriggerType = 3 THEN
-        UPDATE parcel_details SET DispatchDate = NOW(),FkParcelStatusId = 4
+        UPDATE parcel_details SET DispatchDate = NOW(),FkParcelStatusId = 4,
+        TrackingNo = IFNULL(pAWBNumber, TrackingNo)
         WHERE PkParcelDetailsId = pPkParcelDetailsId;
-        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'DISPATCH', pAWBNumber, pCreatedBy);
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'DISPATCH', pAWBNumber, pCreatedBy, pPrevStatusName, 4);
     -- -------------------------------------------------------
     -- Trigger 4: DELIVERED
     -- lu_details: 5 = 'Delivered'
@@ -55,7 +88,7 @@ BEGIN
     ELSEIF pTriggerType = 4 THEN
         UPDATE parcel_details SET FkParcelStatusId = 5
         WHERE PkParcelDetailsId = pPkParcelDetailsId;
-        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'DELIVERED', NULL, pCreatedBy);
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'DELIVERED', NULL, pCreatedBy, pPrevStatusName, 5);
     -- -------------------------------------------------------
     -- Trigger 5: Cancelled
     -- lu_details: 6 = 'Cancelled'
@@ -63,7 +96,7 @@ BEGIN
     ELSEIF pTriggerType = 5 THEN
         UPDATE parcel_details SET FkParcelStatusId = 6
         WHERE PkParcelDetailsId = pPkParcelDetailsId;
-        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'RETURNED', NULL, pCreatedBy);
+        CALL prc_receiver_status_details_set(pPkParcelDetailsId, pReceiverDetailsId, 'RETURNED', NULL, pCreatedBy, pPrevStatusName, 6);
     END IF; -- close inner trigger (1-5) IF block
     END IF; -- close outer: IF pTriggerType = 0 ... ELSE ... END IF
     COMMIT;

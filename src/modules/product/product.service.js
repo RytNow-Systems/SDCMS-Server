@@ -39,7 +39,9 @@ class ProductService {
 
     return {
       productId: product.PkProductId || product.id,
-      variationId: product.PkProductColorId ?? null,
+      // variationId is included so the list view exposes the specific variation PK
+      // alongside productId, enabling the frontend to target updates precisely.
+      variationId: product.PkProductColorId || product.variationId || null,
       materialName: matName,
       materialRate: product.MaterialRate || product.materialRate,
       cuItemCode: product.cu_item_code || product.cuItemCode || null,
@@ -50,6 +52,9 @@ class ProductService {
       unitTitle: product.UnitTitle || null,
       colorName: product.ColorName || null,
       size: product.Size || null,
+      variationIsActive: product.VariationIsActive !== undefined
+        ? (product.VariationIsActive == 1 || product.VariationIsActive === true)
+        : null,
       isActive: (() => {
         const val =
           product.IsActive !== undefined ? product.IsActive : product.isActive;
@@ -110,7 +115,9 @@ class ProductService {
    */
   _mapMatrixToInternal(apiData) {
     const internal = {};
-    if (apiData.fkLuColorId !== undefined)
+    if (apiData.colorId !== undefined)
+      internal.FkLuColorId = apiData.colorId;
+    else if (apiData.fkLuColorId !== undefined)
       internal.FkLuColorId = apiData.fkLuColorId;
     if (apiData.materialRate !== undefined)
       internal.MaterialRate = apiData.materialRate;
@@ -177,18 +184,33 @@ class ProductService {
   /**
    * Retrieves a specific product by ID.
    */
-  async getProductById(id) {
-    const product = await productRepository.findById(id);
+  async getProductById(id, options = {}) {
+    const product = await productRepository.findById(id, options);
     if (!product) {
       const error = new Error("Product not found");
       error.statusCode = 404;
       throw error;
     }
-    const mapped = this._mapToApi(product);
-    mapped.variations = (product.variations || []).map((v) =>
+
+    // variationId, colorName, and size are color-matrix fields that do not exist
+    // on product_master — strip them from the parent object so only the
+    // variations array carries per-variation data.
+    const { variationId: _vid, colorName: _cn, size: _sz, ...productFields } =
+      this._mapToApi(product);
+
+    productFields.variations = (product.variations || []).map((v) =>
       this._mapMatrixToApi(v),
     );
-    return mapped;
+    return productFields;
+  }
+
+  /**
+   * Returns deduplicated product name suggestions for the typeahead UI.
+   * @param {string} q - Partial name query (min 1 char recommended).
+   * @returns {Promise<Array<{productId: number, materialName: string}>>}
+   */
+  async searchProductsByName(q = "") {
+    return productRepository.searchByName(q.trim());
   }
 
   /**
@@ -335,7 +357,12 @@ class ProductService {
       internalData.MaterialCode = internalData.cu_item_code;
     }
 
-    // Business Rule: Prevent duplicate products in the same category/unit
+    // Default unitId to 1 (Pieces) if not provided
+    internalData.FkUnitId = internalData.FkUnitId || 1;
+
+    const variations = productData.variations || [];
+
+    // Check for existing product with same name + category
     const duplicateCount = await productRepository.checkDuplicate(
       0,
       internalData.FkProductCategoryId,
@@ -343,43 +370,54 @@ class ProductService {
       internalData.MaterialName,
     );
 
+    let productId;
+    let productRow;
+
     if (duplicateCount > 0) {
-      const error = new Error(
-        "A product with this name already exists in the selected category/unit.",
+      // Auto-link: find existing product and add variations to it
+      const existing = await productRepository.findByNameAndCategory(
+        internalData.MaterialName,
+        internalData.FkProductCategoryId,
       );
-      error.statusCode = 409;
-      throw error;
+      if (!existing) {
+        const error = new Error(
+          "Duplicate detected but existing product could not be resolved.",
+        );
+        error.statusCode = 500;
+        throw error;
+      }
+      productId = existing.PkProductId;
+      productRow = existing;
+    } else {
+      // New product: set MaterialRate from first variation, or 0
+      internalData.MaterialRate =
+        variations.length > 0
+          ? variations[0].materialRate
+          : (internalData.MaterialRate ?? 0);
+
+      let newProduct = await productRepository.create(internalData, adminId);
+
+      const insertedId =
+        newProduct?.InsertedId || newProduct?.PkProductId || newProduct?.id;
+      if (insertedId) {
+        newProduct = (await productRepository.findById(insertedId)) || newProduct;
+      }
+
+      productId = newProduct?.PkProductId || newProduct?.id;
+      if (!productId) {
+        throw new Error("Product was created but its ID could not be resolved.");
+      }
+      productRow = newProduct;
     }
 
-    let newProduct = await productRepository.create(internalData, adminId);
-
-    // Re-fetch fallback if SP returned null or incomplete data
-    const insertedId =
-      newProduct?.InsertedId || newProduct?.PkProductId || newProduct?.id;
-    if (insertedId) {
-      newProduct = (await productRepository.findById(insertedId)) || newProduct;
-    } else if (!newProduct || (!newProduct.PkProductId && !newProduct.id)) {
-      const searchRes = await productRepository.findAll({});
-      newProduct =
-        searchRes.data.find(
-          (p) => p.cu_item_code === internalData.cu_item_code,
-        ) || newProduct;
-    }
-
-    const productId = newProduct?.PkProductId || newProduct?.id;
-    if (!productId) {
-      throw new Error("Product was created but its ID could not be resolved.");
-    }
-
-    // Process inline variations if provided
-    const variations = await this._processCreateVariations(
-      productData.variations || [],
+    const createdVariations = await this._processCreateVariations(
+      variations,
       productId,
       adminId,
     );
 
-    const mapped = this._mapToApi(newProduct);
-    mapped.variations = variations;
+    const mapped = this._mapToApi(productRow);
+    mapped.variations = createdVariations;
     return mapped;
   }
 
@@ -392,7 +430,73 @@ class ProductService {
    * @returns {Promise<object>} API-friendly product with variations.
    */
   async updateProduct(id, updates, adminId) {
-    const existing = await this.getProductById(id);
+    const existingRaw = await productRepository.findById(id, { includeDeleted: true });
+    if (!existingRaw) {
+      const err = new Error("Product not found.");
+      err.statusCode = 404;
+      throw err;
+    }
+    const _isActive = (val) => {
+      if (Buffer.isBuffer(val)) return val[0] === 1;
+      return val === 1 || val === true || val === "1" || val === "Active";
+    };
+    if (!_isActive(existingRaw.IsActive)) {
+      const err = new Error("Product is inactive. Reactivate it before making changes.");
+      err.statusCode = 409;
+      throw err;
+    }
+    const existing = this._mapToApi(existingRaw);
+
+    // Track whether the caller sent a flat variation update (single field shorthand)
+    // vs an explicit batch. This determines the shape of the response.
+    let isFlatUpdate = false;
+
+    // Convert flat variation identifiers (variationId or colorId+size) to variations array
+    if (
+      (updates.variationId || (updates.colorId && updates.size)) &&
+      !Array.isArray(updates.variations)
+    ) {
+      isFlatUpdate = true; // caller used the flat shorthand — return a single object
+
+      const existingVariations = await productRepository.getColorMatrix(id, { includeDeleted: true });
+      let match;
+
+      if (updates.variationId) {
+        match = existingVariations.find(
+          (e) => String(e.PkProductColorId) === String(updates.variationId),
+        );
+      } else {
+        match = existingVariations.find(
+          (e) =>
+            String(e.FkLuColorId) === String(updates.colorId) &&
+            e.Size === updates.size,
+        );
+      }
+
+      if (!match) {
+        const identifier = updates.variationId
+          ? `variationId=${updates.variationId}`
+          : `colorId=${updates.colorId}, size=${updates.size}`;
+        const error = new Error(
+          `No variation found for ${identifier}. Use POST /products/${id}/variations to add new variations.`,
+        );
+        error.statusCode = 404;
+        throw error;
+      }
+
+      updates = {
+        ...updates,
+        variations: [
+          {
+            variationId: match.PkProductColorId,
+            colorId: updates.colorId ?? match.FkLuColorId,
+            size: updates.size ?? match.Size,
+            materialRate: updates.materialRate ?? match.MaterialRate,
+          },
+        ],
+      };
+    }
+
     const internalUpdates = this._mapToInternal(updates);
 
     // Merge partial updates with existing record to prevent undefined SP params
@@ -438,9 +542,52 @@ class ProductService {
       await this._processUpdateVariations(updates.variations, id, adminId);
     }
 
-    // Re-fetch full product with variations for response
+    // -------------------------------------------------------------------------
+    // Scope the response to only what was changed rather than the entire product.
+    // NOTE: We use getColorMatrix directly (prc_product_color_matrix_get) because
+    // getProductById relies on prc_product_master_search which does NOT join
+    // variation columns — so full.variations would always come back empty.
+    // -------------------------------------------------------------------------
+    if (Array.isArray(updates.variations) && updates.variations.length > 0) {
+      // Build a Set of the variation IDs that were part of this update
+      const updatedVariationIds = new Set(
+        updates.variations
+          .filter((v) => v.variationId)
+          .map((v) => String(v.variationId)),
+      );
+
+      // Fetch fresh variations directly from the color matrix SP
+      const allVariations = await productRepository.getColorMatrix(id);
+      const mappedVariations = allVariations.map((v) =>
+        this._mapMatrixToApi(v),
+      );
+
+      // Filter to only those that were mutated in this request
+      const updatedVariations = mappedVariations.filter((v) => {
+        // Match by variationId when present
+        if (updatedVariationIds.size > 0 && v.variationId) {
+          return updatedVariationIds.has(String(v.variationId));
+        }
+        // Fallback: match by colorId + size for new insert operations
+        return updates.variations.some(
+          (u) =>
+            String(u.colorId) === String(v.colorId) && u.size === v.size,
+        );
+      });
+
+      if (isFlatUpdate) {
+        // Flat update — caller expects a single variation object, not an array
+        return updatedVariations[0] ?? mappedVariations[0];
+      }
+      // Batch update — return the array of matched variations only
+      return updatedVariations;
+    }
+
+    // Only product-level fields were changed (no variation updates).
+    // Return the product without the variations array to keep the response lean.
     const full = await this.getProductById(id);
-    return full;
+    const { variations: _omitted, ...productFields } = full;
+    return productFields;
   }
 
   /**
@@ -451,75 +598,94 @@ class ProductService {
    * @returns {Promise<Array>} API-friendly variation records.
    */
   async _processCreateVariations(variations, productId, adminId) {
-    // Create all variations first
+    if (variations.length === 0) return [];
+
+    // Fetch existing variations to guard against duplicates (no SP available yet)
+    const existing = await productRepository.getColorMatrix(productId);
+
     for (const v of variations) {
-      const internalData = {
-        FkLuColorId: v.colorId,
-        MaterialRate: v.materialRate,
-        Size: v.size,
-      };
+      const isDuplicate = existing.some(
+        (e) =>
+          String(e.FkLuColorId) === String(v.colorId) &&
+          e.Size === v.size &&
+          parseFloat(e.MaterialRate) === parseFloat(v.materialRate),
+      );
+
+      if (isDuplicate) {
+        const error = new Error(
+          `Variation already exists: colorId=${v.colorId}, size=${v.size}, rate=${v.materialRate}.`,
+        );
+        error.statusCode = 409;
+        throw error;
+      }
+
       await productRepository.setColorMatrix(
         0,
         productId,
-        internalData,
+        { FkLuColorId: v.colorId, MaterialRate: v.materialRate, Size: v.size },
         adminId,
         1,
       );
     }
 
-    // Re-fetch all variations for this product to get complete data
-    const savedVariations = await productRepository.getColorMatrix(productId);
-    return savedVariations.map((v) => this._mapMatrixToApi(v));
+    const saved = await productRepository.getColorMatrix(productId);
+    return saved.map((v) => this._mapMatrixToApi(v));
   }
 
   /**
    * Processes inline variation diff for product updates.
    * Diff strategy:
-   *   - matrixId present + isActive:false → soft-delete
-   *   - matrixId present → update existing
-   *   - matrixId absent/0 → insert new
+   *   - variationId present + isActive:false → soft-delete
+   *   - variationId present → update existing
+   *   - variationId absent/0 → insert new
    * @param {Array} variations - Array of variation diff items.
    * @param {number} productId - Product PK.
    * @param {number} adminId - User ID.
    */
   async _processUpdateVariations(variations, productId, adminId) {
+    // Optimization: Fetch once if we have existing variations to update
+    const hasUpdates = variations.some((v) => v.variationId > 0);
+    const existingVariations = hasUpdates
+      ? await productRepository.getColorMatrix(productId, { includeDeleted: true })
+      : [];
+
     for (const v of variations) {
-      const matrixId = v.matrixId || 0;
+      const variationId = v.variationId || 0;
       const isActive = v.isActive === false ? 0 : 1;
 
-      if (matrixId > 0 && isActive === 0) {
-        // Soft-delete: fetch existing to fill required SP params
-        const existingVariations =
-          await productRepository.getColorMatrix(productId);
+      if (variationId > 0) {
+        // UPDATE or DELETE path: ensure we have existing data to fill blanks
         const existing = existingVariations.find(
-          (row) => row.PkProductColorId === matrixId,
+          (row) => row.PkProductColorId === variationId,
         );
+
         if (existing) {
+          const internalData = {
+            FkLuColorId: v.colorId ?? existing.FkLuColorId,
+            MaterialRate: v.materialRate ?? existing.MaterialRate,
+            Size: v.size ?? existing.Size,
+          };
           await productRepository.setColorMatrix(
-            matrixId,
+            variationId,
             productId,
-            {
-              FkLuColorId: existing.FkLuColorId,
-              MaterialRate: existing.MaterialRate,
-              Size: existing.Size,
-            },
+            internalData,
             adminId,
-            0,
+            isActive,
           );
         }
       } else {
-        // Insert or update
+        // INSERT path (variationId is 0 or absent)
         const internalData = {
           FkLuColorId: v.colorId,
           MaterialRate: v.materialRate,
           Size: v.size,
         };
         await productRepository.setColorMatrix(
-          matrixId,
+          0,
           productId,
           internalData,
           adminId,
-          isActive,
+          1,
         );
       }
     }
@@ -528,7 +694,7 @@ class ProductService {
   /**
    * Adds or updates a color/size matrix entry for a product.
    * @param {number} productId - Product PK.
-   * @param {object} matrixData - { fkLuColorId, materialRate, size, matrixId? }.
+   * @param {object} matrixData - { fkLuColorId, materialRate, size, variationId? }.
    * @param {number} adminId - User ID.
    * @returns {Promise<object>} API-friendly matrix record.
    */
@@ -537,23 +703,29 @@ class ProductService {
     await this.getProductById(productId);
 
     const internalData = this._mapMatrixToInternal(matrixData);
-    const matrixId = matrixData.matrixId || 0;
+    const variationId = matrixData.variationId || 0;
+    const isActive = matrixData.isActive !== undefined ? (matrixData.isActive ? 1 : 0) : 1;
     const result = await productRepository.setColorMatrix(
-      matrixId,
+      variationId,
       productId,
       internalData,
       adminId,
+      isActive,
     );
     return this._mapMatrixToApi(result);
   }
 
   /**
-   * Soft-deletes a product.
+   * Updates product active status (soft delete/reactivate).
+   * @param {number|string} id - PkProductId.
+   * @param {boolean} isActive - Desired active state.
+   * @param {number} adminId - User ID.
+   * @returns {Promise<boolean>} True on success.
    */
-  async deleteProduct(id, adminId) {
-    const success = await productRepository.delete(id, adminId);
+  async updateProductStatus(id, isActive, adminId) {
+    const success = await productRepository.updateStatus(id, isActive, adminId);
     if (!success) {
-      const error = new Error("Product not found or deletion failed.");
+      const error = new Error("Product not found or update failed.");
       error.statusCode = 404;
       throw error;
     }

@@ -15,8 +15,9 @@ export const getCouriers = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 20);
   const search = req.query.search?.trim() || '';
+  const includeInactive = req.query.includeInactive === 'true';
 
-  const couriers = await courierService.getCouriers(page, limit, search);
+  const couriers = await courierService.getCouriers(page, limit, search, includeInactive);
   
   res.status(200).json({
     success: true,
@@ -67,15 +68,17 @@ export const updateCourier = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Delete courier partner
-// @route   DELETE /api/v1/courier-partners/:id
+// @desc    Toggle courier partner active status (soft delete / reactivate)
+// @route   PATCH /api/v1/courier-partners/:id/status
 // @access  Private/Admin
-export const deleteCourier = asyncHandler(async (req, res) => {
+export const updateCourierStatus = asyncHandler(async (req, res) => {
+  const { isActive } = req.body;
   const adminId = req.user.id;
-  await courierService.deleteCourier(req.params.id, adminId);
-  
+
+  await courierService.updateCourierStatus(req.params.id, isActive, adminId);
+
   res.status(200).json({
     success: true,
-    message: 'Courier partner successfully removed'
+    message: `Courier partner successfully ${isActive ? 'activated' : 'deactivated'}`
   });
 });

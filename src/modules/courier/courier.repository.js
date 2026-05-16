@@ -24,6 +24,7 @@ const initializeSeedData = () => {
     {
       CourierId: 1,
       CourierName: 'Delhivery',
+      PhoneNumber: null,
       TrackingUrlTemplate: 'https://delhivery.com/track/{AWB}',
       IsActive: true,
       CreatedDate: new Date().toISOString()
@@ -31,6 +32,7 @@ const initializeSeedData = () => {
     {
       CourierId: 2,
       CourierName: 'BlueDart',
+      PhoneNumber: null,
       TrackingUrlTemplate: 'https://bluedart.com/track/{AWB}',
       IsActive: true,
       CreatedDate: new Date().toISOString()
@@ -50,19 +52,21 @@ class CourierRepository {
    * @param {object} params - { page, limit, search }
    * @returns {Promise<object>} { data: [...], meta: { page, limit, totalRows, totalPages } }
    */
-  async findAll({ page = 1, limit = 20, search } = {}) {
+  async findAll({ page = 1, limit = 20, search, includeInactive = false } = {}) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_courier_partner_master_get (pAction=0, pCourierId=0)
+    // LIVE DB MODE: prc_courier_partner_master_get
+    //   pAction=0 → active only (WHERE isactive = 1)
+    //   pAction=2 → all couriers including inactive
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
+      const pAction = includeInactive ? 2 : 0;
       const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [
-        0, // pAction=0 → Get all couriers
-        0  // pCourierId=0 → No specific courier filter
+        pAction,
+        0  // pCourierId=0 → no specific courier filter
       ]);
 
       let results = rows[0] || [];
 
-      // In-memory filter for search
       if (search) {
         const s = search.toLowerCase();
         results = results.filter(c =>
@@ -83,8 +87,7 @@ class CourierRepository {
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory filtering and pagination
     // ------------------------------------------------------------------
-    const activeCouriers = seedCouriers.filter(c => c.IsActive);
-    let results = [...activeCouriers];
+    let results = includeInactive ? [...seedCouriers] : seedCouriers.filter(c => c.IsActive);
 
     if (search) {
       const s = search.toLowerCase();
@@ -116,19 +119,23 @@ class CourierRepository {
    * @param {number|string} id - CourierId.
    * @returns {Promise<object|null>} Courier record or null.
    */
-  async findById(id) {
+  async findById(id, options = {}) {
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_courier_partner_master_get (pAction=1)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [1, id]);
-      return rows[0]?.[0] || null;
+      const pAction = options.includeDeleted ? 2 : 1;
+      const [rows] = await db.execute('CALL prc_courier_partner_master_get(?, ?)', [pAction, id]);
+      const courier = rows[0]?.[0] || null;
+      if (courier && !options.includeDeleted && !courier.IsActive) return null;
+      return courier;
     }
 
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory lookup by CourierId
     // ------------------------------------------------------------------
-    const courier = seedCouriers.find((c) => c.CourierId.toString() === id.toString() && c.IsActive);
+    const courier = seedCouriers.find((c) => c.CourierId.toString() === id.toString());
+    if (courier && !options.includeDeleted && !courier.IsActive) return null;
     return courier || null;
   }
 
@@ -158,10 +165,10 @@ class CourierRepository {
 
   /**
    * Creates a new courier partner.
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)
    * Convention: CourierId=0 triggers insert.
    *
-   * @param {object} courierData - { courierName, trackingUrlTemplate }
+   * @param {object} courierData - { courierName, phoneNo, trackingUrlTemplate }
    * @param {number|string} adminId - ID of the creating admin
    * @returns {Promise<object>} The newly created courier record.
    */
@@ -173,9 +180,10 @@ class CourierRepository {
       // Use a dedicated connection so LAST_INSERT_ID() is reliable
       const connection = await db.getConnection();
       try {
-        await connection.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
+        await connection.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
           0, // CourierId=0 → Insert new courier
           courierData.courierName,
+          courierData.phoneNo || null,
           courierData.trackingUrlTemplate || null,
           adminId || null,
           1  // IsActive=1
@@ -196,6 +204,7 @@ class CourierRepository {
     const newCourier = {
       CourierId: newId,
       CourierName: courierData.courierName,
+      PhoneNumber: courierData.phoneNo || null,
       TrackingUrlTemplate: courierData.trackingUrlTemplate || null,
       IsActive: true,
       CreatedDate: new Date().toISOString()
@@ -207,7 +216,7 @@ class CourierRepository {
 
   /**
    * Updates an existing courier partner.
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)
    * Convention: CourierId>0 triggers update.
    *
    * @param {number|string} id - CourierId.
@@ -220,67 +229,73 @@ class CourierRepository {
     // LIVE DB MODE: prc_courier_partner_master_set (CourierId>0 → Update)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      // Fetch existing record to validate existence and preserve unchanged fields
-      const existing = await this.findById(id);
+      // Fetch existing record to validate existence and preserve unchanged fields.
+      // includeDeleted: true so inactive couriers can still be edited/reactivated.
+      const existing = await this.findById(id, { includeDeleted: true });
       if (!existing) return null;
 
-      await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
+      await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
         id, // CourierId>0 → Update existing courier
         updates.courierName ?? existing.CourierName,
+        updates.phoneNo ?? existing.PhoneNumber ?? null,
         updates.trackingUrlTemplate ?? existing.TrackingUrlTemplate ?? null,
         adminId || null,
         updates.isActive !== undefined ? (updates.isActive ? 1 : 0) : 1
       ]);
-      // Re-fetch to return the updated record (SP may not SELECT after UPDATE)
-      return await this.findById(id);
+      // Re-fetch to return the updated record (SP may not SELECT after UPDATE).
+      // includeDeleted: true so the re-fetch works even if isActive was set to 0.
+      return await this.findById(id, { includeDeleted: true });
     }
 
     // ------------------------------------------------------------------
     // MOCK MODE: In-memory update
     // ------------------------------------------------------------------
-    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString() && c.IsActive);
+    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString());
     if (index === -1) return null;
 
     if (updates.courierName) seedCouriers[index].CourierName = updates.courierName;
+    if (updates.phoneNo !== undefined) seedCouriers[index].PhoneNumber = updates.phoneNo;
     if (updates.trackingUrlTemplate) seedCouriers[index].TrackingUrlTemplate = updates.trackingUrlTemplate;
 
     return seedCouriers[index];
   }
 
   /**
-   * Soft-deletes a courier partner (sets IsActive=0).
-   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)
-   * Convention: Pass IsActive=0 for soft-delete.
+   * Updates the status (isActive) of a courier partner.
+   * Procedure: CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)
+   * Convention: Pass IsActive=isActive for soft-delete/reactivation.
    *
    * @param {number|string} id - CourierId.
-   * @param {number|string} adminId - ID of the deleting admin
-   * @returns {Promise<boolean>} True if deleted, false if not found.
+   * @param {boolean} isActive - Desired active state.
+   * @param {number|string} adminId - ID of the updating admin.
+   * @returns {Promise<boolean>} True if updated, false if not found.
    */
-  async delete(id, adminId) {
+  async updateStatus(id, isActive, adminId) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_courier_partner_master_set (IsActive=0 → Soft Delete)
+    // LIVE DB MODE: prc_courier_partner_master_set (IsActive toggle)
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, { includeDeleted: true });
       if (!existing) return false;
 
-      const [rows] = await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?)', [
+      await db.execute('CALL prc_courier_partner_master_set(?, ?, ?, ?, ?, ?)', [
         id,
         existing.CourierName,
+        existing.PhoneNumber ?? null,
         existing.TrackingUrlTemplate,
         adminId || null,
-        0     // IsActive=0 → Soft delete
+        isActive ? 1 : 0
       ]);
       return true;
     }
 
     // ------------------------------------------------------------------
-    // MOCK MODE: In-memory soft delete
+    // MOCK MODE: In-memory status update
     // ------------------------------------------------------------------
-    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString() && c.IsActive);
+    const index = seedCouriers.findIndex(c => c.CourierId.toString() === id.toString());
     if (index === -1) return false;
 
-    seedCouriers[index].IsActive = false;
+    seedCouriers[index].IsActive = isActive;
     return true;
   }
 }

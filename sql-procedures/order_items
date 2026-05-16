@@ -1,3 +1,19 @@
+Table: order_items
+
+Columns:
+	PkOrderItemId	int(11) AI PK
+	FkReceiverDetailsId	int(11)
+	FkProductId	int(11)
+	FkLuColorId	int(11)
+	OutwardQty	int(11)
+	FkUnitId	int(11)
+	UnitPrice	decimal(10,2)
+	TransactionDate	date
+	IsActive	tinyint(1)
+	CreatedDate	datetime
+	CreatedBy	int(11)
+
+---
 prc_order_items_get:
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_order_items_get`(pAction INT, pLookUpId INT)

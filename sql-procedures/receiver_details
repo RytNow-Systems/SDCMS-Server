@@ -1,3 +1,20 @@
+Table: receiver_details
+
+Columns:
+	PkReceiverDetailsId	int(11) AI PK
+	FkOrderId	int(11)
+	FkReceiverId	int(11)
+	FkPartyDetailsId	int(11)
+	ReceiverName	varchar(100)
+	ReceiverPhone	varchar(20)
+	ReceiverEmail	varchar(100)
+	Address	varchar(255)
+	City	varchar(80)
+	State	varchar(80)
+	Pincode	varchar(10)
+	Country	varchar(60)
+	IsActive	tinyint(1)
+---
 prc_receiver_details_get:
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_details_get`(pAction INT, pLookUpId INT)
@@ -74,7 +91,7 @@ BEGIN
         SELECT LAST_INSERT_ID() AS GeneratedReceiverId, pReceiverId AS ReceiverId;
 
     ELSE
-        UPDATE receiver_details SET FkOrderId = pFkOrderId, FkReceiverId = pFkReceiverId, FkPartyDetailsId = pFkPartyDetailsId, IsActive = pIsActive
+        UPDATE receiver_details SET FkOrderId = pFkOrderId, FkReceiverId = pReceiverId, FkPartyDetailsId = pFkPartyDetailsId, IsActive = pIsActive
 				WHERE PkReceiverDetailsId = pPkReceiverDetailsId;
 
         SELECT pPkReceiverDetailsId AS UpdatedReceiverId, pReceiverId AS ReceiverId;
@@ -83,3 +100,4 @@ BEGIN
 END
 
 ---
+

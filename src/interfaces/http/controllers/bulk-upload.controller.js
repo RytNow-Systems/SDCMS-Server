@@ -19,16 +19,17 @@ export const handleBulkUpload = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/v1/bulk-uploads
- * Lists all upload sessions.
+ * Lists upload sessions with pagination and optional filters.
  */
 export const handleGetSessions = asyncHandler(async (req, res) => {
-  const sessions = await bulkUploadService.getSessions();
-  res.json({ success: true, data: sessions });
+  const { page, limit, startDate, endDate, status } = req.validatedQuery;
+  const result = await bulkUploadService.getSessions({ page, limit, startDate, endDate, status });
+  res.json({ success: true, data: result });
 });
 
 /**
  * GET /api/v1/bulk-uploads/:id
- * Gets specific upload session result with row details.
+ * Gets a specific session with its created order IDs.
  */
 export const handleGetSessionById = asyncHandler(async (req, res) => {
   const result = await bulkUploadService.getSessionWithDetails(req.params.id);

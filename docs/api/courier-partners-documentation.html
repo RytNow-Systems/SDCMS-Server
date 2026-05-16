@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Courier Partners</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Couriers</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Courier</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Courier by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Courier</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Courier</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>List Couriers</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Courier</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Courier by ID</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Courier</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Courier Status</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -174,7 +174,7 @@
           <code class="endpoint-path">/courier-partners</code>
         </div>
         <h3 class="endpoint-name">List Couriers</h3>
-        <p class="endpoint-desc">Retrieves all courier partners.</p>
+        <p class="endpoint-desc">Paginated courier partner list with optional search. Pass `includeInactive=true` to include deactivated couriers.</p>
         
         
           <div class="meta-grid">
@@ -188,6 +188,40 @@
             </div>
           </div>
 
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>page</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Page number (default: 1)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>limit</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Items per page (default: 20)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>search</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Partial match against courier name</td>
+                </tr>
+              
+                <tr>
+                  <td><code>includeInactive</code></td>
+                  <td><span class="type-tag">boolean</span></td>
+                  <td>Include deactivated couriers (default: false)</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 
@@ -233,12 +267,15 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/courier-partners&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;courierName&quot;:&quot;TestCourier Express&quot;,&quot;trackingUrlTemplate&quot;:&quot;https://track.testcourier.com/awb/{AWB}&quot;}'</code></pre>
+  -d '{&quot;courierName&quot;:&quot;TestCourier Express&quot;,&quot;contactPerson&quot;:&quot;John Doe&quot;,&quot;phoneNo&quot;:&quot;9876543210&quot;,&quot;email&quot;:&quot;courier@example.com&quot;,&quot;trackingUrlTemplate&quot;:&quot;https://track.testcourier.com/awb/{AWB}&quot;}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
   &quot;courierName&quot;: &quot;TestCourier Express&quot;,
+  &quot;contactPerson&quot;: &quot;John Doe&quot;,
+  &quot;phoneNo&quot;: &quot;9876543210&quot;,
+  &quot;email&quot;: &quot;courier@example.com&quot;,
   &quot;trackingUrlTemplate&quot;: &quot;https://track.testcourier.com/awb/{AWB}&quot;
 }</code></pre>
       </div>
@@ -272,6 +309,22 @@
           </div>
 
         
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Courier partner primary key</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
       </div>
 
       <div class="endpoint-example">
@@ -294,7 +347,7 @@
           <code class="endpoint-path">/courier-partners/:id</code>
         </div>
         <h3 class="endpoint-name">Update Courier</h3>
-        <p class="endpoint-desc">Updates courier partner details.</p>
+        <p class="endpoint-desc">Updates courier partner details. All fields optional.</p>
         
         
           <div class="meta-grid">
@@ -316,12 +369,13 @@
         <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/courier-partners/:id&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;courierName&quot;:&quot;Updated Courier&quot;}'</code></pre>
+  -d '{&quot;courierName&quot;:&quot;Updated Courier&quot;,&quot;phoneNo&quot;:&quot;9876543210&quot;}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;courierName&quot;: &quot;Updated Courier&quot;
+  &quot;courierName&quot;: &quot;Updated Courier&quot;,
+  &quot;phoneNo&quot;: &quot;9876543210&quot;
 }</code></pre>
       </div>
         
@@ -335,11 +389,11 @@
     <div class="endpoint-card" id="ep-4">
       <div class="endpoint-info">
         <div class="endpoint-header">
-          <span class="method-badge" style="background:#7f1d1d;color:#f87171;border-color:#991b1b">DELETE</span>
-          <code class="endpoint-path">/courier-partners/:id</code>
+          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
+          <code class="endpoint-path">/courier-partners/:id/status</code>
         </div>
-        <h3 class="endpoint-name">Delete Courier</h3>
-        <p class="endpoint-desc">Removes a courier partner.</p>
+        <h3 class="endpoint-name">Toggle Courier Status</h3>
+        <p class="endpoint-desc">Activates or deactivates a courier partner (soft delete/reactivate). Deactivated couriers are excluded from standard GET responses.</p>
         
         
           <div class="meta-grid">
@@ -358,9 +412,17 @@
 
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X DELETE &quot;{{base_url}}/courier-partners/:id&quot; \
-  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/courier-partners/:id/status&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;isActive&quot;:false}'</code></pre>
         
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;isActive&quot;: <span class="json-bool">false</span>
+}</code></pre>
+      </div>
         
       <div class="section-group">
         <div class="section-label">Expected Status <span class="status-badge">200</span></div>
@@ -370,7 +432,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-14
       </footer>
     </main>
   </div>

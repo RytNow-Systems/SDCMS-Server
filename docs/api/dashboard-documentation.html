@@ -156,12 +156,12 @@
         <h1>SDCMS Backend API</h1>
         <h2>Dashboard</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Metrics</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Metrics</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm get">GET</span>Get Graph Data</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
         <h2>Dashboard</h2>
-        <p>Admin-only dashboard metrics</p>
+        <p>Admin-only dashboard analytics — summary metrics and orders-over-time graph data.</p>
       </header>
 
       
@@ -174,9 +174,15 @@
           <code class="endpoint-path">/dashboard/metrics</code>
         </div>
         <h3 class="endpoint-name">Get Metrics</h3>
-        <p class="endpoint-desc">Aggregated dashboard statistics.</p>
+        <p class="endpoint-desc">Returns aggregated order and parcel counts for a given time period.</p>
         
         
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> pendingParcels/dispatchedParcels/deliveredParcels reflect parcel-level status counts, not order-level.
+        </div>
+      </div>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
@@ -189,6 +195,34 @@
           </div>
 
         
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>period</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Time window: 'overall' (default, all-time), 'daily' (today), 'weekly' (current week), 'monthly' (current month), 'custom' (explicit range — requires from and to)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>from</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Start date (YYYY-MM-DD). Required when period=custom.</td>
+                </tr>
+              
+                <tr>
+                  <td><code>to</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>End date (YYYY-MM-DD). Required when period=custom.</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
       </div>
 
       <div class="endpoint-example">
@@ -199,13 +233,90 @@
         
       <div class="section-group">
         <div class="section-label">Example Response <span class="status-badge">200</span></div>
-        <pre class="code-block"><code>{ 
-  &quot;success&quot;: <span class="json-bool">true</span>, 
-  &quot;data&quot;: { 
-    &quot;TotalOrders&quot;: <span class="json-number">150</span>, &quot;PendingOrders&quot;: <span class="json-number">45</span>, &quot;DispatchedOrders&quot;: <span class="json-number">80</span>, &quot;DeliveredOrders&quot;: <span class="json-number">25</span>,
-    &quot;totalOrders&quot;: <span class="json-number">150</span>, // @deprecated
-    &quot;parcelsByStatus&quot;: { &quot;PENDING&quot;: <span class="json-number">45</span>, &quot;DISPATCHED&quot;: <span class="json-number">80</span>, &quot;DELIVERED&quot;: <span class="json-number">25</span> } // @deprecated
-  } 
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: {
+    &quot;totalOrders&quot;: <span class="json-number">150</span>,
+    &quot;pendingParcels&quot;: <span class="json-number">45</span>,
+    &quot;dispatchedParcels&quot;: <span class="json-number">80</span>,
+    &quot;deliveredParcels&quot;: <span class="json-number">25</span>
+  }
+}</code></pre>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-1">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/dashboard/graph</code>
+        </div>
+        <h3 class="endpoint-name">Get Graph Data</h3>
+        <p class="endpoint-desc">Returns monthly order counts for the orders-over-time chart. Always returns all 12 months; months with no orders have totalOrders=0.</p>
+        
+        
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> month values are 1-based (1=January, 12=December).
+        </div>
+      </div>
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN</span>
+            </div>
+          </div>
+
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>year</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Year to fetch data for (e.g. 2025). Omit for current year.</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/dashboard/graph&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;month&quot;: <span class="json-number">1</span>,
+      &quot;totalOrders&quot;: <span class="json-number">10</span>
+    },
+    {
+      &quot;month&quot;: <span class="json-number">3</span>,
+      &quot;totalOrders&quot;: <span class="json-number">22</span>
+    },
+    {
+      &quot;month&quot;: <span class="json-number">5</span>,
+      &quot;totalOrders&quot;: <span class="json-number">53</span>
+    }
+  ]
 }</code></pre>
       </div>
       </div>
@@ -213,7 +324,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-14
       </footer>
     </main>
   </div>

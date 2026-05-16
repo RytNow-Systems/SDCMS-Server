@@ -1,0 +1,105 @@
+Table: product_category
+
+Columns:
+	PkProductCategoryId	int(11) AI PK
+	CategoryName	varchar(100)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+	UpdatedBy	int(11)
+	UpdatedDate	datetime
+	IsActive	int(11)
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_category_get`(pAction INT, pLookUpId INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pAction, pLookUpId
+Output Parameter : product category details
+Description : used to retrieve product category details based on action and category id
+****************************************************/
+
+IF pAction = 0 THEN
+		SELECT product_category.PkProductCategoryId, product_category.CategoryName, product_category.CreatedDate, product_category.CreatedBy, IFNULL(CretedUser.FullName,'') as CreateUserName, product_category.UpdatedDate, product_category.UpdatedBy, IFNULL(UpdatedUser.FullName,'') as UpdateUserName,
+					(CASE WHEN product_category.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM product_category
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = product_category.CreatedBy
+            LEFT JOIN employee_master UpdatedUser ON UpdatedUser.EmployeeCode = product_category.UpdatedBy
+		ORDER BY product_category.CategoryName;
+	END IF;
+	IF pAction = 1 THEN
+		SELECT product_category.PkProductCategoryId, product_category.CategoryName, product_category.CreatedDate, product_category.CreatedBy, IFNULL(CretedUser.FullName,'') as CreateUserName, product_category.UpdatedDate, product_category.UpdatedBy, IFNULL(UpdatedUser.FullName,'') as UpdateUserName,
+					(CASE WHEN product_category.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM product_category
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = product_category.CreatedBy
+            LEFT JOIN employee_master UpdatedUser ON UpdatedUser.EmployeeCode = product_category.UpdatedBy
+		WHERE product_category.PkProductCategoryId = pLookUpId
+		ORDER BY product_category.CategoryName;
+	END IF;
+END
+
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_category_search`(pPkProductCategoryId int(11))
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pPkProductCategoryId
+Output Parameter : product category details
+Description : used to search product category details based on category id
+****************************************************/
+
+		SELECT  product_category.PkProductCategoryId, product_category.CategoryName,
+						 product_category.CreatedDate, product_category.CreatedBy, product_category.UpdatedDate, product_category.UpdatedBy,
+					IFNULL(CretedUser.FullName,'') as CreateUserName, IFNULL(UpdatedUser.FullName,'') as UpdateUserName,
+                    (CASE WHEN product_category.IsActive = 0 THEN 'InActive' ELSE 'Active' END) AS IsActive
+		FROM    product_category
+			LEFT JOIN employee_master CretedUser ON CretedUser.EmployeeCode = product_category.CreatedBy
+			LEFT JOIN employee_master UpdatedUser ON UpdatedUser.EmployeeCode = product_category.UpdatedBy
+		WHERE product_category.PkProductCategoryId = CASE WHEN pPkProductCategoryId = 0 THEN product_category.PkProductCategoryId ELSE pPkProductCategoryId END
+		ORDER BY product_category.PkProductCategoryId;
+
+END
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_category_set`(pPkProductCategoryId INT(11), pCategoryName VARCHAR(100), pCreatedBy INT(11), pIsActive INT(11))
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pPkProductCategoryId, pCategoryName, pCreatedBy, pIsActive
+Output Parameter : product category details
+Description : used to insert and update product category details
+****************************************************/
+
+		IF pPkProductCategoryId = 0 THEN
+				INSERT INTO product_category (CategoryName, CreatedDate, CreatedBy, IsActive)
+				VALUES (pCategoryName, now(), pCreatedBy, pIsActive);
+		ELSE UPDATE product_category SET
+				CategoryName = pCategoryName, UpdatedDate = now(), UpdatedBy = pCreatedBy, IsActive = pIsActive
+				WHERE PkProductCategoryId = pPkProductCategoryId;
+		END IF;
+END
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_check_duplicate_product_category`(pPkProductCategoryId int(11), pCategoryName varchar(100))
+BEGIN
+/***************************************************
+Author:		SDCMS
+Module Name	: Admin - Product Category
+File name in solution	: productcategory.aspx
+UserControl/Field Name : Validation
+Input Parameter	: pPkProductCategoryId, pCategoryName
+Output Parameter : DataCount
+Description : returns information about presence of duplicate product category based on CategoryName
+****************************************************/
+	IF pPkProductCategoryId = 0 THEN
+		SELECT count(*) as DataCount FROM product_category WHERE CategoryName = pCategoryName;
+	END IF;
+	if pPkProductCategoryId > 0 then
+		SELECT count(*) as DataCount FROM product_category WHERE CategoryName = pCategoryName AND PkProductCategoryId <> pPkProductCategoryId;
+	END IF;
+END
+---

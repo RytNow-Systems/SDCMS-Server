@@ -52,6 +52,17 @@ let seedEmployees = [
     RoleCode: 'COURIER',
     AllowLogin: true,
     CreatedDate: '2026-04-03T08:52:00Z'
+  },
+  {
+    EmployeeCode: 4,
+    FullName: 'Test Admin',
+    UserName: 'admin_test',
+    EmailAddress: 'admin@test.com',
+    Password: '$2b$10$fqXc34qlWp/vhT3GchezUeDUyyoowDN9g1KAfuXzIgOSnFzFijlZ2', // bcrypt hash for 'admin'
+    RoleCode: 'ADMIN',
+    AllowLogin: true,
+    IsActive: 1,
+    CreatedDate: new Date().toISOString()
   }
 ];
 
@@ -125,7 +136,9 @@ class EmployeeRepository {
    * @param {object} params - { page, limit, search, role, allowLogin }
    * @returns {Promise<object>} { data: [...], meta: { page, limit, totalRows, totalPages } }
    */
-  async findAll({ page = 1, limit = 20, search, role, allowLogin }) {
+  async findAll({ page = 1, limit = 20, search, role, allowLogin, includeInactive } = {}) {
+    const showInactive = includeInactive === true || includeInactive === 'true';
+
     // ------------------------------------------------------------------
     // LIVE DB MODE: prc_employee_master_search (EmployeeCode=0, RoleId filtering logic)
     // ------------------------------------------------------------------
@@ -140,10 +153,10 @@ class EmployeeRepository {
       
       let results = rows[0] || [];
       
-      // Filter out soft-deleted employees
-      results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
+      if (!showInactive) {
+        results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
+      }
       
-      // In-memory filter for search and allowLogin if they are not handled by SP
       if (search && search.trim()) {
         const s = search.trim().toLowerCase();
         results = results.filter(e => 
@@ -171,8 +184,9 @@ class EmployeeRepository {
     // ------------------------------------------------------------------
     let results = [...seedEmployees];
 
-    // Filter out soft-deleted employees
-    results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
+    if (!showInactive) {
+      results = results.filter(e => e.IsActive !== 0 && e.IsActive !== false);
+    }
 
     if (role) results = results.filter(e => e.RoleCode === role);
     if (search && search.trim()) {
@@ -183,7 +197,6 @@ class EmployeeRepository {
       results = results.filter(e => e.AllowLogin === (allowLogin === 'true' || allowLogin === true));
     }
 
-    // Pagination
     const startIndex = (page - 1) * limit;
     const paginatedItems = results.slice(startIndex, startIndex + limit);
 
@@ -290,7 +303,7 @@ class EmployeeRepository {
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       // First fetch existing to retain values not being updated
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, { includeDeleted: true });
       if (!existing) return null;
 
       const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
@@ -306,7 +319,7 @@ class EmployeeRepository {
         updateData.IsActive !== undefined ? (updateData.IsActive ? 1 : 0) : existing.IsActive
       ]);
       
-      return rows[0]?.[0] || await this.findById(id);
+      return rows[0]?.[0] || await this.findById(id, { includeDeleted: true });
     }
 
     // ------------------------------------------------------------------
@@ -333,7 +346,7 @@ class EmployeeRepository {
     // LIVE DB MODE: toggle access via findById + prc_employee_master_set
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, { includeDeleted: true });
       if (!existing) return null;
 
       await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
@@ -349,7 +362,7 @@ class EmployeeRepository {
         existing.IsActive
       ]);
       
-      return await this.findById(id);
+      return await this.findById(id, { includeDeleted: true });
     }
 
     // ------------------------------------------------------------------
@@ -363,16 +376,17 @@ class EmployeeRepository {
   }
 
   /**
-   * Soft deletes an employee record by setting IsActive to 0.
+   * Updates the active status of an employee record (Soft Delete/Reactivate).
    * Procedure: CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?)
-   * Convention: EmployeeCode>0 with IsActive = 0 flag.
+   * Convention: EmployeeCode>0 with IsActive flag.
    *
    * @param {number|string} id - EmployeeCode.
+   * @param {boolean} isActive - Desired active state.
    * @returns {Promise<object|null>} Updated employee record or null.
    */
-  async delete(id) {
+  async updateStatus(id, isActive) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: soft delete via findById + prc_employee_master_set
+    // LIVE DB MODE: status update via findById + prc_employee_master_set
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       const existing = await this.findById(id, { includeDeleted: true });
@@ -388,22 +402,19 @@ class EmployeeRepository {
         existing.FkRoleId,
         existing.AllowLogin !== undefined ? (existing.AllowLogin ? 1 : 0) : 1,
         1, // pCreatedBy
-        0  // pIsActive = 0
+        isActive ? 1 : 0  // pIsActive
       ]);
       
       return await this.findById(id, { includeDeleted: true });
     }
 
     // ------------------------------------------------------------------
-    // MOCK MODE: In-memory soft delete
+    // MOCK MODE: In-memory status update
     // ------------------------------------------------------------------
     const index = seedEmployees.findIndex((e) => e.EmployeeCode.toString() === id.toString());
     if (index === -1) return null;
 
-    // Check if already soft deleted
-    if (seedEmployees[index].IsActive === 0 || seedEmployees[index].IsActive === false) return null;
-
-    seedEmployees[index].IsActive = 0;
+    seedEmployees[index].IsActive = isActive ? 1 : 0;
     return seedEmployees[index];
   }
 }

@@ -59,8 +59,7 @@ class BulkUploadService {
           orderResult?.id;
 
         // 4. Zero-touch junction: link OrderId → BulkUploadSession
-        // TODO: Restore order mapping once bulk_upload_order_mapping table schema is finalized and approved.
-        // await bulkUploadRepository.mapOrder(sessionId, orderId);
+        await bulkUploadRepository.mapOrder(sessionId, orderId);
         successfulOrders++;
       } catch (err) {
         // 5. Persist failed row verbatim for downstream review
@@ -74,6 +73,12 @@ class BulkUploadService {
       }
     }
 
+    // Close session — persist final counts and resolve Status in DB
+    await bulkUploadRepository.closeSession(
+      sessionId, sessionHash, fileName, rows.length,
+      successfulOrders, failedRows, uploadedByEmployeeId,
+    );
+
     return { sessionId, successfulOrders, failedRows };
   }
 
@@ -82,30 +87,42 @@ class BulkUploadService {
   // ============================================================================
 
   /**
-   * List all bulk upload sessions.
-   * @returns {Promise<Array>}
+   * List bulk upload sessions with pagination and optional filters.
+   *
+   * @param {object} query
+   * @param {number} query.page
+   * @param {number} query.limit
+   * @param {string|undefined} query.startDate
+   * @param {string|undefined} query.endDate
+   * @param {string|undefined} query.status
+   * @returns {Promise<{ sessions: Array, totalCount: number }>}
    */
-  async getSessions() {
-    const sessions = await bulkUploadRepository.getSessions(0);
-    return sessions.map((s) => this._mapSession(s));
+  async getSessions({ page, limit, startDate, endDate, status } = {}) {
+    const { sessions, totalCount } = await bulkUploadRepository.getSessions({
+      page, limit,
+      startDate: startDate ?? null,
+      endDate: endDate ?? null,
+      status: status ?? null,
+    });
+    return { sessions: sessions.map((s) => this._mapSession(s)), totalCount };
   }
 
   /**
-   * Get a specific session with its error detail rows.
+   * Get a specific session with its linked created order IDs.
+   *
    * @param {number|string} id - Session ID.
-   * @returns {Promise<object>} { session, details }
+   * @returns {Promise<{ sessionDetails: object, createdOrderIds: number[] }>}
    */
   async getSessionWithDetails(id) {
-    const session = await bulkUploadRepository.getSessions(1, id);
+    const { session, orderIds } = await bulkUploadRepository.getSessionById(id);
     if (!session) {
       const error = new Error('Upload session not found');
       error.statusCode = 404;
       throw error;
     }
-    const details = await bulkUploadRepository.getSessionDetails(0, id);
     return {
-      session: this._mapSession(session),
-      details: details.map((d) => this._mapDetail(d)),
+      sessionDetails: this._mapSession(session),
+      createdOrderIds: orderIds,
     };
   }
 
@@ -157,26 +174,6 @@ class BulkUploadService {
     };
   }
 
-  /** @private */
-  _mapDetail(detail) {
-    if (!detail) return null;
-    let rowData = null;
-    const raw = detail.RowData;
-    try {
-      rowData = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    } catch {
-      rowData = raw;
-    }
-    return {
-      errorId: detail.PkErrorId,
-      bulkUploadId: detail.FkBulkUploadId,
-      rowNumber: detail.RowNumber,
-      errorType: detail.ErrorType,
-      errorMessage: detail.ErrorMessage,
-      rowData,
-      createdAt: detail.CreatedAt,
-    };
-  }
 }
 
 export default new BulkUploadService();

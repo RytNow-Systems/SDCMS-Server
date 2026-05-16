@@ -205,6 +205,27 @@ class SenderRepository {
   }
 
   /**
+   * Upgrades a party's FkPartyTypeId to Sender (1) without changing any other data.
+   * Used when a Receiver (type=2) is selected as sender during order creation.
+   * Caller is responsible for fire-and-forget — this must not block order creation.
+   * @param {number} partyId - PkPartyId to upgrade.
+   * @param {object} party - Raw party_master row (from resolveParty) to preserve all fields.
+   * @param {number} adminId - Employee performing the action.
+   * @returns {Promise<void>}
+   */
+  async upgradePartyType(partyId, party, adminId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      await db.execute(
+        'CALL prc_Party_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [partyId, 1, party.CustomerName, party.PhoneNo, party.EmailId || null, party.Address, party.City, party.State, party.Pincode, adminId, party.IsActive ?? 1]
+      );
+      return;
+    }
+    const idx = mockParties.findIndex(s => s.PkPartyId === parseInt(partyId));
+    if (idx !== -1) mockParties[idx].PartyTypeId = 1;
+  }
+
+  /**
    * Retrieves unique names for autocomplete.
    * @param {number|null} partyTypeId - Optional type filter.
    * @returns {Promise<Array<string>>}

@@ -7,7 +7,8 @@
 //   - USE_MOCK_DB=true  → In-memory mock data (frontend development)
 //   - USE_MOCK_DB=false → Live MySQL stored procedures
 //
-// SP Convention: prc_dashboard_metrics_get (pAction=0)
+// SPs: prc_dashboard_metrics_get (pAction, pFromDate, pToDate)
+//      prc_dashboard_graph_get   (pAction, pYear)
 // ============================================================================
 
 import db from '../../infrastructure/database/db.js';
@@ -18,27 +19,40 @@ import db from '../../infrastructure/database/db.js';
 // ============================================================================
 const mockMetrics = {
   TotalOrders: 150,
-  PendingOrders: 45,
-  DispatchedOrders: 80,
-  DeliveredOrders: 25
+  PendingParcels: 45,
+  DispatchedParcels: 80,
+  DeliveredParcels: 25
 };
+
+const mockGraphData = [
+  { MonthNo: 1, TotalOrders: 10 },
+  { MonthNo: 2, TotalOrders: 18 },
+  { MonthNo: 3, TotalOrders: 14 },
+  { MonthNo: 4, TotalOrders: 22 },
+  { MonthNo: 5, TotalOrders: 30 }
+];
 
 class DashboardRepository {
   /**
-   * Fetches high-level metrics for the admin dashboard.
-   * Calls prc_dashboard_metrics_get with pAction=0.
+   * Fetches dashboard metrics for a given time period.
+   * Calls prc_dashboard_metrics_get(pAction, pFromDate, pToDate).
    *
-   * @returns {Promise<Object>} The dashboard metrics data.
+   * @param {number} pAction - 0=Overall, 1=Daily, 2=Weekly, 3=Monthly, 4=Custom range
+   * @param {string|null} fromDate - ISO date string; required when pAction=4
+   * @param {string|null} toDate - ISO date string; required when pAction=4
+   * @returns {Promise<Object>} Raw metrics row from DB.
    */
-  async getMetrics() {
+  async getMetrics(pAction = 0, fromDate = null, toDate = null) {
     // ------------------------------------------------------------------
-    // LIVE DB MODE: prc_dashboard_metrics_get (pAction=0)
-    // Injection Site: Procedure call for analytics
+    // LIVE DB MODE: prc_dashboard_metrics_get (pAction, pFromDate, pToDate)
+    // Injection Site: Procedure call for period-based analytics
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute('CALL prc_dashboard_metrics_get(?)', [0]);
+      const [rows] = await db.execute(
+        'CALL prc_dashboard_metrics_get(?, ?, ?)',
+        [pAction, fromDate, toDate]
+      );
 
-      // Handle MySQL procedure result format: [ [row], [meta] ]
       const result = Array.isArray(rows) ? rows[0] : null;
       const metrics = Array.isArray(result) ? result[0] : result;
 
@@ -49,6 +63,35 @@ class DashboardRepository {
     // MOCK MODE: Return static mock metrics
     // ------------------------------------------------------------------
     return mockMetrics;
+  }
+
+  /**
+   * Fetches monthly order counts for the orders-over-time graph.
+   * Calls prc_dashboard_graph_get(pAction, pYear).
+   *
+   * @param {number|null} year - Specific 4-digit year; null = current year.
+   * @returns {Promise<Array>} Array of { MonthNo, TotalOrders } rows.
+   */
+  async getGraph(year = null) {
+    // ------------------------------------------------------------------
+    // LIVE DB MODE: prc_dashboard_graph_get (pAction, pYear)
+    // Injection Site: Procedure call for orders-over-time graph
+    // ------------------------------------------------------------------
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const pAction = year ? 1 : 0;
+      const [rows] = await db.execute(
+        'CALL prc_dashboard_graph_get(?, ?)',
+        [pAction, year ?? null]
+      );
+
+      const result = Array.isArray(rows) ? rows[0] : [];
+      return Array.isArray(result) ? result : [];
+    }
+
+    // ------------------------------------------------------------------
+    // MOCK MODE: Return static mock graph data
+    // ------------------------------------------------------------------
+    return mockGraphData;
   }
 }
 

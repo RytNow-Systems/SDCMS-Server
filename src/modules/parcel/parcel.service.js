@@ -8,15 +8,16 @@
 
 import parcelRepository from "./parcel.repository.js";
 import ParcelCodeService from "./parcel-code.service.js";
+import notificationService from "../notification/notification.service.js";
 
 // Status constants mapping (from lu_details/system flow)
 const STATUS = {
-  PENDING: "PENDING",
-  LABEL_PRINTED: "LABEL_PRINTED",
-  AWB_LINKED: "AWB_LINKED",
-  DISPATCHED: "DISPATCHED",
-  DELIVERED: "DELIVERED",
-  CANCELLED: "CANCELLED",
+  PENDING: "Pending",
+  LABEL_PRINTED: "Label Printed",
+  AWB_LINKED: "AWB Linked",
+  DISPATCHED: "Dispatched",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
 };
 
 // Valid transitions (v2.3 System Flow — RETURNED removed, trigger 5 = CANCELLED)
@@ -155,26 +156,27 @@ class ParcelService {
       throw error;
     }
 
-    const mapped = await this._mapParcel(parcel);
+    const parcelId = parcel.PkParcelDetailsId || parcel.id;
     const orderId = parcel.FkOrderId || parcel.orderId;
     const receiverDetailsId =
       parcel.FkReceiverDetailsId || parcel.fkReceiverDetailsId;
 
-    // Fetch sender: order header for FkSenderId → party for name/phone/address
-    let sender = null;
+    const parcelCode =
+      parcel.ParcelCode ||
+      parcel.parcelCode ||
+      (await ParcelCodeService.generateCodeAsync({ orderId, parcelId, receiverDetailsId }));
+
+    // Fetch sender
+    let from = null;
     const orderHeader = orderId
       ? await parcelRepository.getOrderHeader(orderId)
       : null;
     if (orderHeader?.FkSenderId) {
-      const senderParty = await parcelRepository.getSenderById(
-        orderHeader.FkSenderId,
-      );
+      const senderParty = await parcelRepository.getSenderById(orderHeader.FkSenderId);
       if (senderParty) {
-        sender = {
-          senderId: senderParty.PkPartyId || senderParty.id,
+        from = {
           name: senderParty.CustomerName || senderParty.customerName || null,
           phone: senderParty.PhoneNo || senderParty.phoneNo || null,
-          email: senderParty.EmailId || senderParty.emailId || null,
           address: senderParty.Address || senderParty.address || null,
           city: senderParty.City || senderParty.city || null,
           state: senderParty.State || senderParty.state || null,
@@ -183,22 +185,31 @@ class ParcelService {
       }
     }
 
-    // Fetch products for this receiver
+    // Fetch order items for this receiver
     const rawItems = receiverDetailsId
       ? await parcelRepository.getItemsForReceiver(receiverDetailsId)
       : [];
-    const products = rawItems.map((item) => ({
-      productId: item.FkProductId,
-      materialName: item.MaterialName || null,
-      materialCode: item.MaterialCode || null,
-      quantity: item.OutwardQty,
-      unitPrice: item.UnitPrice,
-      unitTitle: item.UnitTitle || null,
-      colorId: item.PkLuColorId || null,
+    const items = rawItems.map((item) => ({
+      name: item.MaterialName || null,
       colorName: item.ColorName || null,
+      qty: item.OutwardQty,
     }));
 
-    return { ...mapped, sender, products };
+    return {
+      parcelCode,
+      trackingNo: parcel.TrackingNo || parcel.trackingNo || null,
+      orderCode: parcel.OrderCode || parcel.orderCode || null,
+      to: {
+        name: parcel.ReceiverName || parcel.receiverName || null,
+        phone: parcel.ReceiverPhone || parcel.receiverPhone || null,
+        address: parcel.ReceiverAddress || parcel.Address || parcel.address || null,
+        city: parcel.ReceiverCity || parcel.City || parcel.city || null,
+        state: parcel.ReceiverState || parcel.State || parcel.state || null,
+        pincode: parcel.ReceiverPincode || parcel.Pincode || parcel.pincode || null,
+      },
+      from,
+      items,
+    };
   }
 
   async getTimeline(id) {
@@ -262,12 +273,13 @@ class ParcelService {
       // 2. Check for Duplicate AWB
       await this._ensureUniqueAWB(awbNumber);
 
-      // 3. Perform linking based on role (Auto-dispatch for Couriers)
+      // 3. Perform linking based on role (auto-dispatch gated by AUTO_DISPATCH_ON_SCAN)
       const result = await this._executeLinkingFlow(
         parcel,
         awbNumber,
         role,
         employeeCode,
+        user,
       );
 
       return await this._mapParcel(result);
@@ -404,27 +416,30 @@ class ParcelService {
    * Internal helper to execute the linking database updates.
    * @private
    */
-  async _executeLinkingFlow(parcel, awbNumber, role, employeeCode) {
-    const id = parcel.parcelDetailsId;
-    if (role === "COURIER") {
-      // Auto-dispatch for couriers (Trigger 3)
-      return await parcelRepository.updateParcelState(
-        id,
-        3,
-        awbNumber,
-        0,
-        employeeCode,
-      );
+  async _executeLinkingFlow(parcel, awbNumber, role, employeeCode, user) {
+    const id = parcel.parcelId;
+    const autoDispatch = process.env.AUTO_DISPATCH_ON_SCAN === "true";
+
+    if (role === "COURIER" && autoDispatch) {
+      // Trigger 2: store TrackingNo and move to AWB_LINKED
+      await parcelRepository.updateParcelState(id, 2, awbNumber, 0, employeeCode);
+      // Trigger 3: set DispatchDate and move to DISPATCHED
+      const result = await parcelRepository.updateParcelState(id, 3, awbNumber, 0, employeeCode);
+
+      // Fire notification after dispatch — failure must not break the dispatch response
+      try {
+        await notificationService.sendNotification(id, user);
+      } catch (notifErr) {
+        // Log but swallow — parcel is dispatched regardless of notification outcome
+        console.error(`[AUTO_DISPATCH] Notification failed for parcel ${id}:`, notifErr.message);
+      }
+
+      return result;
     }
 
-    // Normal linking (Trigger 2)
-    return await parcelRepository.updateParcelState(
-      id,
-      2,
-      awbNumber,
-      0,
-      employeeCode,
-    );
+    // Trigger 2 only: AWB Linked — applies to OPERATOR/ADMIN always,
+    // and to COURIER when AUTO_DISPATCH_ON_SCAN=false
+    return await parcelRepository.updateParcelState(id, 2, awbNumber, 0, employeeCode);
   }
 }
 

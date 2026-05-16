@@ -9,9 +9,11 @@ import {
   getProductById,
   createProduct,
   updateProduct,
-  deleteProduct,
+  updateProductStatus,
+  updateVariationStatus,
   getProductDropdown,
-  addProductMatrix,
+  searchProducts,
+  addProductVariation,
   getProductCategories,
   createProductCategory,
   getProductUnits,
@@ -24,10 +26,11 @@ import { validate } from '../../../shared/middleware/validate.middleware.js';
 import {
   createProductSchema,
   updateProductSchema,
-  productMatrixSchema,
+  productVariationSchema,
   createCategorySchema,
   createColorSchema,
-  createUnitSchema
+  createUnitSchema,
+  statusToggleSchema
 } from '../validations/validation.schemas.js';
 
 const router = express.Router();
@@ -55,15 +58,22 @@ router.route('/')
   .get(getProducts)
   .post(validate(createProductSchema), createProduct);
 
+// Product name autosuggest for typeahead (returns deduplicated names)
+router.get('/search', searchProducts);
+
 // Product + Category combined dropdown (Feature E)
 router.get('/dropdown', getProductDropdown);
 
 router.route('/:id')
   .get(getProductById)
-  .put(validate(updateProductSchema), updateProduct)
-  .delete(deleteProduct);
+  .put(validate(updateProductSchema), updateProduct);
+
+router.patch('/:id/status', validate(statusToggleSchema), updateProductStatus);
 
 // Color/Size matrix variation for a specific product
-router.post('/:id/matrix', validate(productMatrixSchema), addProductMatrix);
+router.post('/:id/variations', validate(productVariationSchema), addProductVariation);
+
+// Toggle specific variation status
+router.patch('/:id/variations/:variationId/status', validate(statusToggleSchema), updateVariationStatus);
 
 export default router;

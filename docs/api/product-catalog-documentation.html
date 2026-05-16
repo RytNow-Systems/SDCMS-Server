@@ -156,7 +156,7 @@
         <h1>SDCMS Backend API</h1>
         <h2>Product Catalog</h2>
       </div>
-      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Categories</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Category</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Units</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm post">POST</span>Create Unit</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get Colors</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm post">POST</span>Create Color</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>List Products</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm post">POST</span>Create Product</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm get">GET</span>Get Product by ID</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Product</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm delete">DELETE</span>Delete Product</a><a href="#ep-11" class="toc-item"><span class="method-badge-sm get">GET</span>Product Dropdown</a><a href="#ep-12" class="toc-item"><span class="method-badge-sm post">POST</span>Add/Update Product Color Matrix (Standalone)</a></div>
+      <div class="toc-list"><a href="#ep-0" class="toc-item"><span class="method-badge-sm get">GET</span>Get Categories</a><a href="#ep-1" class="toc-item"><span class="method-badge-sm post">POST</span>Create Category</a><a href="#ep-2" class="toc-item"><span class="method-badge-sm get">GET</span>Get Units</a><a href="#ep-3" class="toc-item"><span class="method-badge-sm post">POST</span>Create Unit</a><a href="#ep-4" class="toc-item"><span class="method-badge-sm get">GET</span>Get Colors</a><a href="#ep-5" class="toc-item"><span class="method-badge-sm post">POST</span>Create Color</a><a href="#ep-6" class="toc-item"><span class="method-badge-sm get">GET</span>List Products</a><a href="#ep-7" class="toc-item"><span class="method-badge-sm post">POST</span>Create Product</a><a href="#ep-8" class="toc-item"><span class="method-badge-sm get">GET</span>Get Product by ID</a><a href="#ep-9" class="toc-item"><span class="method-badge-sm put">PUT</span>Update Product</a><a href="#ep-10" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Product Status</a><a href="#ep-11" class="toc-item"><span class="method-badge-sm patch">PATCH</span>Toggle Variation Status</a><a href="#ep-12" class="toc-item"><span class="method-badge-sm get">GET</span>Product Name Search (Autosuggest)</a><a href="#ep-13" class="toc-item"><span class="method-badge-sm get">GET</span>Product Dropdown</a><a href="#ep-14" class="toc-item"><span class="method-badge-sm post">POST</span>Add/Update Product Color Matrix (Standalone)</a></div>
     </nav>
     <main class="main">
       <header class="main-header">
@@ -491,9 +491,15 @@
           <code class="endpoint-path">/products</code>
         </div>
         <h3 class="endpoint-name">List Products</h3>
-        <p class="endpoint-desc">Retrieves products filtered by categoryId or unitId.</p>
+        <p class="endpoint-desc">Retrieves products filtered by categoryId or unitId, paginated.</p>
         
         
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> Each list item now includes variationId (PkProductColorId) and the full color/size matrix fields so the frontend can target specific variations without a secondary lookup.
+        </div>
+      </div>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
@@ -514,15 +520,27 @@
             <tbody>
               
                 <tr>
+                  <td><code>page</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Page number (default: 1)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>limit</code></td>
+                  <td><span class="type-tag">number</span></td>
+                  <td>Items per page (default: 20)</td>
+                </tr>
+              
+                <tr>
                   <td><code>categoryId</code></td>
                   <td><span class="type-tag">number</span></td>
-                  <td>Filter by category primary key</td>
+                  <td>Filter by category primary key (0 = no filter)</td>
                 </tr>
               
                 <tr>
                   <td><code>unitId</code></td>
                   <td><span class="type-tag">number</span></td>
-                  <td>Filter by unit primary key</td>
+                  <td>Filter by unit primary key (0 = no filter)</td>
                 </tr>
               
             </tbody>
@@ -542,10 +560,15 @@
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: [
     {
-      &quot;id&quot;: <span class="json-number">1</span>,
+      &quot;productId&quot;: <span class="json-number">1</span>,
+      &quot;variationId&quot;: <span class="json-number">1</span>,
       &quot;materialName&quot;: &quot;Cotton Roll&quot;,
       &quot;materialRate&quot;: <span class="json-number">500</span>,
-      &quot;categoryName&quot;: &quot;Textiles&quot;
+      &quot;categoryName&quot;: &quot;Textiles&quot;,
+      &quot;colorId&quot;: <span class="json-number">1</span>,
+      &quot;colorName&quot;: &quot;Red&quot;,
+      &quot;size&quot;: &quot;M&quot;,
+      &quot;isActive&quot;: <span class="json-bool">true</span>
     }
   ]
 }</code></pre>
@@ -561,13 +584,13 @@
           <code class="endpoint-path">/products</code>
         </div>
         <h3 class="endpoint-name">Create Product</h3>
-        <p class="endpoint-desc">Creates a new product with optional inline variations. categoryId and unitId are required. materialRate defaults to 0 if omitted (pricing is primarily per-variation).</p>
+        <p class="endpoint-desc">Creates a new product with a single inline variation (color + size). categoryId, colorId, and size are required at the top level — no nested variations array.</p>
         
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> categoryId and unitId are required. materialRate is optional (defaults to 0). The variations array is optional — omit it to create a product without variations.
+          <strong>Developer Note:</strong> categoryId, colorId, and size are required. materialRate is optional (defaults to 0). unitId is not accepted on create. If a product with the same name already exists, the new variation is auto-linked to that existing product instead of creating a duplicate.
         </div>
       </div>
           <div class="meta-grid">
@@ -589,27 +612,16 @@
         <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;materialName&quot;:&quot;Heavy Equipment&quot;,&quot;categoryId&quot;:1,&quot;unitId&quot;:1,&quot;materialRate&quot;:500,&quot;variations&quot;:[{&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:550},{&quot;colorId&quot;:2,&quot;size&quot;:&quot;L&quot;,&quot;materialRate&quot;:600}]}'</code></pre>
+  -d '{&quot;materialName&quot;:&quot;Cotton Roll&quot;,&quot;categoryId&quot;:1,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:500}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;materialName&quot;: &quot;Heavy Equipment&quot;,
+  &quot;materialName&quot;: &quot;Cotton Roll&quot;,
   &quot;categoryId&quot;: <span class="json-number">1</span>,
-  &quot;unitId&quot;: <span class="json-number">1</span>,
-  &quot;materialRate&quot;: <span class="json-number">500</span>,
-  &quot;variations&quot;: [
-    {
-      &quot;colorId&quot;: <span class="json-number">1</span>,
-      &quot;size&quot;: &quot;M&quot;,
-      &quot;materialRate&quot;: <span class="json-number">550</span>
-    },
-    {
-      &quot;colorId&quot;: <span class="json-number">2</span>,
-      &quot;size&quot;: &quot;L&quot;,
-      &quot;materialRate&quot;: <span class="json-number">600</span>
-    }
-  ]
+  &quot;colorId&quot;: <span class="json-number">1</span>,
+  &quot;size&quot;: &quot;M&quot;,
+  &quot;materialRate&quot;: <span class="json-number">500</span>
 }</code></pre>
       </div>
         
@@ -619,22 +631,15 @@
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: {
     &quot;id&quot;: <span class="json-number">2</span>,
-    &quot;materialName&quot;: &quot;Heavy Equipment&quot;,
+    &quot;materialName&quot;: &quot;Cotton Roll&quot;,
     &quot;materialRate&quot;: <span class="json-number">500</span>,
     &quot;categoryId&quot;: <span class="json-number">1</span>,
-    &quot;unitId&quot;: <span class="json-number">1</span>,
     &quot;variations&quot;: [
       {
         &quot;variationId&quot;: <span class="json-number">1</span>,
         &quot;colorId&quot;: <span class="json-number">1</span>,
         &quot;size&quot;: &quot;M&quot;,
-        &quot;materialRate&quot;: <span class="json-number">550</span>
-      },
-      {
-        &quot;variationId&quot;: <span class="json-number">2</span>,
-        &quot;colorId&quot;: <span class="json-number">2</span>,
-        &quot;size&quot;: &quot;L&quot;,
-        &quot;materialRate&quot;: <span class="json-number">600</span>
+        &quot;materialRate&quot;: <span class="json-number">500</span>
       }
     ]
   }
@@ -695,18 +700,23 @@
         <pre class="code-block"><code>{
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: {
-    &quot;id&quot;: <span class="json-number">1</span>,
+    &quot;productId&quot;: <span class="json-number">1</span>,
     &quot;materialName&quot;: &quot;Cotton Roll&quot;,
     &quot;materialRate&quot;: <span class="json-number">500</span>,
     &quot;categoryId&quot;: <span class="json-number">1</span>,
     &quot;unitId&quot;: <span class="json-number">1</span>,
+    &quot;categoryName&quot;: &quot;Textiles&quot;,
+    &quot;unitTitle&quot;: &quot;Pieces&quot;,
+    &quot;isActive&quot;: <span class="json-bool">true</span>,
     &quot;variations&quot;: [
       {
         &quot;variationId&quot;: <span class="json-number">1</span>,
+        &quot;productId&quot;: <span class="json-number">1</span>,
         &quot;colorId&quot;: <span class="json-number">1</span>,
         &quot;colorName&quot;: &quot;Red&quot;,
         &quot;size&quot;: &quot;M&quot;,
-        &quot;materialRate&quot;: <span class="json-number">550</span>
+        &quot;materialRate&quot;: <span class="json-number">550</span>,
+        &quot;isActive&quot;: <span class="json-bool">true</span>
       }
     ]
   }
@@ -723,13 +733,33 @@
           <code class="endpoint-path">/products/:id</code>
         </div>
         <h3 class="endpoint-name">Update Product</h3>
-        <p class="endpoint-desc">Updates product fields and/or manages variations using a diff strategy. All fields are optional (partial update). Variations use matrixId to distinguish: present = update, absent = insert, isActive:false = soft-delete.</p>
+        <p class="endpoint-desc">Updates product fields and/or manages variations. Supports three body shapes — see notes for scoped response shapes per mode.</p>
         
         
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> All fields optional. Variations diff: matrixId present → update, matrixId absent → insert new, matrixId + isActive:false → soft-delete. Product fields are merged with existing record to prevent undefined parameter errors.
+          <strong>Developer Note:</strong> Three body shapes accepted, each returning a different scoped response:
+
+1. Flat (colorId + size at root): Finds the matching existing variation by colorId+size and updates it.
+   Returns a single variation object: { variationId, colorId, colorName, size, materialRate, isActive }.
+   404 if no match — use POST /:id/variations to insert a new variation.
+
+2. Flat (variationId at root): Directly targets the variation by its PK and updates it.
+   Returns the same single variation object.
+
+3. Variations array (batch diff): Accepts a 'variations' array where:
+   - variationId present → UPDATE that variation
+   - variationId absent → INSERT new variation
+   - variationId + isActive:false → soft-delete
+   Returns an array containing only the variations that were part of the request (mutated subset, not the full product).
+
+4. Product-level-only (no variation fields at root, no variations array):
+   Updates product master fields only (e.g. materialName, categoryId, unitId).
+   Returns product fields without a 'variations' key, keeping the response lean.
+
+Example batch body: { &quot;variations&quot;: [{ &quot;variationId&quot;: 1, &quot;colorId&quot;: 1, &quot;size&quot;: &quot;M&quot;, &quot;materialRate&quot;: 560 }, { &quot;colorId&quot;: 3, &quot;size&quot;: &quot;S&quot;, &quot;materialRate&quot;: 480 }, { &quot;variationId&quot;: 2, &quot;isActive&quot;: false }] }
+
         </div>
       </div>
           <div class="meta-grid">
@@ -751,29 +781,14 @@
         <pre class="code-block curl-block"><code>curl -X PUT &quot;{{base_url}}/products/:id&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
-  -d '{&quot;materialRate&quot;:550,&quot;variations&quot;:[{&quot;matrixId&quot;:1,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;,&quot;materialRate&quot;:560},{&quot;colorId&quot;:3,&quot;size&quot;:&quot;S&quot;,&quot;materialRate&quot;:480},{&quot;matrixId&quot;:2,&quot;isActive&quot;:false}]}'</code></pre>
+  -d '{&quot;materialRate&quot;:560,&quot;colorId&quot;:1,&quot;size&quot;:&quot;M&quot;}'</code></pre>
         
       <div class="section-group">
         <div class="section-label">Request Body</div>
         <pre class="code-block"><code>{
-  &quot;materialRate&quot;: <span class="json-number">550</span>,
-  &quot;variations&quot;: [
-    {
-      &quot;matrixId&quot;: <span class="json-number">1</span>,
-      &quot;colorId&quot;: <span class="json-number">1</span>,
-      &quot;size&quot;: &quot;M&quot;,
-      &quot;materialRate&quot;: <span class="json-number">560</span>
-    },
-    {
-      &quot;colorId&quot;: <span class="json-number">3</span>,
-      &quot;size&quot;: &quot;S&quot;,
-      &quot;materialRate&quot;: <span class="json-number">480</span>
-    },
-    {
-      &quot;matrixId&quot;: <span class="json-number">2</span>,
-      &quot;isActive&quot;: <span class="json-bool">false</span>
-    }
-  ]
+  &quot;materialRate&quot;: <span class="json-number">560</span>,
+  &quot;colorId&quot;: <span class="json-number">1</span>,
+  &quot;size&quot;: &quot;M&quot;
 }</code></pre>
       </div>
         
@@ -787,11 +802,11 @@
     <div class="endpoint-card" id="ep-10">
       <div class="endpoint-info">
         <div class="endpoint-header">
-          <span class="method-badge" style="background:#7f1d1d;color:#f87171;border-color:#991b1b">DELETE</span>
-          <code class="endpoint-path">/products/:id</code>
+          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
+          <code class="endpoint-path">/products/:id/status</code>
         </div>
-        <h3 class="endpoint-name">Delete Product</h3>
-        <p class="endpoint-desc">Soft-deletes a product from the catalog.</p>
+        <h3 class="endpoint-name">Toggle Product Status</h3>
+        <p class="endpoint-desc">Activates or deactivates a product and all its variations (cascading).</p>
         
         
           <div class="meta-grid">
@@ -810,9 +825,17 @@
 
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X DELETE &quot;{{base_url}}/products/:id&quot; \
-  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/products/:id/status&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;isActive&quot;:false}'</code></pre>
         
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;isActive&quot;: <span class="json-bool">false</span>
+}</code></pre>
+      </div>
         
       <div class="section-group">
         <div class="section-label">Expected Status <span class="status-badge">200</span></div>
@@ -824,11 +847,11 @@
     <div class="endpoint-card" id="ep-11">
       <div class="endpoint-info">
         <div class="endpoint-header">
-          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
-          <code class="endpoint-path">/products/dropdown</code>
+          <span class="method-badge" style="background:#4c1d95;color:#a78bfa;border-color:#5b21b6">PATCH</span>
+          <code class="endpoint-path">/products/:id/variations/:variationId/status</code>
         </div>
-        <h3 class="endpoint-name">Product Dropdown</h3>
-        <p class="endpoint-desc">Combined product + category flat dropdown list for order forms.</p>
+        <h3 class="endpoint-name">Toggle Variation Status</h3>
+        <p class="endpoint-desc">Granular toggle for a specific color/size variation.</p>
         
         
           <div class="meta-grid">
@@ -842,6 +865,129 @@
             </div>
           </div>
 
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X PATCH &quot;{{base_url}}/products/:id/variations/:variationId/status&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;isActive&quot;:true}'</code></pre>
+        
+      <div class="section-group">
+        <div class="section-label">Request Body</div>
+        <pre class="code-block"><code>{
+  &quot;isActive&quot;: <span class="json-bool">true</span>
+}</code></pre>
+      </div>
+        
+      <div class="section-group">
+        <div class="section-label">Expected Status <span class="status-badge">200</span></div>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-12">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/products/search</code>
+        </div>
+        <h3 class="endpoint-name">Product Name Search (Autosuggest)</h3>
+        <p class="endpoint-desc">Deduplicated product name suggestions for the Product Name typeahead. Returns one entry per product (not per variation). Use when user types in the Product Name field.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>q</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Partial product name to match (case-insensitive, up to 10 results)</td>
+                </tr>
+              
+            </tbody>
+          </table>
+        
+      </div>
+
+      <div class="endpoint-example">
+        <div class="section-label">cURL Example</div>
+        <pre class="code-block curl-block"><code>curl -X GET &quot;{{base_url}}/products/search&quot; \
+  -H &quot;Authorization: Bearer {{authToken}}&quot; \</code></pre>
+        
+        
+      <div class="section-group">
+        <div class="section-label">Example Response <span class="status-badge">200</span></div>
+        <pre class="code-block"><code>{
+  &quot;success&quot;: <span class="json-bool">true</span>,
+  &quot;data&quot;: [
+    {
+      &quot;productId&quot;: <span class="json-number">1</span>,
+      &quot;materialName&quot;: &quot;Cotton Roll&quot;
+    }
+  ]
+}</code></pre>
+      </div>
+      </div>
+      
+      
+    </div>
+    <div class="endpoint-card" id="ep-13">
+      <div class="endpoint-info">
+        <div class="endpoint-header">
+          <span class="method-badge" style="background:#064e3b;color:#34d399;border-color:#065f46">GET</span>
+          <code class="endpoint-path">/products/dropdown</code>
+        </div>
+        <h3 class="endpoint-name">Product Dropdown</h3>
+        <p class="endpoint-desc">Combined product + category flat dropdown list for order forms. Supports partial-match search.</p>
+        
+        
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Authentication</span>
+              <span class="meta-value">Bearer Token</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Permissions</span>
+              <span class="meta-value">ADMIN, OPERATOR</span>
+            </div>
+          </div>
+
+        
+          <div class="section-label">Parameters</div>
+          <table class="params-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><code>search</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Partial match against product name or category (optional)</td>
+                </tr>
+              
+            </tbody>
+          </table>
         
       </div>
 
@@ -871,11 +1017,11 @@
       
       
     </div>
-    <div class="endpoint-card" id="ep-12">
+    <div class="endpoint-card" id="ep-14">
       <div class="endpoint-info">
         <div class="endpoint-header">
           <span class="method-badge" style="background:#1e3a5f;color:#60a5fa;border-color:#1e40af">POST</span>
-          <code class="endpoint-path">/products/:id/matrix</code>
+          <code class="endpoint-path">/products/:id/variations</code>
         </div>
         <h3 class="endpoint-name">Add/Update Product Color Matrix (Standalone)</h3>
         <p class="endpoint-desc">Standalone endpoint to add or update a single color/size pricing variation. Kept as a fallback for individual variation edits outside the product form.</p>
@@ -884,7 +1030,7 @@
       <div class="note-box">
         <span class="note-icon">💡</span>
         <div class="note-content">
-          <strong>Developer Note:</strong> Pass matrixId in body for updates. Omit matrixId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations.
+          <strong>Developer Note:</strong> Pass variationId in body for updates. Omit variationId for new entries. Prefer using the inline variations array on PUT /products/:id for batch operations.
         </div>
       </div>
           <div class="meta-grid">
@@ -903,7 +1049,7 @@
 
       <div class="endpoint-example">
         <div class="section-label">cURL Example</div>
-        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products/:id/matrix&quot; \
+        <pre class="code-block curl-block"><code>curl -X POST &quot;{{base_url}}/products/:id/variations&quot; \
   -H &quot;Authorization: Bearer {{authToken}}&quot; \
   -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;fkLuColorId&quot;:1,&quot;materialRate&quot;:550,&quot;size&quot;:&quot;M&quot;}'</code></pre>
@@ -935,7 +1081,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-14
       </footer>
     </main>
   </div>

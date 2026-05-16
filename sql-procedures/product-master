@@ -1,3 +1,20 @@
+Table: product_master
+
+Columns:
+	PkProductId	int(11) AI PK
+	FkProductCategoryId	int(11)
+	FkUnitId	int(11)
+	MaterialCode	varchar(50)
+	MaterialName	varchar(150)
+	cu_item_code	varchar(50)
+	MaterialRate	decimal(10,2)
+	MaterialDescription	varchar(300)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+	UpdatedBy	int(11)
+	UpdatedDate	datetime
+	IsActive	tinyint(1)
+---
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_master_get`(pAction INT, pPkProductId INT)
 BEGIN
 /***************************************************
@@ -28,7 +45,36 @@ Description : used to retrieve product master details based on action and produc
     END IF;
 
 END
+---
 
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_master_set`(pPkProductId INT, pFkProductCategoryId INT, pFkUnitId INT, pMaterialCode VARCHAR(50), pMaterialName VARCHAR(100), pcu_item_code VARCHAR(50), pMaterialRate DECIMAL(10,2), pMaterialDescription TEXT, pCreatedBy INT, pIsActive INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pPkProductId, pFkProductCategoryId, pFkUnitId, pMaterialCode, pMaterialName, pcu_item_code, pMaterialRate, pMaterialDescription, pCreatedBy, pIsActive
+Output Parameter : product details
+Description : used to insert and update product master details
+****************************************************/
+
+DECLARE pProdId INT;
+
+	IF pPkProductId = 0 THEN
+		INSERT INTO product_master (FkProductCategoryId, FkUnitId, MaterialCode, MaterialName, cu_item_code, MaterialRate, MaterialDescription, CreatedBy, CreatedDate, IsActive)
+						VALUES (pFkProductCategoryId, pFkUnitId, pMaterialCode, pMaterialName, pcu_item_code, pMaterialRate, pMaterialDescription, pCreatedBy, NOW(), pIsActive);
+
+		SELECT LAST_INSERT_ID() INTO pProdId;
+
+		SELECT pProdId AS InsertedId;
+
+	ELSE
+		UPDATE product_master SET
+		FkProductCategoryId = pFkProductCategoryId, FkUnitId = pFkUnitId, MaterialCode = pMaterialCode, MaterialName = pMaterialName, cu_item_code = pcu_item_code, MaterialRate = pMaterialRate, MaterialDescription = pMaterialDescription, UpdatedBy = pCreatedBy, UpdatedDate = NOW(), IsActive = pIsActive
+		WHERE PkProductId = pPkProductId;
+
+	END IF;
+
+END
 ---
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_master_search`(pPkProductId int(11), pFkProductCategoryId int(11), pFkUnitId int(11))
@@ -58,34 +104,16 @@ Description : used to display list of product details as per given constraints
 		ORDER BY product_master.PkProductId;
 
 END
-
 ---
-
-CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_master_set`(pPkProductId INT, pFkProductCategoryId INT, pFkUnitId INT, pMaterialCode VARCHAR(50), pMaterialName VARCHAR(100), pcu_item_code VARCHAR(50), pMaterialRate DECIMAL(10,2), pMaterialDescription TEXT, pCreatedBy INT, pIsActive INT)
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_check_duplicate_product_master`(pPkProductId INT, pFkProductCategoryId INT, pFkUnitId INT, pMaterialName VARCHAR(100))
 BEGIN
-/***************************************************
-Author:		Aditya Mulay
-Module Name	:master
-Input Parameter	: pPkProductId, pFkProductCategoryId, pFkUnitId, pMaterialCode, pMaterialName, pcu_item_code, pMaterialRate, pMaterialDescription, pCreatedBy, pIsActive
-Output Parameter : product details
-Description : used to insert and update product master details
-****************************************************/
-
-DECLARE pProdId INT;
-
 	IF pPkProductId = 0 THEN
-		INSERT INTO product_master (FkProductCategoryId, FkUnitId, MaterialCode, MaterialName, cu_item_code, MaterialRate, MaterialDescription, CreatedBy, CreatedDate, IsActive)
-						VALUES (pFkProductCategoryId, pFkUnitId, pMaterialCode, pMaterialName, pcu_item_code, pMaterialRate, pMaterialDescription, pCreatedBy, NOW(), pIsActive);
-
-		SELECT LAST_INSERT_ID() INTO pProdId;
-
-	ELSE
-		UPDATE product_master SET
-		FkProductCategoryId = pFkProductCategoryId, FkUnitId = pFkUnitId, MaterialCode = pMaterialCode, MaterialName = pMaterialName, cu_item_code = pcu_item_code, MaterialRate = pMaterialRate, MaterialDescription = pMaterialDescription, UpdatedBy = pCreatedBy, UpdatedDate = NOW(), IsActive = pIsActive
-		WHERE PkProductId = pPkProductId;
-
+		SELECT COUNT(*) AS DataCount FROM product_master WHERE FkProductCategoryId = pFkProductCategoryId AND FkUnitId = pFkUnitId AND MaterialName = pMaterialName;
 	END IF;
 
+	IF pPkProductId > 0 THEN
+		SELECT COUNT(*) AS DataCount FROM product_master WHERE FkProductCategoryId = pFkProductCategoryId AND FkUnitId = pFkUnitId AND MaterialName = pMaterialName AND PkProductId <> pPkProductId;
+	END IF;
 END
 
 ---

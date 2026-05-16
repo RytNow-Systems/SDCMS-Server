@@ -329,7 +329,7 @@ class ProductRepository {
    * @returns {Promise<{data: Array, total: number}>} Paginated product list with color/size matrix
    */
   async findAll(filters = {}) {
-    const { categoryId = 0, unitId = 0, page = 1, limit = 20 } = filters;
+    const { categoryId = 0, unitId = 0, search = "", page = 1, limit = 20, includeInactive = false } = filters;
 
     let products = [];
     let matrices = [];
@@ -345,7 +345,7 @@ class ProductRepository {
         return val === 1 || val === true || val === "1" || val === "Active";
       };
       products = (pRows[0] || []).filter((p) => _isActiveRow(p.IsActive));
-      matrices = await this.getAllColorMatrix();
+      matrices = await this.getAllColorMatrix({ includeDeleted: includeInactive });
     } else {
       // Apply filters in mock mode
       products = seedProducts
@@ -366,7 +366,7 @@ class ProductRepository {
             UnitTitle: unit?.UnitTitle || "N/A",
           };
         });
-      matrices = seedColorMatrix.filter((m) => m.IsActive);
+      matrices = includeInactive ? seedColorMatrix : seedColorMatrix.filter((m) => m.IsActive);
     }
 
     // Step 2: Build flat list with color/size matrix (same logic as getDropdown)
@@ -392,6 +392,7 @@ class ProductRepository {
             FkProductCategoryId: p.FkProductCategoryId,
             FkUnitId: p.FkUnitId,
             IsActive: p.IsActive,
+            VariationIsActive: v.IsActive,
             CreatedDate: p.CreatedDate,
           });
         }
@@ -415,6 +416,18 @@ class ProductRepository {
       }
     }
 
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      fullResults = fullResults.filter(
+        (item) =>
+          (item.MaterialName && item.MaterialName.toLowerCase().includes(q)) ||
+          (item.Size && item.Size.toLowerCase().includes(q)) ||
+          (item.ColorName && item.ColorName.toLowerCase().includes(q)) ||
+          (item.MaterialRate && String(item.MaterialRate).toLowerCase().includes(q)) ||
+          (item.CategoryName && item.CategoryName.toLowerCase().includes(q))
+      );
+    }
+
     // Step 3: Apply pagination (using the same pattern as order.repository.js _paginateData)
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 20;
@@ -435,7 +448,7 @@ class ProductRepository {
    * @param {number|string} id - PkProductId.
    * @returns {Promise<object|null>} Product record (with variations) or null.
    */
-  async findById(id) {
+  async findById(id, options = {}) {
     if (process.env.USE_MOCK_DB !== "true") {
       const [rows] = await db.execute(
         "CALL prc_product_master_search(?, ?, ?)",
@@ -443,19 +456,16 @@ class ProductRepository {
       );
       const product = rows[0]?.[0] || null;
       if (product) {
-        product.variations = await this.getColorMatrix(id);
+        if (!options.includeDeleted && !product.IsActive) return null;
+        product.variations = await this.getColorMatrix(id, options);
       }
       return product;
     }
 
-    const product =
-      seedProducts.find(
-        (p) => p.PkProductId.toString() === id.toString() && p.IsActive,
-      ) || null;
+    const product = seedProducts.find((p) => p.PkProductId.toString() === id.toString());
     if (product) {
-      product.variations = seedColorMatrix.filter(
-        (m) => m.FkProductId.toString() === id.toString() && m.IsActive,
-      );
+      if (!options.includeDeleted && !product.IsActive) return null;
+      product.variations = await this.getColorMatrix(id, options);
     }
     return product;
   }
@@ -464,6 +474,79 @@ class ProductRepository {
    * Fetches products joined with category names for selection dropdowns.
    * @param {string} search - Partial match for name or category.
    */
+
+  /**
+   * Finds a single product_master row by exact MaterialName + FkProductCategoryId.
+   * Uses prc_product_master_search filtered in-memory — no SP change required.
+   * @param {string} name - MaterialName to match (case-insensitive)
+   * @param {number} categoryId - FkProductCategoryId to match
+   * @returns {Promise<object|null>}
+   */
+  async findByNameAndCategory(name, categoryId) {
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [0, categoryId, 0],
+      );
+      const allRows = rows[0] || [];
+      return (
+        allRows.find(
+          (p) => p.MaterialName.toLowerCase() === name.toLowerCase(),
+        ) || null
+      );
+    }
+
+    return (
+      seedProducts.find(
+        (p) =>
+          p.IsActive &&
+          p.MaterialName.toLowerCase() === name.toLowerCase() &&
+          p.FkProductCategoryId === categoryId,
+      ) || null
+    );
+  }
+
+  /**
+   * Returns deduplicated product names matching a partial query string.
+   * Used exclusively for the Product Name typeahead/autosuggest UI.
+   * CALL prc_product_master_search(0, 0, 0) — filtered + deduplicated in JS.
+   * @param {string} q - Partial name to match (case-insensitive).
+   * @param {number} [limit=10] - Max suggestions to return.
+   * @returns {Promise<Array<{productId: number, materialName: string}>>}
+   */
+  async searchByName(q = "", limit = 10) {
+    let products = [];
+
+    if (process.env.USE_MOCK_DB !== "true") {
+      const [rows] = await db.execute(
+        "CALL prc_product_master_search(?, ?, ?)",
+        [0, 0, 0],
+      );
+      const _isActive = (val) => {
+        if (Buffer.isBuffer(val)) return val[0] === 1;
+        return val === 1 || val === true || val === "1" || val === "Active";
+      };
+      products = (rows[0] || []).filter((p) => _isActive(p.IsActive));
+    } else {
+      products = seedProducts.filter((p) => p.IsActive);
+    }
+
+    const lower = q.toLowerCase();
+    const seen = new Set();
+    const results = [];
+
+    for (const p of products) {
+      const name = p.MaterialName || "";
+      if (name.toLowerCase().includes(lower) && !seen.has(p.PkProductId)) {
+        seen.add(p.PkProductId);
+        results.push({ productId: p.PkProductId, materialName: name });
+        if (results.length >= limit) break;
+      }
+    }
+
+    return results;
+  }
+
   async getDropdown(search = "") {
     let products = [];
     let matrices = [];
@@ -574,6 +657,7 @@ class ProductRepository {
       // When it's an OkPacket, rows[0].insertId carries the auto-increment ID.
       const row = rows[0]?.[0];
       if (row?.PkProductId) return row;
+      if (row?.InsertedId) return { InsertedId: row.InsertedId };
       const insertId = rows[0]?.insertId;
       return insertId ? { InsertedId: insertId } : null;
     }
@@ -628,21 +712,29 @@ class ProductRepository {
    * @param {number|string} productId - FkProductId.
    * @returns {Promise<Array>} List of color matrix records.
    */
-  async getColorMatrix(productId) {
+  async getColorMatrix(productId, options = {}) {
     if (process.env.USE_MOCK_DB !== "true") {
+      // Note: If SP prc_product_color_matrix_get always filters by IsActive=1,
+      // reactivation might require a different action or SP update.
       const [rows] = await db.execute(
         "CALL prc_product_color_matrix_get(?, ?)",
         [0, productId],
       );
       const allRows = rows[0] || [];
-      // Defensive JS-side filter: SP pAction=0 may return all rows if
-      // the WHERE clause for FkProductId is missing (known SP bug).
-      return allRows.filter((r) => String(r.FkProductId) === String(productId));
+      return allRows.filter((r) => {
+        const matchesProduct = String(r.FkProductId) === String(productId);
+        if (!matchesProduct) return false;
+        if (!options.includeDeleted && !r.IsActive) return false;
+        return true;
+      });
     }
 
-    return seedColorMatrix.filter(
-      (m) => m.FkProductId.toString() === productId.toString() && m.IsActive,
-    );
+    return seedColorMatrix.filter((m) => {
+      const matchesProduct = m.FkProductId.toString() === productId.toString();
+      if (!matchesProduct) return false;
+      if (!options.includeDeleted && !m.IsActive) return false;
+      return true;
+    });
   }
 
   /**
@@ -651,31 +743,32 @@ class ProductRepository {
    * CALL prc_product_color_matrix_get(pAction=0, 0)
    * @returns {Promise<Array>} All color matrix records.
    */
-  async getAllColorMatrix() {
+  async getAllColorMatrix(options = {}) {
     if (process.env.USE_MOCK_DB !== "true") {
       const [rows] = await db.execute(
         "CALL prc_product_color_matrix_get(?, ?)",
         [0, 0],
       );
-      return rows[0] || [];
+      const allRows = rows[0] || [];
+      return options.includeDeleted ? allRows : allRows.filter((r) => r.IsActive == 1);
     }
-    return seedColorMatrix.filter((m) => m.IsActive);
+    return options.includeDeleted ? seedColorMatrix : seedColorMatrix.filter((m) => m.IsActive);
   }
 
   /**
    * Creates or updates a color/size matrix entry for a product.
-   * @param {number} matrixId - PkProductColorId (0 = insert, >0 = update).
+   * @param {number} variationId - PkProductColorId (0 = insert, >0 = update).
    * @param {number} productId - FkProductId.
    * @param {object} data - { FkLuColorId, MaterialRate, Size }.
    * @param {number} adminId - User ID of creator.
    * @returns {Promise<object>} The upserted matrix record.
    */
-  async setColorMatrix(matrixId, productId, data, adminId, isActive = 1) {
+  async setColorMatrix(variationId, productId, data, adminId, isActive = 1) {
     if (process.env.USE_MOCK_DB !== "true") {
       const [rows] = await db.execute(
         "CALL prc_product_color_matrix_set(?, ?, ?, ?, ?, ?, ?)",
         [
-          matrixId || 0,
+          variationId || 0,
           productId,
           data.FkLuColorId,
           data.MaterialRate,
@@ -688,9 +781,9 @@ class ProductRepository {
     }
 
     // --- MOCK IN-MEMORY LOGIC ---
-    if (matrixId && matrixId > 0) {
+    if (variationId && variationId > 0) {
       const idx = seedColorMatrix.findIndex(
-        (m) => m.PkProductColorId === matrixId,
+        (m) => m.PkProductColorId === variationId,
       );
       if (idx !== -1) {
         seedColorMatrix[idx] = {
@@ -719,15 +812,20 @@ class ProductRepository {
   // --------------------------------------------------------------------------
 
   /**
-   * Soft-deletes a product by setting IsActive to 0.
-   * Requires fetching current state to satisfy the full SP parameter list.
+   * Updates the active status of a product (soft delete/reactivate).
+   * Cascades the status change to all linked variations.
+   *
+   * @param {number|string} id - Product ID.
+   * @param {boolean} isActive - Desired status.
+   * @param {number} adminId - Performer ID.
    */
-  async delete(id, adminId) {
-    const current = await this.findById(id);
+  async updateStatus(id, isActive, adminId) {
+    const current = await this.findById(id, { includeDeleted: true });
     if (!current) return false;
 
-    // Cascade soft-delete to color matrix variations
-    const variations = await this.getColorMatrix(id);
+    // Cascade status change to color matrix variations
+    // We fetch ALL variations (including inactive) to ensure we can reactivate them
+    const variations = await this.getColorMatrix(id, { includeDeleted: true });
     for (const v of variations) {
       await this.setColorMatrix(
         v.PkProductColorId,
@@ -738,7 +836,7 @@ class ProductRepository {
           Size: v.Size,
         },
         adminId,
-        0, // IsActive = 0
+        isActive ? 1 : 0, // Cascade the status
       );
     }
 
@@ -755,7 +853,7 @@ class ProductRepository {
           current.MaterialRate,
           current.MaterialDescription,
           adminId,
-          0, // Soft Delete
+          isActive ? 1 : 0, // Toggle Status
         ],
       );
       return true;
@@ -764,7 +862,7 @@ class ProductRepository {
     const idx = seedProducts.findIndex(
       (p) => p.PkProductId.toString() === id.toString(),
     );
-    if (idx !== -1) seedProducts[idx].IsActive = false;
+    if (idx !== -1) seedProducts[idx].IsActive = isActive;
     return true;
   }
 }

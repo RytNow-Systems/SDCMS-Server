@@ -3,8 +3,12 @@ name: Deploy to Staging
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Branch to deploy (e.g. feat/bulk-upload, staging)'
+      backend_branch:
+        description: 'Backend branch to deploy (SDCMS-Server)'
+        required: true
+        default: 'staging'
+      frontend_branch:
+        description: 'Frontend branch to deploy (SDCMS-Web-App)'
         required: true
         default: 'staging'
 
@@ -12,5 +16,5 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      - name: Deploy branch
-        run: /var/www/deploy.sh ${{ github.event.inputs.branch }}
+      - name: Deploy branches
+        run: /var/www/deploy.sh ${{ github.event.inputs.backend_branch }} ${{ github.event.inputs.frontend_branch }}

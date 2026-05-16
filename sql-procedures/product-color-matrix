@@ -1,0 +1,88 @@
+Table: product_color_matrix
+
+Columns:
+	PkProductColorId	int(11) AI PK
+	FkProductId	int(11)
+	FkLuColorId	int(11)
+	MaterialRate	decimal(10,2)
+	Size	varchar(50)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+	UpdatedBy	int(11)
+	UpdatedDate	datetime
+	IsActive	tinyint(1)
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_color_matrix_get`(pAction INT, pPkProductColorId INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pAction, pPkProductColorId
+Output Parameter : product color matrix details
+Description : used to retrieve product color and size mapping details based on action and product color id
+****************************************************/
+
+    IF pAction = 0 THEN
+        SELECT product_color_matrix.PkProductColorId, product_color_matrix.FkProductId, product_color_matrix.FkLuColorId, product_color_matrix.MaterialRate, product_color_matrix.Size, product_color_matrix.CreatedBy, product_color_matrix.CreatedDate, product_color_matrix.UpdatedBy, product_color_matrix.UpdatedDate, product_color_matrix.IsActive,
+               IFNULL(product_master.MaterialName, '') AS MaterialName, IFNULL(lu_color_code.ColorName, '') AS ColorName
+        FROM product_color_matrix
+        LEFT JOIN product_master ON product_master.PkProductId = product_color_matrix.FkProductId
+        LEFT JOIN lu_color_code ON lu_color_code.PkLuColorId = product_color_matrix.FkLuColorId
+        where product_color_matrix.IsActive = 1
+        -- ORDER BY product_color_matrix.PkProductColorId DESC
+        ;
+    END IF;
+
+    IF pAction = 1 THEN
+        SELECT product_color_matrix.PkProductColorId, product_color_matrix.FkProductId, product_color_matrix.FkLuColorId, product_color_matrix.MaterialRate, product_color_matrix.Size, product_color_matrix.CreatedBy, product_color_matrix.CreatedDate, product_color_matrix.UpdatedBy, product_color_matrix.UpdatedDate, product_color_matrix.IsActive,
+               IFNULL(product_master.MaterialName, '') AS MaterialName, IFNULL(lu_color_code.ColorName, '') AS ColorName
+        FROM product_color_matrix
+        LEFT JOIN product_master ON product_master.PkProductId = product_color_matrix.FkProductId
+       LEFT JOIN lu_color_code ON lu_color_code.PkLuColorId = product_color_matrix.FkLuColorId
+        WHERE product_color_matrix.PkProductColorId = pPkProductColorId and product_color_matrix.IsActive = 1
+		-- ORDER BY product_color_matrix.PkProductColorId
+        ;
+    END IF;
+  /*IF pAction = 2 THEN
+        SELECT product_color_matrix.PkProductColorId, product_color_matrix.FkProductId, product_color_matrix.FkLuColorId, product_color_matrix.MaterialRate, product_color_matrix.Size, product_color_matrix.CreatedBy, product_color_matrix.CreatedDate, product_color_matrix.UpdatedBy, product_color_matrix.UpdatedDate, product_color_matrix.IsActive,
+               IFNULL(product_master.MaterialName, '') AS MaterialName, IFNULL(lu_color_code.ColorName, '') AS ColorName
+        FROM product_color_matrix
+        LEFT JOIN product_master ON product_master.PkProductId = product_color_matrix.FkProductId
+       LEFT JOIN lu_color_code ON lu_color_code.PkLuColorId = product_color_matrix.FkLuColorId
+        WHERE product_color_matrix.FkProductId= pPkProductColorId
+		-- ORDER BY product_color_matrix.PkProductColorId
+        ; end if;*/
+END
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_product_color_matrix_set`(pPkProductColorId INT, pFkProductId INT, pFkLuColorId INT, pMaterialRate DECIMAL(10,2), pSize VARCHAR(50), pCreatedBy INT, pIsActive INT)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:master
+Input Parameter	: pPkProductColorId, pFkProductId, pFkLuColorId, pMaterialRate, pSize, pCreatedBy, pIsActive
+Output Parameter : product color matrix details
+Description : used to insert and update product color, size, and material rate mapping details
+****************************************************/
+
+DECLARE pProdColorId INT;
+
+	IF pPkProductColorId = 0 THEN
+		INSERT INTO product_color_matrix (FkProductId, FkLuColorId, MaterialRate, Size, CreatedBy, CreatedDate, IsActive)
+						VALUES (pFkProductId, pFkLuColorId, pMaterialRate, pSize, pCreatedBy, NOW(), pIsActive);
+
+		SELECT LAST_INSERT_ID() INTO pProdColorId;
+		SELECT * FROM product_color_matrix WHERE PkProductColorId = pProdColorId;
+
+	ELSE
+		UPDATE product_color_matrix SET
+		FkProductId = pFkProductId, FkLuColorId = pFkLuColorId, MaterialRate = pMaterialRate, Size = pSize, UpdatedBy = pCreatedBy, UpdatedDate = NOW(), IsActive = pIsActive
+		WHERE PkProductColorId = pPkProductColorId;
+
+		SELECT * FROM product_color_matrix WHERE PkProductColorId = pPkProductColorId;
+
+	END IF;
+
+END
+---

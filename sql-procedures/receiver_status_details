@@ -1,3 +1,16 @@
+Table: receiver_status_details
+
+Columns:
+	PkReceiverStatusDetailsId	int(11) AI PK
+	FkReceiverDetailsId	int(11)
+	FkOrderStatusId	int(11)
+	CreatedDate	datetime
+	CreatedBy	int(11)
+	ActionType	varchar(30)
+	AWBNumber	varchar(100)
+	PreviousStatus	varchar(50)
+	FkParcelDetailsId	int(11)
+---
 prc_receiver_status_details_get:
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_get`(pAction INT, pFkParcelDetailsId INT)
@@ -49,8 +62,10 @@ END
 
 prc_receiver_status_details_set:
 
-CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_set`(pFkParcelDetailsId INT, pFkReceiverDetailsId INT, pActionType VARCHAR(50), pAWBNumber VARCHAR(100), pCreatedBy INT)
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_receiver_status_details_set`( pFkParcelDetailsId INT, pFkReceiverDetailsId INT, pActionType VARCHAR(50), pAWBNumber VARCHAR(100), pCreatedBy INT, pPreviousStatus VARCHAR(50), pFkOrderStatusId INT)
 BEGIN
-    INSERT INTO receiver_status_details (FkParcelDetailsId, FkReceiverDetailsId, ActionType, AWBNumber, CreatedDate, CreatedBy)
-    VALUES (pFkParcelDetailsId, pFkReceiverDetailsId, pActionType, pAWBNumber, NOW(), pCreatedBy);
+    INSERT INTO receiver_status_details (FkParcelDetailsId, FkReceiverDetailsId, ActionType, AWBNumber, PreviousStatus, FkOrderStatusId, CreatedDate, CreatedBy)
+    VALUES (pFkParcelDetailsId, pFkReceiverDetailsId, pActionType, pAWBNumber, pPreviousStatus, pFkOrderStatusId, NOW(), pCreatedBy);
 END
+
+---

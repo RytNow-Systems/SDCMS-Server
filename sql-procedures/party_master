@@ -1,3 +1,21 @@
+Table: party_master
+
+Columns:
+	PkPartyId	int(11) AI PK
+	FkPartyTypeId	int(11)
+	CustomerName	varchar(100)
+	PhoneNo	varchar(20)
+	EmailId	varchar(100)
+	Address	varchar(255)
+	City	varchar(80)
+	State	varchar(80)
+	Pincode	varchar(10)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+	UpdatedDate	datetime
+	UpdatedBy	int(11)
+	IsActive	tinyint(1)
+---
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_Party_master_set`(pPkPartyId INT,pFkPartyTypeId INT,pCustomerName VARCHAR(100),pPhoneNo VARCHAR(20),pEmailId VARCHAR(100),pAddress TEXT,pCity VARCHAR(100),pState VARCHAR(100),pPincode VARCHAR(20),pCreatedBy INT, pIsActive INT)
 BEGIN
 /***************************************************

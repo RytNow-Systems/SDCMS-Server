@@ -11,14 +11,15 @@ class CourierService {
     return {
       courierId: courier.CourierId,
       courierName: courier.CourierName,
+      phoneNumber: courier.PhoneNumber || null,
       trackingUrlTemplate: courier.TrackingUrlTemplate,
       isActive: courier.IsActive == true,
       createdAt: courier.CreatedDate,
     };
   }
 
-  async getCouriers(page = 1, limit = 20, search = "") {
-    const result = await courierRepository.findAll({ page, limit, search });
+  async getCouriers(page = 1, limit = 20, search = '', includeInactive = false) {
+    const result = await courierRepository.findAll({ page, limit, search, includeInactive });
     return {
       data: result.data.map((c) => this._mapToApi(c)),
       meta: result.meta,
@@ -78,10 +79,10 @@ class CourierService {
     return this._mapToApi(courier);
   }
 
-  async deleteCourier(id, adminId) {
+  async updateCourierStatus(id, isActive, adminId) {
     // Business Rule checking - in production, verify courier isn't linked to active orders
     // before allowing even a soft delete.
-    const success = await courierRepository.delete(id, adminId);
+    const success = await courierRepository.updateStatus(id, isActive, adminId);
     if (!success) {
       const error = new Error("Courier partner not found");
       error.statusCode = 404;

@@ -1,0 +1,71 @@
+Table: parcel__items_track_details
+
+Columns:
+	PkParcelItemsTrackDetailsid	int(11) PK
+	FkReceiverDetailsId	int(11)
+	FkParcelDetailsId	int(11)
+	FkOrderItemId	int(11)
+	TrackingNumber	varchar(100)
+	CreatedBy	int(11)
+
+---
+
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_parcel__items_track_details_get`(pAction int, pLookupId int)
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:order
+Input Parameter	: pPkOrderId, pSenderId, pFkPartyDetailsId, pTotalAmount, pCreatedBy, pIsActive
+Output Parameter : order details
+Description : used to insert and update order master details
+****************************************************/
+
+         IF pAction = 0 THEN
+              SELECT parcel__items_track_details.PkParcelItemsTrackDetailsid, parcel__items_track_details.FkReceiverDetailsId, receiver_details.ReceiverName, receiver_details.ReceiverPhone, parcel__items_track_details.FkParcelDetailsId, parcel_details.ParcelCode, parcel__items_track_details.FkOrderItemId, order_items.OutwardQty, parcel__items_track_details.TrackingNumber, parcel__items_track_details.Createdby,IFNULL(CreatedUser.FullName, '') as CreatedUserName
+			  FROM parcel__items_track_details
+                   LEFT JOIN employee_master as CreatedUser ON CreatedUser.EmployeeCode = parcel__items_track_details.CreatedBy
+                   LEFT JOIN order_items ON order_items.PkOrderItemId =  parcel__items_track_details.FkOrderItemId
+                   LEFT JOIN parcel_details ON parcel_details.PkParcelDetailsId =  parcel__items_track_details.FkParcelDetailsId
+                   LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = parcel__items_track_details.FkReceiverDetailsId
+			  ORDER BY parcel__items_track_details.PkParcelItemsTrackDetailsid;
+		 END IF;
+
+         IF pAction = 1 THEN
+              SELECT parcel__items_track_details.PkParcelItemsTrackDetailsid, parcel__items_track_details.FkReceiverDetailsId, receiver_details.ReceiverName, receiver_details.ReceiverPhone, parcel__items_track_details.FkParcelDetailsId, parcel_details.ParcelCode, parcel__items_track_details.FkOrderItemId, order_items.OutwardQty, parcel__items_track_details.TrackingNumber, parcel__items_track_details.Createdby,IFNULL(CreatedUser.FullName, '') as CreatedUserName
+			  FROM parcel__items_track_details
+                   LEFT JOIN employee_master as CreatedUser ON CreatedUser.EmployeeCode = parcel__items_track_details.CreatedBy
+                   LEFT JOIN order_items ON order_items.PkOrderItemId =  parcel__items_track_details.FkOrderItemId
+                   LEFT JOIN parcel_details ON parcel_details.PkParcelDetailsId =  parcel__items_track_details.FkParcelDetailsId
+                   LEFT JOIN receiver_details ON receiver_details.PkReceiverDetailsId = parcel__items_track_details.FkReceiverDetailsId
+			  WHERE PkParcelItemsTrackDetailsid = pLookupId
+              ORDER BY parcel__items_track_details.PkParcelItemsTrackDetailsid;
+		 END IF;
+END
+
+---
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_parcel__items_track_details_set`(pPkParcelItemsTrackDetailsid int(11),pFkReceiverDetailsId int(11), pFkParcelDetailsId int(11), pFkOrderItemId int(11), pTrackingNumber varchar(100), pCreatedBy int(11))
+BEGIN
+/***************************************************
+Author:		Aditya Mulay
+Module Name	:parcel
+Input Parameter	: pPkParcelItemsTrackDetailsid, pFkReceiverDetailsId, pFkParcelDetailsId, pFkOrderItemId, pTrackingNumber, pCreatedBy
+Output Parameter : parcel item tracking details
+Description : used to insert and update parcel item tracking details
+****************************************************/
+
+     DECLARE pParcelItemId INT;
+
+           IF pPkParcelItemsTrackDetailsid = 0 THEN
+                INSERT INTO parcel__items_track_details (FkReceiverDetailsId, FkParcelDetailsId, FkOrderItemId, TrackingNumber, CreatedBy)
+                VALUES (pFkReceiverDetailsId, pFkParcelDetailsId, pFkOrderItemId, pTrackingNumber, pCreatedBy);
+
+                SELECT last_insert_id() AS pParcelItemId;
+
+           ELSE
+			    UPDATE parcel__items_track_details
+                SET FkReceiverDetailsId = pFkReceiverDetailsId, FkParcelDetailsId = pFkParcelDetailsId, FkOrderItemId = pFkOrderItemId, TrackingNumber = pTrackingNumber
+                WHERE PkParcelItemsTrackDetailsid = pPkParcelItemsTrackDetailsid;
+
+		   END IF;
+END
+---

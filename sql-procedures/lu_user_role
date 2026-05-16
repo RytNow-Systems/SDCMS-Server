@@ -1,0 +1,15 @@
+Table: lu_user_role
+
+Columns:
+	PkUserRoleId	int(11) AI PK
+	RoleDescription	varchar(100)
+	RoleCode	varchar(20)
+	IsActive	tinyint(1)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+---
+
+Existing Table:
+'1', 'Administrator', 'ADMIN', '1', NULL, '2026-04-07 08:35:44'
+'2', 'Operator', 'OPERATOR', '1', NULL, '2026-04-07 08:35:44'
+'3', 'Courier Staff', 'COURIER', '1', NULL, '2026-04-07 08:35:44'

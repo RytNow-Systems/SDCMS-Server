@@ -12,8 +12,8 @@ import {
   handleGetSessionErrors,
 } from '../controllers/bulk-upload.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
-import { validate, validateParams } from '../../../shared/middleware/validate.middleware.js';
-import { bulkUploadSchema, sessionIdParamSchema } from '../validations/bulk-upload.validation.js';
+import { validate, validateParams, validateQuery } from '../../../shared/middleware/validate.middleware.js';
+import { bulkUploadSchema, sessionIdParamSchema, idParamSchema, getSessionsQuerySchema } from '../validations/bulk-upload.validation.js';
 
 const router = express.Router();
 
@@ -29,15 +29,15 @@ router.post('/', validate(bulkUploadSchema), handleBulkUpload);
 
 /**
  * @route   GET /api/v1/bulk-uploads
- * @desc    List all upload sessions
+ * @desc    List upload sessions with pagination and optional filters
  */
-router.get('/', handleGetSessions);
+router.get('/', validateQuery(getSessionsQuerySchema), handleGetSessions);
 
 /**
  * @route   GET /api/v1/bulk-uploads/:id
- * @desc    Get session result with row details
+ * @desc    Get session details with created order IDs
  */
-router.get('/:id', handleGetSessionById);
+router.get('/:id', validateParams(idParamSchema), handleGetSessionById);
 
 /**
  * @route   GET /api/v1/bulk-uploads/:sessionId/errors

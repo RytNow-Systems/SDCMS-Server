@@ -5,7 +5,7 @@
 // ============================================================================
 
 import express from 'express';
-import { getMetrics } from '../controllers/dashboard.controller.js';
+import { getMetrics, getGraph } from '../controllers/dashboard.controller.js';
 import { protect, authorizeRoles } from '../../../shared/middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -15,5 +15,6 @@ const router = express.Router();
  * @access  Private/Admin
  */
 router.get('/metrics', protect, authorizeRoles('ADMIN'), getMetrics);
+router.get('/graph', protect, authorizeRoles('ADMIN'), getGraph);
 
 export default router;

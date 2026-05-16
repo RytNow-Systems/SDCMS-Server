@@ -1,3 +1,21 @@
+Table: party_details
+
+Columns:
+	PkPartyDetailsId	int(11) AI PK
+	FkPartyId	int(11)
+	EmailId	varchar(100)
+	Address	varchar(255)
+	City	varchar(80)
+	State	varchar(80)
+	Pincode	varchar(10)
+	Country	varchar(60)
+	CreatedBy	int(11)
+	CreatedDate	datetime
+	UpdatedBy	int(11)
+	UpdatedDate	datetime
+	IsActive	int(11)
+	IsDefault	int(11)
+---
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_party_details_get`(pAction INT, pLookupId INT)
 BEGIN
 

@@ -1,3 +1,15 @@
+Table: lu_details
+
+Columns:
+	LuDetailsId	int(11) AI PK
+	LuDetails	varchar(50)
+	LuDetails_1	varchar(50)
+	LuDetails_2	varchar(50)
+	LuDetails_3	varchar(50)
+	LuMasterId	int(11)
+	IsActive	int(11)
+
+---
 prc_lu_details_get:
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_lu_details_get`(pAction INT, pLookUpId INT)
@@ -45,4 +57,18 @@ Description : used to display list of lookup detail values as per given constrai
 
 END
 
+---
+
+Existing Table:
+'1', 'Pending', NULL, NULL, NULL, '1', '1'
+'2', 'Label Printed', NULL, NULL, NULL, '1', '1'
+'3', 'AWB Linked', NULL, NULL, NULL, '1', '1'
+'4', 'Dispatched', NULL, NULL, NULL, '1', '1'
+'5', 'Delivered', NULL, NULL, NULL, '1', '1'
+'6', 'Cancelled', NULL, NULL, NULL, '1', '1'
+'7', 'Sender', NULL, NULL, NULL, '2', '1'
+'8', 'Receiver', NULL, NULL, NULL, '2', '1'
+'9', 'SMS', NULL, NULL, NULL, '3', '1'
+'10', 'Email', NULL, NULL, NULL, '3', '1'
+'11', 'App', NULL, NULL, NULL, '3', '1'
 ---

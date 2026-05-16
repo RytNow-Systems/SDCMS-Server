@@ -199,25 +199,37 @@
                 <tr>
                   <td><code>page</code></td>
                   <td><span class="type-tag">number</span></td>
-                  <td>Page index</td>
+                  <td>Page number (default: 1)</td>
                 </tr>
               
                 <tr>
                   <td><code>limit</code></td>
                   <td><span class="type-tag">number</span></td>
-                  <td>Items per page</td>
+                  <td>Items per page (default: 20)</td>
                 </tr>
               
                 <tr>
-                  <td><code>orderCode</code></td>
+                  <td><code>search</code></td>
                   <td><span class="type-tag">string</span></td>
-                  <td>Search by partial Order Code</td>
+                  <td>Partial match against parcel ID, order code, or receiver name</td>
                 </tr>
               
                 <tr>
-                  <td><code>parcelId</code></td>
+                  <td><code>status</code></td>
                   <td><span class="type-tag">string</span></td>
-                  <td>Search by dynamic Parcel ID (PCL-X-Y)</td>
+                  <td>Filter by status (PENDING, LABEL_PRINTED, AWB_LINKED, DISPATCHED, DELIVERED, CANCELLED)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>sortBy</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Field to sort by (default: created_at)</td>
+                </tr>
+              
+                <tr>
+                  <td><code>sortOrder</code></td>
+                  <td><span class="type-tag">string</span></td>
+                  <td>Sort direction: asc or desc (default: desc)</td>
                 </tr>
               
             </tbody>
@@ -315,9 +327,15 @@
           <code class="endpoint-path">/parcels/:id/label-data</code>
         </div>
         <h3 class="endpoint-name">Get Label Data</h3>
-        <p class="endpoint-desc">On-demand label generation data for printing.</p>
+        <p class="endpoint-desc">Returns minimal data required to print a shipping label.</p>
         
         
+      <div class="note-box">
+        <span class="note-icon">💡</span>
+        <div class="note-content">
+          <strong>Developer Note:</strong> Response contains only what appears on the physical label. Internal IDs and operational metadata are excluded. size per item is not yet available (pending order_items schema update).
+        </div>
+      </div>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Authentication</span>
@@ -343,18 +361,32 @@
         <pre class="code-block"><code>{
   &quot;success&quot;: <span class="json-bool">true</span>,
   &quot;data&quot;: {
-    &quot;parcelDetailsId&quot;: <span class="json-number">1</span>,
-    &quot;parcelId&quot;: &quot;PCL-1-1&quot;,
+    &quot;parcelCode&quot;: &quot;UC-13-13&quot;,
     &quot;trackingNo&quot;: <span class="json-null">null</span>,
-    &quot;status&quot;: &quot;PENDING&quot;,
-    &quot;labelPrintCount&quot;: <span class="json-number">0</span>,
-    &quot;receiverName&quot;: &quot;Delhi Fabrics Ltd.&quot;,
-    &quot;receiverPhone&quot;: &quot;9123456780&quot;,
-    &quot;address&quot;: &quot;45, Karol Bagh&quot;,
-    &quot;city&quot;: &quot;New Delhi&quot;,
-    &quot;state&quot;: &quot;Delhi&quot;,
-    &quot;pincode&quot;: &quot;110005&quot;,
-    &quot;orderCode&quot;: &quot;ORD-2026-001&quot;
+    &quot;orderCode&quot;: &quot;ORD-260508-007&quot;,
+    &quot;to&quot;: {
+      &quot;name&quot;: &quot;Delhi Fabrics Ltd.&quot;,
+      &quot;phone&quot;: &quot;9123456780&quot;,
+      &quot;address&quot;: &quot;45, Karol Bagh&quot;,
+      &quot;city&quot;: &quot;New Delhi&quot;,
+      &quot;state&quot;: &quot;Delhi&quot;,
+      &quot;pincode&quot;: &quot;110005&quot;
+    },
+    &quot;from&quot;: {
+      &quot;name&quot;: &quot;vaishnavi&quot;,
+      &quot;phone&quot;: &quot;1234567891&quot;,
+      &quot;address&quot;: &quot;IT Park, Sector 60&quot;,
+      &quot;city&quot;: &quot;Noida&quot;,
+      &quot;state&quot;: &quot;Uttar Pradesh&quot;,
+      &quot;pincode&quot;: &quot;201301&quot;
+    },
+    &quot;items&quot;: [
+      {
+        &quot;name&quot;: &quot;Utsav Mogra Pom Pom bell strings&quot;,
+        &quot;colorName&quot;: &quot;Majenta&quot;,
+        &quot;qty&quot;: <span class="json-number">6</span>
+      }
+    ]
   }
 }</code></pre>
       </div>
@@ -416,7 +448,7 @@
       
     </div>
       <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-align: center;">
-        Generated from api-manifest.yaml — v1.1.0 — 2026-05-10
+        Generated from api-manifest.yaml — v1.1.0 — 2026-05-14
       </footer>
     </main>
   </div>

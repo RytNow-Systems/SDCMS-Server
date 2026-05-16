@@ -1,0 +1,623 @@
+CREATE DEFINER=`user`@`%` PROCEDURE `prc_master_fill`(pAction INT,pLookupType INT,pSelectionType INT,pPartyId INT)
+BEGIN
+
+	IF pAction = 1 THEN -- Address
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Addresses' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT Address AS DataTextField, PkPartyDetailsId AS DataValueField, 2 AS SortBy
+				FROM party_details
+				WHERE FkPartyId = CASE WHEN pPartyId = 0 THEN FkPartyId ELSE pPartyId END
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Addresses' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT Address AS DataTextField, PkPartyDetailsId AS DataValueField, 2 AS SortBy
+				FROM party_details
+				WHERE FkPartyId = CASE WHEN pPartyId = 0 THEN FkPartyId ELSE pPartyId END
+				  AND IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Address' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT Address AS DataTextField, PkPartyDetailsId AS DataValueField, 2 AS SortBy
+				FROM party_details
+				WHERE FkPartyId = CASE WHEN pPartyId = 0 THEN FkPartyId ELSE pPartyId END
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Address' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT Address AS DataTextField, PkPartyDetailsId AS DataValueField, 2 AS SortBy
+				FROM party_details
+				WHERE FkPartyId = CASE WHEN pPartyId = 0 THEN FkPartyId ELSE pPartyId END
+				  AND IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+
+	IF pAction = 2 THEN -- Phone
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Phones' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT PhoneNo AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE PkPartyId = CASE WHEN pPartyId = 0 THEN PkPartyId ELSE pPartyId END
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Phones' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT PhoneNo AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE PkPartyId = CASE WHEN pPartyId = 0 THEN PkPartyId ELSE pPartyId END
+				  AND IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Phone' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT PhoneNo AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE PkPartyId = CASE WHEN pPartyId = 0 THEN PkPartyId ELSE pPartyId END
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Phone' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT PhoneNo AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE PkPartyId = CASE WHEN pPartyId = 0 THEN PkPartyId ELSE pPartyId END
+				  AND IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+
+	IF pAction = 3 THEN -- Customer Name
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Customers' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE PkPartyId = CASE WHEN pPartyId = 0 THEN PkPartyId ELSE pPartyId END
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Customers' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE PkPartyId = CASE WHEN pPartyId = 0 THEN PkPartyId ELSE pPartyId END
+				  AND IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Customer' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE PkPartyId = CASE WHEN pPartyId = 0 THEN PkPartyId ELSE pPartyId END
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Customer' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE PkPartyId = CASE WHEN pPartyId = 0 THEN PkPartyId ELSE pPartyId END
+				  AND IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+    	IF pAction = 4 THEN -- Product
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Products' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT MaterialName AS DataTextField, PkProductId AS DataValueField, 2 AS SortBy
+				FROM product_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Products' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT MaterialName AS DataTextField, PkProductId AS DataValueField, 2 AS SortBy
+				FROM product_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Product' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT MaterialName AS DataTextField, PkProductId AS DataValueField, 2 AS SortBy
+				FROM product_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Product' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT MaterialName AS DataTextField, PkProductId AS DataValueField, 2 AS SortBy
+				FROM product_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+
+    	IF pAction = 5 THEN -- Product Category
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Categories' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CategoryName AS DataTextField, PkProductCategoryId AS DataValueField, 2 AS SortBy
+				FROM product_category
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Categories' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CategoryName AS DataTextField, PkProductCategoryId AS DataValueField, 2 AS SortBy
+				FROM product_category
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Category' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CategoryName AS DataTextField, PkProductCategoryId AS DataValueField, 2 AS SortBy
+				FROM product_category
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Category' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CategoryName AS DataTextField, PkProductCategoryId AS DataValueField, 2 AS SortBy
+				FROM product_category
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+    	IF pAction = 6 THEN -- Unit
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Units' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT UnitTitle AS DataTextField, PkUnitId AS DataValueField, 2 AS SortBy
+				FROM lu_unit
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Units' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT UnitTitle AS DataTextField, PkUnitId AS DataValueField, 2 AS SortBy
+				FROM lu_unit
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Unit' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT UnitTitle AS DataTextField, PkUnitId AS DataValueField, 2 AS SortBy
+				FROM lu_unit
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Unit' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT UnitTitle AS DataTextField, PkUnitId AS DataValueField, 2 AS SortBy
+				FROM lu_unit
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+    	IF pAction = 7 THEN -- Color
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Colors' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT ColorName AS DataTextField, PkLuColorId AS DataValueField, 2 AS SortBy
+				FROM lu_color_code
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Colors' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT ColorName AS DataTextField, PkLuColorId AS DataValueField, 2 AS SortBy
+				FROM lu_color_code
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Color' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT ColorName AS DataTextField, PkLuColorId AS DataValueField, 2 AS SortBy
+				FROM lu_color_code
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Color' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT ColorName AS DataTextField, PkLuColorId AS DataValueField, 2 AS SortBy
+				FROM lu_color_code
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+    	IF pAction = 8 THEN -- Courier
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Couriers' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CourierName AS DataTextField, CourierId AS DataValueField, 2 AS SortBy
+				FROM courier_partner_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Couriers' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CourierName AS DataTextField, CourierId AS DataValueField, 2 AS SortBy
+				FROM courier_partner_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Courier' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CourierName AS DataTextField, CourierId AS DataValueField, 2 AS SortBy
+				FROM courier_partner_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Courier' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CourierName AS DataTextField, CourierId AS DataValueField, 2 AS SortBy
+				FROM courier_partner_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+    	IF pAction = 9 THEN -- Employee
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Employees' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT FullName AS DataTextField, EmployeeCode AS DataValueField, 2 AS SortBy
+				FROM employee_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Employees' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT FullName AS DataTextField, EmployeeCode AS DataValueField, 2 AS SortBy
+				FROM employee_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Employee' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT FullName AS DataTextField, EmployeeCode AS DataValueField, 2 AS SortBy
+				FROM employee_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Employee' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT FullName AS DataTextField, EmployeeCode AS DataValueField, 2 AS SortBy
+				FROM employee_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+    	IF pAction = 10 THEN -- Order
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Orders' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT OrderCode AS DataTextField, PkOrderId AS DataValueField, 2 AS SortBy
+				FROM order_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Orders' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT OrderCode AS DataTextField, PkOrderId AS DataValueField, 2 AS SortBy
+				FROM order_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Order' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT OrderCode AS DataTextField, PkOrderId AS DataValueField, 2 AS SortBy
+				FROM order_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Order' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT OrderCode AS DataTextField, PkOrderId AS DataValueField, 2 AS SortBy
+				FROM order_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+
+
+	IF pAction = 11 THEN -- Receiver
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Receivers' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Receivers' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Receiver' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Receiver' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+
+
+	IF pAction = 12 THEN -- Sender
+
+		IF pSelectionType = 0 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'All Senders' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'All Senders' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+
+		IF pSelectionType = 1 THEN
+
+			IF pLookupType = 0 THEN
+				SELECT 'Select Sender' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+			IF pLookupType = 1 THEN
+				SELECT 'Select Sender' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+				UNION
+				SELECT CustomerName AS DataTextField, PkPartyId AS DataValueField, 2 AS SortBy
+				FROM party_master
+				WHERE IsActive = 1
+				ORDER BY SortBy, DataTextField;
+			END IF;
+
+		END IF;
+
+	END IF;
+
+
+
+	IF pAction = 13 THEN -- Product Color Matrix
+
+	IF pSelectionType = 0 THEN
+
+		SELECT 'All Product Colors' AS DataTextField, -1 AS DataValueField, 1 AS SortBy
+		UNION
+		SELECT CONCAT(product_master.MaterialName,' - ',lu_color_code.ColorName) AS DataTextField,
+			   product_color_matrix.PkProductColorId AS DataValueField,
+			   2 AS SortBy
+		FROM product_color_matrix
+		INNER JOIN product_master ON product_master.PkProductId = product_color_matrix.FkProductId
+		INNER JOIN lu_color_code ON lu_color_code.PkLuColorId = product_color_matrix.FkLuColorId
+		WHERE product_color_matrix.IsActive = CASE WHEN pLookupType = 1 THEN 1 ELSE product_color_matrix.IsActive END
+		ORDER BY SortBy, DataTextField;
+
+	END IF;
+
+
+	IF pSelectionType = 1 THEN
+
+		SELECT 'Select Product Color' AS DataTextField, 0 AS DataValueField, 1 AS SortBy
+		UNION
+		SELECT CONCAT(product_master.MaterialName,' - ',lu_color_code.ColorName) AS DataTextField,
+			   product_color_matrix.PkProductColorId AS DataValueField,
+			   2 AS SortBy
+		FROM product_color_matrix
+		INNER JOIN product_master ON product_master.PkProductId = product_color_matrix.FkProductId
+		INNER JOIN lu_color_code ON lu_color_code.PkLuColorId = product_color_matrix.FkLuColorId
+		WHERE product_color_matrix.IsActive = CASE WHEN pLookupType = 1 THEN 1 ELSE product_color_matrix.IsActive END
+		ORDER BY SortBy, DataTextField;
+
+	END IF;
+
+END IF;
+    end

@@ -44,6 +44,7 @@ export const createCourierSchema = z.object({
   phoneNo: z.string().optional(),
   email: z.string().email().optional(),
   trackingUrlTemplate: z.string().optional(),
+  isActive: z.boolean().optional(),
 });
 
 export const updateCourierSchema = createCourierSchema.partial();
@@ -66,9 +67,9 @@ const createVariationItemSchema = z.object({
     .nonnegative("Rate cannot be negative"),
 });
 
-// Variation item shape for updates (diff strategy: matrixId present = update, absent = insert, isActive:false = delete)
+// Variation item shape for updates (diff strategy: variationId present = update, absent = insert, isActive:false = delete)
 const updateVariationItemSchema = z.object({
-  matrixId: z.number().int().nonnegative().optional(),
+  variationId: z.number().int().nonnegative().optional(),
   colorId: z.number().int().positive("Valid color ID is required").optional(),
   size: z.string().min(1, "Size is required").optional(),
   materialRate: z.number().nonnegative("Rate cannot be negative").optional(),
@@ -77,22 +78,21 @@ const updateVariationItemSchema = z.object({
 
 export const createProductSchema = z.object({
   materialName: z.string().min(1, "Material name is required"),
-  materialRate: z
-    .number()
-    .nonnegative("Rate cannot be negative")
-    .optional()
-    .default(0),
-  cuItemCode: z.string().optional(),
   categoryId: z
     .number({ required_error: "Category ID is required" })
     .int()
     .positive("Valid category ID is required"),
-  unitId: z
-    .number({ required_error: "Unit ID is required" })
+  colorId: z
+    .number({ required_error: "Color ID is required" })
     .int()
-    .positive("Valid unit ID is required"),
+    .positive("Valid color ID is required"),
+  size: z.string({ required_error: "Size is required" }).min(1, "Size is required"),
+  materialRate: z
+    .number({ required_error: "Price is required" })
+    .nonnegative("Price cannot be negative"),
+  isActive: z.boolean().optional(),
+  cuItemCode: z.string().optional(),
   materialDescription: z.string().optional(),
-  variations: z.array(createVariationItemSchema).optional(),
 });
 
 export const updateProductSchema = z.object({
@@ -100,14 +100,17 @@ export const updateProductSchema = z.object({
   materialRate: z.number().nonnegative("Rate cannot be negative").optional(),
   cuItemCode: z.string().optional(),
   categoryId: z.number().int().positive().optional(),
+  variationId: z.number().int().positive().optional(),
+  colorId: z.number().int().positive().optional(),
+  size: z.string().min(1).optional(),
   unitId: z.number().int().positive().optional(),
   materialDescription: z.string().optional(),
   isActive: z.boolean().optional(),
   variations: z.array(updateVariationItemSchema).optional(),
 });
 
-export const productMatrixSchema = z.object({
-  fkLuColorId: z
+export const productVariationSchema = z.object({
+  colorId: z
     .number({ required_error: "Color ID is required" })
     .int()
     .positive("Valid color ID is required"),
@@ -117,7 +120,7 @@ export const productMatrixSchema = z.object({
   size: z
     .string({ required_error: "Size is required" })
     .min(1, "Size is required"),
-  matrixId: z.number().int().nonnegative().optional(),
+  variationId: z.number().int().nonnegative().optional(),
 });
 
 // ----------------------------------------------------------------------------
@@ -271,4 +274,11 @@ export const createAddressSchema = z.object({
   pincode: z.string().min(1, "Pincode is required"),
   country: z.string().optional(),
   isDefault: z.boolean().optional(),
+});
+
+// ----------------------------------------------------------------------------
+// COMMON SCHEMAS
+// ----------------------------------------------------------------------------
+export const statusToggleSchema = z.object({
+  isActive: z.boolean({ required_error: "isActive boolean is required" }),
 });

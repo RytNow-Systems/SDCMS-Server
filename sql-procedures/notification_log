@@ -1,0 +1,21 @@
+Table: notification_log
+
+Columns:
+	PkNotificationLogId	int(11) AI PK
+	FkParcelDetailsId	int(11)
+	FkReceiverDetailsId	int(11)
+	FkNotificationTypeId	int(11)
+	FkClientId	int(11)
+	FkPlantId	int(11)
+	FkReasonId	int(11)
+	FkReasonDetailsId	int(11)
+	AppSendStatusId	int(11)
+	SMSSendStatusId	int(11)
+	EmailSendStatusId	int(11)
+	LastNotificationTime	datetime
+	LastNotificationLevel	int(11)
+	IsActive	tinyint(1)
+	RequestedBy	int(11)
+	IsPaymentCheck	tinyint(1)
+
+	---
