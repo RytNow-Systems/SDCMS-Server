@@ -303,7 +303,7 @@ class EmployeeRepository {
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
       // First fetch existing to retain values not being updated
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, { includeDeleted: true });
       if (!existing) return null;
 
       const [rows] = await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
@@ -319,7 +319,7 @@ class EmployeeRepository {
         updateData.IsActive !== undefined ? (updateData.IsActive ? 1 : 0) : existing.IsActive
       ]);
       
-      return rows[0]?.[0] || await this.findById(id);
+      return rows[0]?.[0] || await this.findById(id, { includeDeleted: true });
     }
 
     // ------------------------------------------------------------------
@@ -346,7 +346,7 @@ class EmployeeRepository {
     // LIVE DB MODE: toggle access via findById + prc_employee_master_set
     // ------------------------------------------------------------------
     if (process.env.USE_MOCK_DB !== 'true') {
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, { includeDeleted: true });
       if (!existing) return null;
 
       await db.execute('CALL prc_employee_master_set(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
@@ -362,7 +362,7 @@ class EmployeeRepository {
         existing.IsActive
       ]);
       
-      return await this.findById(id);
+      return await this.findById(id, { includeDeleted: true });
     }
 
     // ------------------------------------------------------------------

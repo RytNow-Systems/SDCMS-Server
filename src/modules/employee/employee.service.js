@@ -77,7 +77,7 @@ class EmployeeService {
    * Get an employee by ID
    */
   async getEmployeeById(id) {
-    const employee = await employeeRepository.findById(id);
+    const employee = await employeeRepository.findById(id, { includeDeleted: true });
     if (!employee) {
       const error = new Error('Employee not found');
       error.statusCode = 404;
@@ -122,7 +122,7 @@ class EmployeeService {
    * Update an existing employee
    */
   async updateEmployee(id, employeeData) {
-    const existingEmployee = await employeeRepository.findById(id);
+    const existingEmployee = await employeeRepository.findById(id, { includeDeleted: true });
     if (!existingEmployee) {
       const error = new Error('Employee not found');
       error.statusCode = 404;
