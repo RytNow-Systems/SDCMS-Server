@@ -95,27 +95,53 @@ class BulkUploadRepository {
   }
 
   /**
-   * Get bulk upload sessions.
-   * Procedure: CALL prc_bulk_upload_sessions_get(pAction, pId)
+   * Get a paginated, filtered list of bulk upload sessions.
+   * Procedure: CALL prc_bulk_upload_sessions_get(0, pPage, pLimit, pStartDate, pEndDate, pStatus, NULL)
    *
-   * @param {number} pAction - 0: all, 1: by ID.
-   * @param {number|null} pId - Session ID when pAction=1.
-   * @returns {Promise<Array|object>}
+   * @param {object} opts
+   * @param {number} opts.page        - 1-based page number.
+   * @param {number} opts.limit       - Rows per page.
+   * @param {string|null} opts.startDate - ISO date string filter (inclusive).
+   * @param {string|null} opts.endDate   - ISO date string filter (inclusive).
+   * @param {string|null} opts.status    - Status enum filter.
+   * @returns {Promise<{ sessions: Array, totalCount: number }>}
    */
-  async getSessions(pAction, pId = null) {
+  async getSessions({ page = 1, limit = 10, startDate = null, endDate = null, status = null } = {}) {
     if (process.env.USE_MOCK_DB !== 'true') {
       const [rows] = await db.execute(
-        'CALL prc_bulk_upload_sessions_get(?, ?)',
-        [pAction, pId],
+        'CALL prc_bulk_upload_sessions_get(?, ?, ?, ?, ?, ?, ?)',
+        [0, page, limit, startDate ?? null, endDate ?? null, status ?? null, null],
       );
-      return pAction === 1 ? rows[0][0] : rows[0];
+      return { totalCount: rows[0]?.[0]?.totalCount ?? 0, sessions: rows[1] ?? [] };
     }
-    if (pAction === 1) {
-      return (
-        mockSessions.find((s) => s.PkBulkUploadId === parseInt(pId)) || null
+    let filtered = [...mockSessions];
+    if (startDate) filtered = filtered.filter((s) => s.UploadedAt >= startDate);
+    if (endDate)   filtered = filtered.filter((s) => s.UploadedAt <= endDate);
+    if (status)    filtered = filtered.filter((s) => s.Status === status);
+    const totalCount = filtered.length;
+    const offset = (page - 1) * limit;
+    return { totalCount, sessions: filtered.slice(offset, offset + limit) };
+  }
+
+  /**
+   * Get a single bulk upload session and its linked order IDs.
+   * Procedure: CALL prc_bulk_upload_sessions_get(1, NULL, NULL, NULL, NULL, NULL, pSessionId)
+   *
+   * @param {number} sessionId - PK of the bulk upload session.
+   * @returns {Promise<{ session: object|null, orderIds: number[] }>}
+   */
+  async getSessionById(sessionId) {
+    if (process.env.USE_MOCK_DB !== 'true') {
+      const [rows] = await db.execute(
+        'CALL prc_bulk_upload_sessions_get(?, ?, ?, ?, ?, ?, ?)',
+        [1, null, null, null, null, null, sessionId],
       );
+      const session = rows[0]?.[0] ?? null;
+      const orderIds = (rows[1] ?? []).map((r) => r.orderId);
+      return { session, orderIds };
     }
-    return mockSessions;
+    const session = mockSessions.find((s) => s.PkBulkUploadId === parseInt(sessionId)) || null;
+    return { session, orderIds: [] };
   }
 
   /**
@@ -243,30 +269,7 @@ class BulkUploadRepository {
     return mapping;
   }
 
-  // ============================================================================
-  // DETAIL RETRIEVAL (READ)
-  // ============================================================================
-
-  /**
-   * Get individual row details for a bulk upload session.
-   * Procedure: CALL prc_bulk_upload_errors_get(pAction, pSessionId)
-   *
-   * @param {number} pAction    - 0: by Session ID.
-   * @param {number} sessionId  - The session ID.
-   * @returns {Promise<Array>}
-   */
-  async getSessionDetails(pAction, sessionId) {
-    if (process.env.USE_MOCK_DB !== 'true') {
-      const [rows] = await db.execute(
-        'CALL prc_bulk_upload_errors_get(?, ?)',
-        [pAction, sessionId],
-      );
-      return rows[0];
-    }
-    return mockErrors.filter(
-      (e) => e.FkBulkUploadId === parseInt(sessionId),
-    );
-  }
 }
+
 
 export default new BulkUploadRepository();

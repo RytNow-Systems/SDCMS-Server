@@ -61,12 +61,28 @@ END
 ---
 
 CREATE DEFINER=`user`@`%` PROCEDURE `prc_bulk_upload_sessions_get`(
-  IN pAction INT,
-  IN pPkBulkUploadId INT
+  IN pAction    INT,
+  IN pPage      INT,
+  IN pLimit     INT,
+  IN pStartDate VARCHAR(50),
+  IN pEndDate   VARCHAR(50),
+  IN pStatus    VARCHAR(50),
+  IN pSessionId INT
 )
 BEGIN
-  -- pAction = 0: all sessions (most recent first)
+  DECLARE vOffset INT;
+
+  -- pAction = 0: paginated list with optional date/status filters
+  -- Returns two result sets: [{ totalCount }], [session rows]
   IF pAction = 0 THEN
+    SET vOffset = (pPage - 1) * pLimit;
+
+    SELECT COUNT(*) AS totalCount
+    FROM bulk_upload_sessions
+    WHERE (pStartDate IS NULL OR DATE(UploadedAt) >= pStartDate)
+      AND (pEndDate   IS NULL OR DATE(UploadedAt) <= pEndDate)
+      AND (pStatus    IS NULL OR Status = pStatus);
+
     SELECT
       PkBulkUploadId,
       SessionHash,
@@ -78,10 +94,15 @@ BEGIN
       FkUploadedByEmployeeCode,
       UploadedAt
     FROM bulk_upload_sessions
-    ORDER BY PkBulkUploadId DESC;
+    WHERE (pStartDate IS NULL OR DATE(UploadedAt) >= pStartDate)
+      AND (pEndDate   IS NULL OR DATE(UploadedAt) <= pEndDate)
+      AND (pStatus    IS NULL OR Status = pStatus)
+    ORDER BY PkBulkUploadId DESC
+    LIMIT pLimit OFFSET vOffset;
   END IF;
 
-  -- pAction = 1: single session by ID
+  -- pAction = 1: single session details + linked order IDs
+  -- Returns two result sets: [session row], [{ orderId }]
   IF pAction = 1 THEN
     SELECT
       PkBulkUploadId,
@@ -94,7 +115,11 @@ BEGIN
       FkUploadedByEmployeeCode,
       UploadedAt
     FROM bulk_upload_sessions
-    WHERE PkBulkUploadId = pPkBulkUploadId;
+    WHERE PkBulkUploadId = pSessionId;
+
+    SELECT FkOrderId AS orderId
+    FROM bulk_upload_order_mapping
+    WHERE FkBulkUploadId = pSessionId;
   END IF;
 END
 ---

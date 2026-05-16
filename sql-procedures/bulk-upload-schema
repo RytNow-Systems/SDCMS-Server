@@ -26,3 +26,17 @@ CREATE TABLE BulkUploadErrors (
   CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
+
+### **Table 3: `bulk_upload_order_mapping`**
+
+Junction table. Answers: "This bulk upload session created which orders?"
+One row per successfully created order. Used by `GET /bulk-uploads/:id` to return `createdOrderIds`.
+
+```sql
+CREATE TABLE IF NOT EXISTS bulk_upload_order_mapping (
+  PkMappingId    INT PRIMARY KEY AUTO_INCREMENT,
+  FkBulkUploadId INT NOT NULL, -- LOGICAL KEY → BulkUploadSessions.PkBulkUploadId
+  FkOrderId      INT NOT NULL, -- LOGICAL KEY → order_master.PkOrderId
+  CreatedDate    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```

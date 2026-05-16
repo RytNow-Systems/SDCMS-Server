@@ -253,27 +253,27 @@ describe('Bulk Upload — GET sessions', () => {
 
     expect(status).toBe(200);
     expect(body.success).toBe(true);
-    expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data.length).toBeGreaterThan(0);
+    expect(Array.isArray(body.data.sessions)).toBe(true);
+    expect(body.data.totalCount).toBeGreaterThan(0);
 
-    const s = body.data[0];
+    const s = body.data.sessions[0];
     expect(s.sessionId).toBeDefined();
     expect(s.sessionHash).toBeDefined();
     expect(s.totalRows).toBeDefined();
     expect(s.uploadedAt).toBeDefined();
   });
 
-  it('GET /:id returns session + details for known session', async () => {
+  it('GET /:id returns sessionDetails + createdOrderIds for known session', async () => {
     const { body: listBody } = await get('/bulk-uploads', TOKEN);
-    const firstId = listBody.data?.[0]?.sessionId;
+    const firstId = listBody.data?.sessions?.[0]?.sessionId;
     if (!firstId) return;
 
     const { status, body } = await get(`/bulk-uploads/${firstId}`, TOKEN);
     expect(status).toBe(200);
     expect(body.success).toBe(true);
-    expect(body.data.session).toBeDefined();
-    expect(body.data.session.sessionId).toBe(firstId);
-    expect(Array.isArray(body.data.details)).toBe(true);
+    expect(body.data.sessionDetails).toBeDefined();
+    expect(body.data.sessionDetails.sessionId).toBe(firstId);
+    expect(Array.isArray(body.data.createdOrderIds)).toBe(true);
   });
 
   it('GET /:id returns 404 for nonexistent session', async () => {
