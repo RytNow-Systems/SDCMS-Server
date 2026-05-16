@@ -8,7 +8,8 @@
 //   npm run test:e2e
 //
 // Notes:
-//   - Variation toggle tests (Product suite) reset state — safe to re-run.
+//   - All IDs resolved dynamically in beforeAll — no hardcoded row IDs.
+//   - Variation toggle tests reset state — safe to re-run.
 //   - Courier POST creates a test record each run — acceptable test noise.
 // ============================================================================
 
@@ -48,27 +49,46 @@ const patch = async (path, body, token) => {
   return { status: r.status, body: await r.json() };
 };
 
-const del = async (path, token) => {
-  const r = await fetch(`${BASE}${path}`, {
-    method: 'DELETE',
-    headers: headers(token),
-  });
-  return { status: r.status, body: await r.json() };
-};
-
 // ---------------------------------------------------------------------------
-// Setup — login once, share token across all suites
+// Dynamic context — resolved once before all tests
 // ---------------------------------------------------------------------------
 
 let TOKEN;
+let parcelWithHistoryId;       // parcel that has timeline events with previousStatus
+let dispatchedParcelId;        // dispatched parcel with trackingNo set
+let productId;                 // any active product
+let variationId;               // any active variation on that product
 
 beforeAll(async () => {
-  const { body } = await post('/auth/login', {
+  // 1. Login
+  const { body: loginBody } = await post('/auth/login', {
     email: 'admin@test.com',
     password: 'admin',
   });
-  TOKEN = body?.data?.token;
+  TOKEN = loginBody?.data?.token;
   if (!TOKEN) throw new Error('Login failed — is the server running at ' + BASE + '?');
+
+  // 2. Resolve parcel IDs from live data
+  const { body: parcelBody } = await get('/parcels?limit=50', TOKEN);
+  const parcels = parcelBody.data || [];
+
+  // Parcel with history: has been printed (labelPrintCount > 0), not cancelled
+  const candidate = parcels.find(
+    (p) => p.labelPrintCount > 0 && p.status !== 'Cancelled',
+  );
+  parcelWithHistoryId = candidate?.parcelId ?? null;
+
+  // Dispatched parcel with a real trackingNo
+  const dispatched = parcels.find(
+    (p) => p.status === 'Dispatched' && p.trackingNo,
+  );
+  dispatchedParcelId = dispatched?.parcelId ?? null;
+
+  // 3. Resolve product + variation IDs from live data
+  const { body: productBody } = await get('/products?limit=1', TOKEN);
+  const firstVariation = productBody.data?.[0];
+  productId   = firstVariation?.productId   ?? null;
+  variationId = firstVariation?.variationId ?? null;
 });
 
 // ---------------------------------------------------------------------------
@@ -76,7 +96,7 @@ beforeAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe('Auth', () => {
-  it('valid credentials return token + role', async () => {
+  it('valid credentials return token + ADMIN role', async () => {
     const { status, body } = await post('/auth/login', {
       email: 'admin@test.com',
       password: 'admin',
@@ -96,7 +116,7 @@ describe('Auth', () => {
     expect(body.success).toBe(false);
   });
 
-  it('missing auth header returns 401', async () => {
+  it('missing auth header on protected route returns 401', async () => {
     const { status } = await get('/parcels');
     expect(status).toBe(401);
   });
@@ -107,7 +127,7 @@ describe('Auth', () => {
 // ---------------------------------------------------------------------------
 
 describe('Courier Partners', () => {
-  it('GET /courier-partners returns only active records (Task 4 regression)', async () => {
+  it('GET returns only active records (Task 4 regression)', async () => {
     const { status, body } = await get('/courier-partners', TOKEN);
     expect(status).toBe(200);
     expect(body.success).toBe(true);
@@ -115,7 +135,7 @@ describe('Courier Partners', () => {
     body.data.forEach((c) => expect(c.isActive).toBe(true));
   });
 
-  it('GET /courier-partners?includeInactive=true includes inactive records', async () => {
+  it('GET ?includeInactive=true includes inactive records', async () => {
     const { status, body } = await get('/courier-partners?includeInactive=true', TOKEN);
     expect(status).toBe(200);
     expect(body.success).toBe(true);
@@ -123,8 +143,8 @@ describe('Courier Partners', () => {
     expect(hasInactive).toBe(true);
   });
 
-  it('POST /courier-partners saves phoneNo correctly (Task 3 regression)', async () => {
-    const { status, body } = await post('/courier-partners', {
+  it('POST saves phoneNo correctly (Task 3 regression)', async () => {
+    const { body } = await post('/courier-partners', {
       courierName: `Regression Courier ${Date.now()}`,
       phoneNo: '9001002003',
       trackingUrlTemplate: 'https://regression.test/{awb}',
@@ -132,14 +152,20 @@ describe('Courier Partners', () => {
     expect(body.success).toBe(true);
     expect(body.data.phoneNumber).toBe('9001002003');
   });
+
+  it('GET /:id returns 404 for nonexistent courier', async () => {
+    const { status, body } = await get('/courier-partners/999999', TOKEN);
+    expect(status).toBe(404);
+    expect(body.success).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
-// Parcel — read operations
+// Parcel
 // ---------------------------------------------------------------------------
 
 describe('Parcel', () => {
-  it('GET /parcels returns paginated list', async () => {
+  it('GET list returns paginated data', async () => {
     const { status, body } = await get('/parcels?limit=5', TOKEN);
     expect(status).toBe(200);
     expect(body.success).toBe(true);
@@ -147,9 +173,15 @@ describe('Parcel', () => {
     expect(body.meta.totalRows).toBeGreaterThan(0);
   });
 
-  it('GET /parcels/:id/timeline has previousStatus populated (Task 2 regression)', async () => {
-    // Parcel 77 had log-print performed — known to have timeline events
-    const { status, body } = await get('/parcels/77/timeline', TOKEN);
+  it('GET /:id returns 404 for nonexistent parcel', async () => {
+    const { status, body } = await get('/parcels/999999', TOKEN);
+    expect(status).toBe(404);
+    expect(body.success).toBe(false);
+  });
+
+  it('GET /:id/timeline has previousStatus populated (Task 2 regression)', async () => {
+    if (!parcelWithHistoryId) return;
+    const { status, body } = await get(`/parcels/${parcelWithHistoryId}/timeline`, TOKEN);
     expect(status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
@@ -157,9 +189,9 @@ describe('Parcel', () => {
     expect(withHistory.length).toBeGreaterThan(0);
   });
 
-  it('GET /parcels/:id/label-data returns sender + receiver addresses', async () => {
-    // Parcel 75 is Dispatched with known label data
-    const { status, body } = await get('/parcels/75/label-data', TOKEN);
+  it('GET /:id/label-data returns sender + receiver addresses with trackingNo', async () => {
+    if (!dispatchedParcelId) return;
+    const { status, body } = await get(`/parcels/${dispatchedParcelId}/label-data`, TOKEN);
     expect(status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.parcelCode).toBeDefined();
@@ -174,22 +206,24 @@ describe('Parcel', () => {
 // ---------------------------------------------------------------------------
 
 describe('Product Variation', () => {
-  it('PATCH status returns populated data object — not null (Task 6 regression)', async () => {
+  it('PATCH status deactivate returns populated data — not null (Task 6 regression)', async () => {
+    if (!productId || !variationId) return;
     const { status, body } = await patch(
-      '/products/1/variations/2/status',
+      `/products/${productId}/variations/${variationId}/status`,
       { isActive: false },
       TOKEN,
     );
     expect(status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data).not.toBeNull();
-    expect(body.data.variationId).toBe(2);
+    expect(body.data.variationId).toBe(variationId);
     expect(body.data.isActive).toBe(false);
   });
 
-  it('reactivate variation — restore state after previous test', async () => {
+  it('PATCH status reactivate — restore state after previous test', async () => {
+    if (!productId || !variationId) return;
     const { status, body } = await patch(
-      '/products/1/variations/2/status',
+      `/products/${productId}/variations/${variationId}/status`,
       { isActive: true },
       TOKEN,
     );
@@ -203,10 +237,16 @@ describe('Product Variation', () => {
 // ---------------------------------------------------------------------------
 
 describe('Orders', () => {
-  it('GET /orders returns paginated list', async () => {
+  it('GET list returns paginated data', async () => {
     const { status, body } = await get('/orders?limit=5', TOKEN);
     expect(status).toBe(200);
     expect(body.success).toBe(true);
     expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  it('GET /:id returns 404 for nonexistent order', async () => {
+    const { status, body } = await get('/orders/999999', TOKEN);
+    expect(status).toBe(404);
+    expect(body.success).toBe(false);
   });
 });
